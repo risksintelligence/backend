@@ -18,8 +18,8 @@ redis==5.0.1
 hiredis==2.2.3
 
 # Data Processing - Compatible with Python 3.13
-pandas==2.2.0
-numpy==1.26.0
+pandas==2.2.3
+numpy==1.26.4
 scipy==1.11.4
 
 # Machine Learning - Python 3.13 compatible versions
