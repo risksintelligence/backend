@@ -12,9 +12,14 @@ services:
     startCommand: "./start.sh"
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: riskx-postgres
+          property: connectionString
       - key: REDIS_URL  
-        sync: false
+        fromService:
+          type: redis
+          name: riskx-redis
+          property: connectionString
       - key: FRED_API_KEY
         sync: false
       - key: CENSUS_API_KEY

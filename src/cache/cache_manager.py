@@ -59,6 +59,9 @@ class CacheManager:
             logger.warning("Redis unavailable, using PostgreSQL and file cache")
         
         logger.info(f"Cache manager initialized - Redis: {self.redis_available}, PostgreSQL: {self.postgres_available}, File: {self.file_available}")
+        
+        # Initialize default cache statistics to prevent fallback errors
+        self._initialize_cache_stats()
     
     def get(self, key: str, use_fallback: bool = True) -> Optional[Any]:
         """
@@ -111,6 +114,28 @@ class CacheManager:
         
         logger.debug(f"Cache miss: {key}")
         return None
+    
+    def _initialize_cache_stats(self) -> None:
+        """Initialize default cache statistics."""
+        try:
+            from datetime import datetime
+            default_stats = {
+                "hits": 0,
+                "misses": 0,
+                "total_keys": 0,
+                "redis_available": self.redis_available,
+                "postgres_available": self.postgres_available,
+                "file_available": self.file_available,
+                "initialized_at": datetime.utcnow().isoformat()
+            }
+            
+            # Set in file cache as it's always available
+            if self.file_available:
+                self.file_cache.set("cache_stats", default_stats, ttl=86400)  # 24 hours
+                logger.debug("Initialized default cache statistics")
+                
+        except Exception as e:
+            logger.warning(f"Failed to initialize cache statistics: {e}")
     
     def set(
         self, 
