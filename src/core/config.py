@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     redis_expire_time: int = 3600
     cache_ttl: int = 1800
+    enable_redis: bool = True
+    enable_postgres_cache: bool = True
     
     # External APIs
     fred_api_key: Optional[str] = None

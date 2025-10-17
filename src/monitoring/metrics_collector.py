@@ -361,12 +361,46 @@ class MetricsCollector:
             logger.error(f"Error generating data quality report: {e}")
             return {"error": str(e)}
     
+    async def collect_system_metrics(self):
+        """Collect current system metrics"""
+        try:
+            # Get system resource usage
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            # Get cache hit rate
+            cache_hit_rate = await self._calculate_cache_hit_rate()
+            
+            # Get active connections (approximate)
+            active_connections = len(psutil.net_connections())
+            
+            metric = SystemMetrics(
+                cpu_percent=cpu_percent,
+                memory_percent=memory.percent,
+                disk_usage_percent=disk.percent,
+                active_connections=active_connections,
+                cache_hit_rate=cache_hit_rate,
+                timestamp=datetime.now()
+            )
+            
+            self.system_metrics.append(metric)
+            
+            # Cache system metrics
+            cache_key = "system_metrics:latest"
+            self.cache.set(cache_key, asdict(metric), ttl=300)
+            
+            logger.debug(f"System metrics collected: CPU={cpu_percent}%, Memory={memory.percent}%")
+            
+        except Exception as e:
+            logger.error(f"Error collecting system metrics: {e}")
+    
     async def _calculate_cache_hit_rate(self) -> float:
         """Calculate cache hit rate"""
         try:
             # This is a simplified implementation
             # In a real system, you'd track hits and misses
-            cache_stats = await self.cache.get("cache_stats") or {"hits": 0, "misses": 0}
+            cache_stats = self.cache.get("cache_stats") or {"hits": 0, "misses": 0}
             total = cache_stats["hits"] + cache_stats["misses"]
             
             if total == 0:
@@ -406,15 +440,20 @@ metrics_collector = MetricsCollector()
 
 async def start_background_metrics_collection():
     """Start background task for continuous metrics collection"""
-    async def metrics_loop():
-        while True:
-            try:
-                await metrics_collector.collect_system_metrics()
-                await asyncio.sleep(60)  # Collect every minute
-            except Exception as e:
-                logger.error(f"Error in metrics collection loop: {e}")
-                await asyncio.sleep(60)
-    
-    # Start the background task
-    asyncio.create_task(metrics_loop())
-    logger.info("Background metrics collection started")
+    try:
+        async def metrics_loop():
+            logger.info("Background metrics collection started")
+            while True:
+                try:
+                    await metrics_collector.collect_system_metrics()
+                    await asyncio.sleep(60)  # Collect every minute
+                except Exception as e:
+                    logger.error(f"Error collecting system metrics: {e}")
+                    await asyncio.sleep(60)
+        
+        # Start the background task
+        asyncio.create_task(metrics_loop())
+        logger.info("Metrics collection background task started")
+        
+    except Exception as e:
+        logger.error(f"Failed to start background metrics collection: {e}")

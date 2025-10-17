@@ -26,14 +26,31 @@ class CacheManager:
     
     def __init__(self):
         """Initialize cache manager with all cache layers."""
-        self.redis_cache = RedisCache()
-        self.postgres_cache = PostgresCache()
+        from src.core.config import settings
+        
+        # Initialize caches only if enabled and available
+        self.redis_cache = None
+        self.postgres_cache = None
         self.file_cache = FileCache()
         self.fallback_handler = FallbackHandler()
         
+        # Initialize Redis cache if enabled
+        if settings.enable_redis:
+            try:
+                self.redis_cache = RedisCache()
+            except Exception as e:
+                logger.warning(f"Redis cache initialization failed: {e}")
+        
+        # Initialize PostgreSQL cache if enabled
+        if settings.enable_postgres_cache:
+            try:
+                self.postgres_cache = PostgresCache()
+            except Exception as e:
+                logger.warning(f"PostgreSQL cache initialization failed: {e}")
+        
         # Check which caches are available
-        self.redis_available = self.redis_cache.is_available()
-        self.postgres_available = self.postgres_cache.is_available()
+        self.redis_available = self.redis_cache is not None and self.redis_cache.is_available()
+        self.postgres_available = self.postgres_cache is not None and self.postgres_cache.is_available()
         self.file_available = self.file_cache.is_available()
         
         if not self.redis_available and not self.postgres_available:
