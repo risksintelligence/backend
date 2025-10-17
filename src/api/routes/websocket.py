@@ -8,9 +8,8 @@ from typing import List
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import logging
 
-from ...data.storage.cache import get_cache_instance
-from ...utils.monitoring import get_monitoring_summary
-from ...utils.websocket_broadcaster import WebSocketBroadcaster, BroadcastMessage, MessageType
+from src.cache.cache_manager import CacheManager
+from src.ml.models.risk_scorer import BasicRiskScorer
 
 logger = logging.getLogger('riskx.api.routes.websocket')
 
@@ -52,9 +51,8 @@ class ConnectionManager:
             self.disconnect(connection)
 
 
-# Global connection manager and broadcaster
+# Global connection manager
 manager = ConnectionManager()
-broadcaster = WebSocketBroadcaster()
 
 
 @router.websocket("/risk-updates")
@@ -70,105 +68,71 @@ async def websocket_risk_updates(websocket: WebSocket):
     try:
         cache_manager = get_cache_instance()
         
+        # Initialize risk scoring components
+        cache_manager = CacheManager()
+        risk_scorer = BasicRiskScorer(cache_manager)
+        
         while True:
             try:
-                # Get cached risk data from our data infrastructure
-                risk_data = None
-                if cache_manager:
-                    risk_data = cache_manager.get("current_risk_score")
+                # Get current risk score using real FRED data and economic indicators
+                risk_score = await risk_scorer.calculate_risk_score(use_cache=True)
                 
-                if risk_data:
-                    # Use cached risk data
+                if risk_score and risk_score.factors:
+                    # Create real-time risk data from actual calculations
+                    risk_data = {
+                        "overall_score": round(risk_score.overall_score, 2),
+                        "risk_level": risk_score.risk_level,
+                        "confidence": round(risk_score.confidence, 3),
+                        "timestamp": risk_score.timestamp.isoformat(),
+                        "methodology_version": risk_score.methodology_version,
+                        "factors": [
+                            {
+                                "name": factor.name,
+                                "category": factor.category,
+                                "value": round(factor.value, 4),
+                                "normalized_value": round(factor.normalized_value, 4),
+                                "weight": round(factor.weight, 3),
+                                "description": factor.description,
+                                "confidence": round(factor.confidence, 3)
+                            }
+                            for factor in risk_score.factors
+                        ]
+                    }
+                    
+                    # Create WebSocket update message
                     update = {
                         "type": "risk_update",
                         "timestamp": datetime.utcnow().isoformat(),
-                        "data": risk_data
+                        "data": risk_data,
+                        "source": "fred_economic_data",
+                        "update_interval": 30
                     }
+                    
+                    logger.debug(f"Broadcasting risk update: score={risk_score.overall_score}, level={risk_score.risk_level}")
+                    
                 else:
-                    # Calculate risk based on available economic indicators
-                    from ...utils.monitoring import system_monitor
-                    
-                    # Get system health as a proxy for risk assessment
-                    system_metrics = system_monitor.get_metrics() if system_monitor else {}
-                    
-                    # Calculate risk score based on system performance
-                    cpu_usage = system_metrics.get('cpu_percent', 0)
-                    memory_usage = system_metrics.get('memory_percent', 0)
-                    disk_usage = system_metrics.get('disk_percent', 0)
-                    
-                    # System stress indicates potential risk
-                    system_stress = (cpu_usage + memory_usage + disk_usage) / 3
-                    base_risk = min(system_stress * 1.5, 100)  # Scale system stress to risk
-                    
-                    # Add economic uncertainty factor (would be from real economic data)
-                    overall_score = min(base_risk + 20, 100)  # Base economic risk
-                    
-                    # Determine risk level
-                    if overall_score < 30:
-                        risk_level = "low"
-                    elif overall_score < 60:
-                        risk_level = "moderate"
-                    else:
-                        risk_level = "high"
-                    
-                    # Create factors based on actual system data
-                    top_factors = [
-                        {
-                            "name": "system_performance",
-                            "value": system_stress,
-                            "normalized_value": system_stress / 100,
-                            "contribution": (system_stress / 100) * 0.3
-                        },
-                        {
-                            "name": "infrastructure_health",
-                            "value": 100 - cpu_usage,
-                            "normalized_value": (100 - cpu_usage) / 100,
-                            "contribution": ((100 - cpu_usage) / 100) * 0.25
-                        },
-                        {
-                            "name": "resource_availability",
-                            "value": 100 - memory_usage,
-                            "normalized_value": (100 - memory_usage) / 100,
-                            "contribution": ((100 - memory_usage) / 100) * 0.2
-                        }
-                    ]
-                    
-                    # Prepare update message
-                    update = {
-                        "type": "risk_update",
-                        "timestamp": datetime.utcnow().isoformat(),
-                        "data": {
-                            "overall_score": overall_score,
-                            "risk_level": risk_level,
-                            "confidence": 0.85,  # Based on system monitoring confidence
-                            "top_factors": top_factors
-                        }
-                    }
-                    
-                    # Cache the calculated risk data
-                    if cache_manager:
-                        cache_manager.set("current_risk_score", update["data"], ttl=30)
+                    logger.warning("Risk score calculation returned no data")
+                    continue
                 
-                # Send to this specific client and broadcast to all
+                # Send real-time update to connected client
                 try:
                     await websocket.send_text(json.dumps(update, default=str))
-                    # Also broadcast via WebSocketBroadcaster for centralized management
-                    broadcast_msg = BroadcastMessage(
-                        type=MessageType.RISK_UPDATE,
-                        data=update["data"],
-                        target_channels=["risk-updates"]
-                    )
-                    await broadcaster.queue_broadcast(broadcast_msg)
+                    logger.debug(f"Sent WebSocket update to client: {len(update['data']['factors'])} factors")
+                    
+                    # Cache the current risk data for other consumers
+                    cache_manager.set("websocket_risk_data", risk_data, ttl=60)
+                    
                 except Exception as send_error:
-                    logger.warning(f"Failed to send WebSocket data: {send_error}")
-                    break  # Exit the loop if we can't send data
-                logger.debug(f"Sent risk update: score={update['data']['overall_score']:.1f}, level={update['data']['risk_level']}")
+                    logger.error(f"Failed to send WebSocket update: {send_error}")
+                    break
                 
-                # Wait 5 seconds before next update (reduced from 30 for better responsiveness)
-                await asyncio.sleep(5)
+                # Wait 30 seconds before next update (FRED data updates every 30 minutes, 
+                # but we provide more frequent updates for better user experience)
+                await asyncio.sleep(30)
                 
             except Exception as e:
-                logger.error(f"Error generating risk data: {e}")
+                logger.error(f"Error in risk data generation: {e}")
+                await asyncio.sleep(10)  # Shorter wait on error
                 # Send error message but continue connection
                 error_msg = {
                     "type": "error",

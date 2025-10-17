@@ -49,6 +49,27 @@ class NetworkAnalysisResponse(BaseModel):
 
     class Config:
         allow_population_by_field_name = True
+
+
+class ShockSimulationRequest(BaseModel):
+    """Request model for shock simulation."""
+    shockedNode: str = Field(..., description="ID of the node receiving the shock")
+    shockMagnitude: float = Field(..., ge=0, le=100, description="Magnitude of the shock (0-100)")
+
+
+class ShockSimulationResponse(BaseModel):
+    """Response model for shock simulation results."""
+    originalRisks: Dict[str, float] = Field(..., alias="original_risks")
+    shockedRisks: Dict[str, float] = Field(..., alias="shocked_risks")
+    riskChanges: Dict[str, float] = Field(..., alias="risk_changes")
+    propagationPaths: List[List[str]] = Field(..., alias="propagation_paths")
+    totalSystemicImpact: float = Field(..., alias="total_systemic_impact")
+    affectedNodes: List[str] = Field(..., alias="affected_nodes")
+    timestamp: datetime
+    simulationId: str = Field(..., alias="simulation_id")
+
+    class Config:
+        allow_population_by_field_name = True
         json_schema_extra = {
             "example": {
                 "nodes": [
@@ -208,13 +229,28 @@ async def simulate_shock(request: ShockSimulationRequest):
             for node_id in original_risks.keys()
         }
         
+        # Calculate affected nodes (nodes with significant risk changes)
+        affected_nodes = [
+            node_id for node_id, change in risk_changes.items() 
+            if abs(change) > 1.0  # Threshold for significant impact
+        ]
+        
+        # Calculate total systemic impact
+        total_systemic_impact = sum(abs(change) for change in risk_changes.values())
+        
+        # Generate simulation ID
+        import uuid
+        simulation_id = str(uuid.uuid4())[:8]
+        
         return ShockSimulationResponse(
             original_risks=original_risks,
-            simulated_risks=simulated_risks,
+            shocked_risks=simulated_risks,
             risk_changes=risk_changes,
-            shocked_node=request.shockedNode,
-            shock_magnitude=request.shockMagnitude,
-            timestamp=datetime.utcnow()
+            propagation_paths=[],  # Simplified for now
+            total_systemic_impact=total_systemic_impact,
+            affected_nodes=affected_nodes,
+            timestamp=datetime.utcnow(),
+            simulation_id=simulation_id
         )
         
     except HTTPException:

@@ -50,12 +50,14 @@ class Settings(BaseSettings):
         "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", 
         "http://localhost:3003", "http://localhost:8000", "http://127.0.0.1:3000",
         "https://riskx.onrender.com", "https://riskx-backend.onrender.com", 
-        "https://riskx-frontend.onrender.com"
+        "https://riskx-frontend.onrender.com", "https://backend-1-il1e.onrender.com",
+        "https://frontend-1-il1e.onrender.com", "https://*.onrender.com"
     ]
     allowed_hosts: List[str] = [
         "localhost", "127.0.0.1", "0.0.0.0", 
         "riskx.onrender.com", "riskx-backend.onrender.com", 
-        "riskx-frontend.onrender.com"
+        "riskx-frontend.onrender.com", "backend-1-il1e.onrender.com",
+        "frontend-1-il1e.onrender.com", "*.onrender.com"
     ]
     
     # Monitoring
