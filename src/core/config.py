@@ -57,7 +57,9 @@ class Settings(BaseSettings):
         "localhost", "127.0.0.1", "0.0.0.0", 
         "riskx.onrender.com", "riskx-backend.onrender.com", 
         "riskx-frontend.onrender.com", "backend-1-il1e.onrender.com",
-        "frontend-1-il1e.onrender.com", "*.onrender.com"
+        "frontend-1-il1e.onrender.com", 
+        "backend-1-il1e.onrender.com", "frontend-1-il1e.onrender.com",
+        "*.onrender.com", "*"
     ]
     
     # Monitoring
