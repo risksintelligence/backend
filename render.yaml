@@ -3,10 +3,11 @@ services:
     name: riskx-backend
     env: python
     plan: free
-    runtime: python-3.11
+    runtime: python-3.11.10
     buildCommand: |
+      python --version
       pip install --upgrade pip
-      pip install --prefer-binary -r requirements.txt
+      pip install --only-binary=:all: --prefer-binary -r requirements.txt
     startCommand: "./start.sh"
     envVars:
       - key: DATABASE_URL

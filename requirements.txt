@@ -87,7 +87,7 @@ jsonschema==4.20.0
 # Web Scraping and Parsing
 beautifulsoup4==4.12.2
 bleach==6.1.0
-feedparser==6.0.10
+feedparser>=6.0.11
 
 # System Utilities
 psutil==5.9.6
