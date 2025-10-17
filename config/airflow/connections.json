@@ -1,0 +1,280 @@
+{
+  "connections": [
+    {
+      "conn_id": "postgres_default",
+      "conn_type": "postgres",
+      "description": "Default PostgreSQL connection for RiskX",
+      "host": "localhost",
+      "login": "riskx_write",
+      "password": "your_postgres_password",
+      "schema": "riskx",
+      "port": 5432,
+      "extra": {
+        "sslmode": "require",
+        "options": "-c search_path=risk_intelligence,economic_data,supply_chain,financial_data,ml_models,audit,public"
+      }
+    },
+    {
+      "conn_id": "redis_default",
+      "conn_type": "redis",
+      "description": "Default Redis connection for caching",
+      "host": "localhost",
+      "password": "your_redis_password",
+      "port": 6379,
+      "extra": {
+        "db": 0,
+        "socket_timeout": 30,
+        "socket_connect_timeout": 30,
+        "socket_keepalive": true,
+        "socket_keepalive_options": {}
+      }
+    },
+    {
+      "conn_id": "fred_api",
+      "conn_type": "http",
+      "description": "Federal Reserve Economic Data API",
+      "host": "https://api.stlouisfed.org",
+      "extra": {
+        "api_key": "your_fred_api_key",
+        "file_type": "json",
+        "realtime_start": "1776-07-04",
+        "realtime_end": "9999-12-31"
+      }
+    },
+    {
+      "conn_id": "census_api",
+      "conn_type": "http",
+      "description": "U.S. Census Bureau API",
+      "host": "https://api.census.gov",
+      "extra": {
+        "api_key": "your_census_api_key",
+        "format": "json"
+      }
+    },
+    {
+      "conn_id": "bea_api",
+      "conn_type": "http",
+      "description": "Bureau of Economic Analysis API",
+      "host": "https://apps.bea.gov",
+      "extra": {
+        "api_key": "your_bea_api_key",
+        "format": "json",
+        "method": "GetData"
+      }
+    },
+    {
+      "conn_id": "bls_api",
+      "conn_type": "http",
+      "description": "Bureau of Labor Statistics API",
+      "host": "https://api.bls.gov",
+      "extra": {
+        "api_key": "your_bls_api_key",
+        "output_type": "json",
+        "series_limit": 50
+      }
+    },
+    {
+      "conn_id": "fdic_api",
+      "conn_type": "http",
+      "description": "FDIC Banking Data API",
+      "host": "https://banks.data.fdic.gov",
+      "extra": {
+        "format": "json",
+        "download": false,
+        "filename": ""
+      }
+    },
+    {
+      "conn_id": "noaa_api",
+      "conn_type": "http",
+      "description": "NOAA Climate Data API",
+      "host": "https://www.ncdc.noaa.gov",
+      "extra": {
+        "token": "your_noaa_token",
+        "format": "json",
+        "limit": 1000
+      }
+    },
+    {
+      "conn_id": "cisa_api",
+      "conn_type": "http",
+      "description": "CISA Cybersecurity Advisories API",
+      "host": "https://www.cisa.gov",
+      "extra": {
+        "format": "json"
+      }
+    },
+    {
+      "conn_id": "bis_api",
+      "conn_type": "http",
+      "description": "Bank for International Settlements API",
+      "host": "https://www.bis.org",
+      "extra": {
+        "format": "json",
+        "compress": "gzip"
+      }
+    },
+    {
+      "conn_id": "usgs_api",
+      "conn_type": "http",
+      "description": "USGS Earthquake Data API",
+      "host": "https://earthquake.usgs.gov",
+      "extra": {
+        "format": "geojson",
+        "limit": 20000
+      }
+    },
+    {
+      "conn_id": "trends_api",
+      "conn_type": "http",
+      "description": "Google Trends API",
+      "host": "https://trends.google.com",
+      "extra": {
+        "format": "json",
+        "category": 0,
+        "geo": "US"
+      }
+    },
+    {
+      "conn_id": "gdelt_api",
+      "conn_type": "http",
+      "description": "GDELT Global Events API",
+      "host": "https://api.gdeltproject.org",
+      "extra": {
+        "format": "json",
+        "mode": "artlist",
+        "maxrecords": 250
+      }
+    },
+    {
+      "conn_id": "imf_api",
+      "conn_type": "http",
+      "description": "International Monetary Fund API",
+      "host": "http://dataservices.imf.org",
+      "extra": {
+        "format": "json"
+      }
+    },
+    {
+      "conn_id": "mlflow_tracking",
+      "conn_type": "http",
+      "description": "MLflow Model Registry",
+      "host": "http://localhost:5000",
+      "extra": {
+        "tracking_uri": "http://localhost:5000",
+        "registry_uri": "http://localhost:5000"
+      }
+    },
+    {
+      "conn_id": "riskx_api",
+      "conn_type": "http",
+      "description": "RiskX Internal API",
+      "host": "http://localhost:8000",
+      "extra": {
+        "timeout": 30,
+        "verify": true
+      }
+    },
+    {
+      "conn_id": "smtp_default",
+      "conn_type": "smtp",
+      "description": "SMTP for email notifications",
+      "host": "smtp.gmail.com",
+      "login": "alerts@riskx.observatory",
+      "password": "your_smtp_password",
+      "port": 587,
+      "extra": {
+        "smtp_starttls": true,
+        "smtp_ssl": false,
+        "smtp_timeout": 30,
+        "smtp_retry_limit": 5
+      }
+    },
+    {
+      "conn_id": "s3_backup",
+      "conn_type": "aws",
+      "description": "AWS S3 for data backups",
+      "login": "your_aws_access_key",
+      "password": "your_aws_secret_key",
+      "extra": {
+        "region_name": "us-east-1",
+        "session_token": "",
+        "config_kwargs": {
+          "retries": {
+            "mode": "adaptive",
+            "max_attempts": 10
+          }
+        }
+      }
+    },
+    {
+      "conn_id": "webhook_alerts",
+      "conn_type": "http",
+      "description": "Webhook for critical alerts",
+      "host": "https://hooks.slack.com",
+      "extra": {
+        "webhook_token": "your_webhook_token",
+        "username": "RiskX Bot",
+        "channel": "#risk-alerts",
+        "icon_emoji": ":warning:"
+      }
+    },
+    {
+      "conn_id": "elasticsearch_logs",
+      "conn_type": "elasticsearch",
+      "description": "Elasticsearch for log aggregation",
+      "host": "localhost",
+      "port": 9200,
+      "extra": {
+        "http_compress": true,
+        "timeout": 30,
+        "max_retries": 3,
+        "retry_on_timeout": true
+      }
+    }
+  ],
+  "variables": {
+    "data_refresh_schedule": "0 */6 * * *",
+    "model_training_schedule": "0 2 * * 0",
+    "alert_email_recipients": "alerts@riskx.observatory,admin@riskx.observatory",
+    "risk_calculation_batch_size": "1000",
+    "cache_invalidation_interval": "3600",
+    "backup_retention_days": "90",
+    "log_retention_days": "30",
+    "max_concurrent_tasks": "10",
+    "api_rate_limit_per_minute": "1000",
+    "critical_risk_threshold": "80",
+    "high_risk_threshold": "60",
+    "moderate_risk_threshold": "40",
+    "model_performance_threshold": "0.85",
+    "data_quality_threshold": "0.95",
+    "system_health_check_interval": "300"
+  },
+  "pools": [
+    {
+      "pool": "data_ingestion_pool",
+      "slots": 5,
+      "description": "Pool for data ingestion tasks from external APIs"
+    },
+    {
+      "pool": "ml_training_pool",
+      "slots": 2,
+      "description": "Pool for machine learning model training tasks"
+    },
+    {
+      "pool": "risk_calculation_pool",
+      "slots": 3,
+      "description": "Pool for risk score calculation tasks"
+    },
+    {
+      "pool": "notification_pool",
+      "slots": 10,
+      "description": "Pool for alert and notification tasks"
+    },
+    {
+      "pool": "backup_pool",
+      "slots": 1,
+      "description": "Pool for backup and maintenance tasks"
+    }
+  ]
+}

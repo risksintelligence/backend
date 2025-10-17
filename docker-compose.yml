@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: riskx_postgres
+    environment:
+      POSTGRES_DB: riskx
+      POSTGRES_USER: riskx_user
+      POSTGRES_PASSWORD: riskx_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U riskx_user -d riskx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cache
+  redis:
+    image: redis:7-alpine
+    container_name: riskx_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Backend
+  api:
+    build:
+      context: .
+      dockerfile: deployments/docker/api.Dockerfile
+    container_name: riskx_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://riskx_user:riskx_password@postgres:5432/riskx
+      - REDIS_URL=redis://redis:6379
+      - DEBUG=true
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: deployments/docker/frontend.Dockerfile
+    container_name: riskx_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_APP_NAME=RiskX
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+  # MLflow
+  mlflow:
+    image: python:3.11-slim
+    container_name: riskx_mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=postgresql://riskx_user:riskx_password@postgres:5432/mlflow
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    command: >
+      bash -c "
+        pip install mlflow psycopg2-binary &&
+        mlflow server 
+        --backend-store-uri postgresql://riskx_user:riskx_password@postgres:5432/mlflow
+        --default-artifact-root /mlflow/artifacts
+        --host 0.0.0.0
+        --port 5000
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ETL Scheduler (Airflow)
+  airflow-webserver:
+    image: apache/airflow:2.7.2-python3.11
+    container_name: riskx_airflow_webserver
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://riskx_user:riskx_password@postgres:5432/airflow
+      - AIRFLOW__WEBSERVER__SECRET_KEY=riskx_secret_key
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./etl:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./config/airflow:/opt/airflow/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -c "
+        airflow db init &&
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@riskx.ai &&
+        airflow webserver
+      "
+
+  airflow-scheduler:
+    image: apache/airflow:2.7.2-python3.11
+    container_name: riskx_airflow_scheduler
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://riskx_user:riskx_password@postgres:5432/airflow
+    volumes:
+      - ./etl:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./config/airflow:/opt/airflow/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: airflow scheduler
+
+volumes:
+  postgres_data:
+  redis_data:
+  mlflow_data:

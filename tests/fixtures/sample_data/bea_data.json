@@ -1,0 +1,76 @@
+{
+  "BEAAPI": {
+    "Results": {
+      "Statistic": "National Income and Product Accounts",
+      "UTCProductionTime": "2024-01-15T10:30:00",
+      "Data": [
+        {
+          "TableName": "T10101",
+          "SeriesCode": "A191RL",
+          "LineCode": "1",
+          "LineDescription": "Gross domestic product",
+          "TimePeriod": "2023Q4",
+          "METRIC_NAME": "Percent change from preceding period",
+          "CL_UNIT": "Percent",
+          "UNIT_MULT": "0",
+          "DataValue": "3.3"
+        },
+        {
+          "TableName": "T10101",
+          "SeriesCode": "A191RL",
+          "LineCode": "1",
+          "LineDescription": "Gross domestic product",
+          "TimePeriod": "2023Q3",
+          "METRIC_NAME": "Percent change from preceding period",
+          "CL_UNIT": "Percent",
+          "UNIT_MULT": "0",
+          "DataValue": "4.9"
+        },
+        {
+          "TableName": "T10101",
+          "SeriesCode": "A191RL",
+          "LineCode": "1",
+          "LineDescription": "Gross domestic product",
+          "TimePeriod": "2023Q2",
+          "METRIC_NAME": "Percent change from preceding period",
+          "CL_UNIT": "Percent",
+          "UNIT_MULT": "0",
+          "DataValue": "2.4"
+        },
+        {
+          "TableName": "T20600",
+          "SeriesCode": "A020RC",
+          "LineCode": "1",
+          "LineDescription": "Exports of goods and services",
+          "TimePeriod": "2023Q4",
+          "METRIC_NAME": "Billions of dollars",
+          "CL_UNIT": "Billions of dollars",
+          "UNIT_MULT": "9",
+          "DataValue": "2590.8"
+        },
+        {
+          "TableName": "T20600",
+          "SeriesCode": "A021RC",
+          "LineCode": "2",
+          "LineDescription": "Imports of goods and services",
+          "TimePeriod": "2023Q4",
+          "METRIC_NAME": "Billions of dollars",
+          "CL_UNIT": "Billions of dollars",
+          "UNIT_MULT": "9",
+          "DataValue": "3145.2"
+        },
+        {
+          "TableName": "T20600",
+          "SeriesCode": "A019RC",
+          "LineCode": "3",
+          "LineDescription": "Trade balance",
+          "TimePeriod": "2023Q4",
+          "METRIC_NAME": "Billions of dollars",
+          "CL_UNIT": "Billions of dollars",
+          "UNIT_MULT": "9",
+          "DataValue": "-554.4"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: riskx
+  labels:
+    name: riskx
+    app: risk-intelligence-observatory
+    environment: production
+    version: "1.0.0"
+  annotations:
+    description: "Risk Intelligence Observatory - AI-powered risk analysis platform"
+    contact: "admin@riskx.observatory"
+    compliance: "SOC2-Type-II,GDPR,CCPA"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: riskx-resource-quota
+  namespace: riskx
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    persistentvolumeclaims: "10"
+    services: "20"
+    secrets: "20"
+    configmaps: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: riskx-limit-range
+  namespace: riskx
+spec:
+  limits:
+  - default:
+      cpu: "500m"
+      memory: "512Mi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    type: Container
+  - max:
+      cpu: "2"
+      memory: "4Gi"
+    min:
+      cpu: "50m"
+      memory: "64Mi"
+    type: Container

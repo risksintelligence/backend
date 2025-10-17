@@ -1,0 +1,18 @@
+[
+  ["ENDUSE", "ENDUSE_LDESC", "CTY_CODE", "CTY_NAME", "time", "GEN_VAL_MO", "GEN_VAL_YR"],
+  ["40000", "Total, all commodities", "5700", "China", "2023-12", "35720000", "427440000"],
+  ["40000", "Total, all commodities", "1220", "Canada", "2023-12", "25630000", "307560000"],
+  ["40000", "Total, all commodities", "2010", "Mexico", "2023-12", "30250000", "363000000"],
+  ["40000", "Total, all commodities", "4280", "Germany", "2023-12", "15340000", "184080000"],
+  ["40000", "Total, all commodities", "5880", "Japan", "2023-12", "12890000", "154680000"],
+  ["21000", "Foods, feeds, and beverages", "5700", "China", "2023-12", "2150000", "25800000"],
+  ["21000", "Foods, feeds, and beverages", "1220", "Canada", "2023-12", "1890000", "22680000"],
+  ["30000", "Industrial supplies and materials", "5700", "China", "2023-12", "8940000", "107280000"],
+  ["30000", "Industrial supplies and materials", "1220", "Canada", "2023-12", "7650000", "91800000"],
+  ["40000", "Capital goods, except automotive", "5700", "China", "2023-12", "12340000", "148080000"],
+  ["40000", "Capital goods, except automotive", "4280", "Germany", "2023-12", "5670000", "68040000"],
+  ["50000", "Automotive vehicles, parts, and engines", "2010", "Mexico", "2023-12", "8930000", "107160000"],
+  ["50000", "Automotive vehicles, parts, and engines", "5880", "Japan", "2023-12", "4560000", "54720000"],
+  ["60000", "Consumer goods", "5700", "China", "2023-12", "15890000", "190680000"],
+  ["60000", "Consumer goods", "2010", "Mexico", "2023-12", "3450000", "41400000"]
+]

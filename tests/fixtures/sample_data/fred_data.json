@@ -1,0 +1,91 @@
+{
+  "observations": [
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-12-01",
+      "value": "21147.1",
+      "series_id": "GDPC1",
+      "title": "Real Gross Domestic Product"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-11-01",
+      "value": "21098.5",
+      "series_id": "GDPC1",
+      "title": "Real Gross Domestic Product"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-10-01",
+      "value": "21049.2",
+      "series_id": "GDPC1",
+      "title": "Real Gross Domestic Product"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-12-01",
+      "value": "3.7",
+      "series_id": "UNRATE",
+      "title": "Unemployment Rate"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-11-01",
+      "value": "3.9",
+      "series_id": "UNRATE",
+      "title": "Unemployment Rate"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-10-01",
+      "value": "3.8",
+      "series_id": "UNRATE",
+      "title": "Unemployment Rate"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-12-01",
+      "value": "310.3",
+      "series_id": "CPIAUCSL",
+      "title": "Consumer Price Index for All Urban Consumers: All Items"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-11-01",
+      "value": "309.7",
+      "series_id": "CPIAUCSL",
+      "title": "Consumer Price Index for All Urban Consumers: All Items"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-12-01",
+      "value": "5.25",
+      "series_id": "FEDFUNDS",
+      "title": "Federal Funds Effective Rate"
+    },
+    {
+      "realtime_start": "2024-01-15",
+      "realtime_end": "2024-01-15",
+      "date": "2023-11-01",
+      "value": "5.25",
+      "series_id": "FEDFUNDS",
+      "title": "Federal Funds Effective Rate"
+    }
+  ],
+  "metadata": {
+    "count": 10,
+    "offset": 0,
+    "limit": 100000,
+    "order_by": "observation_date",
+    "sort_order": "desc"
+  }
+}
