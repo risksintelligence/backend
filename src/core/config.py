@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     
     # Application
     app_name: str = "RiskX"
-    debug: bool = False
-    environment: str = "development"
-    secret_key: str = "dev-secret-key-change-in-production"
+    debug: bool = os.getenv("DEBUG", "false").lower() in ["true", "1", "yes"]
+    environment: str = os.getenv("ENVIRONMENT", "production")  # Default to production for safety
+    secret_key: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
     
     # API
     api_host: str = "0.0.0.0"

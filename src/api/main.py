@@ -4,6 +4,7 @@ FastAPI application entry point for RiskX.
 from contextlib import asynccontextmanager
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,19 +61,21 @@ app.add_middleware(InputValidationMiddleware)  # Prevent malicious input
 app.add_middleware(SecurityMiddleware)         # Security headers and basic protection
 app.add_middleware(RateLimitMiddleware)        # Prevent abuse
 
-# Add CORS middleware
+# Add CORS middleware - temporarily permissive for debugging
+# TODO: Restore to settings.cors_origins once connectivity confirmed
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],  # Temporarily allow all origins for debugging
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Add TrustedHost middleware  
+# Add TrustedHost middleware - temporarily allow all hosts for Render deployment  
+# TODO: Restore to proper host validation once connectivity confirmed
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"] if settings.debug else settings.allowed_hosts,
+    allowed_hosts=["*"],  # Temporarily allow all hosts to fix 400 errors
 )
 
 # Global exception handlers
@@ -115,6 +118,28 @@ async def general_exception_handler(request: Request, exc: Exception):
             "method": request.method
         }
     )
+
+# Root endpoint for basic API info
+@app.get("/")
+async def root():
+    """Basic API information endpoint."""
+    return {
+        "name": "RiskX API",
+        "version": "1.0.0",
+        "description": "AI Risk Intelligence Observatory API",
+        "status": "running",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "health": "/api/v1/health",
+            "docs": "/docs",
+            "api": "/api/v1"
+        }
+    }
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Handle favicon requests."""
+    return JSONResponse(content={"message": "No favicon available"}, status_code=204)
 
 # Include routers
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
