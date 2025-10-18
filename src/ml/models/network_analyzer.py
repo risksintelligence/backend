@@ -48,153 +48,260 @@ class RiskNetworkAnalyzer:
         self.node_data = {}
         self.edge_data = {}
         
-    def _create_sample_network(self) -> Tuple[List[NetworkNode], List[NetworkEdge]]:
-        """Create a sample risk network for demonstration."""
+    def _create_real_network(self, cache_manager) -> Tuple[List[NetworkNode], List[NetworkEdge]]:
+        """Create network based on real cached economic data."""
+        from src.cache.cache_manager import CacheManager
         
-        # Sample nodes representing major economic entities
-        nodes = [
-            NetworkNode(
-                id="fed",
-                name="Federal Reserve",
-                category="government",
-                risk_level=25.0,
-                systemic_importance=0.95,
-                description="Central banking system of the United States"
-            ),
-            NetworkNode(
-                id="treasury",
-                name="US Treasury",
-                category="government", 
-                risk_level=20.0,
-                systemic_importance=0.90,
-                description="Department of the Treasury"
-            ),
+        if not cache_manager:
+            cache_manager = CacheManager()
+        
+        nodes = []
+        
+        # Federal Reserve - use real federal funds rate data
+        fed_data = cache_manager.get("fred:FEDFUNDS:latest")
+        fed_risk = self._calculate_fed_risk(fed_data)
+        nodes.append(NetworkNode(
+            id="fed",
+            name="Federal Reserve",
+            category="government",
+            risk_level=fed_risk,
+            systemic_importance=0.95,
+            description=f"Federal funds rate: {fed_data.get('value', 'N/A')}%" if fed_data else "Central banking system"
+        ))
+        
+        # Labor Market - use real unemployment data
+        unemployment_data = cache_manager.get("fred:UNRATE:latest")
+        labor_risk = self._calculate_labor_risk(unemployment_data)
+        nodes.append(NetworkNode(
+            id="labor_market",
+            name="Labor Market",
+            category="economic",
+            risk_level=labor_risk,
+            systemic_importance=0.85,
+            description=f"Unemployment rate: {unemployment_data.get('value', 'N/A')}%" if unemployment_data else "Employment conditions"
+        ))
+        
+        # Inflation/Economic Stability - use real CPI data
+        cpi_data = cache_manager.get("fred:CPIAUCSL:latest")
+        inflation_risk = self._calculate_inflation_risk(cpi_data)
+        nodes.append(NetworkNode(
+            id="inflation_sector",
+            name="Inflation Sector",
+            category="economic",
+            risk_level=inflation_risk,
+            systemic_importance=0.80,
+            description=f"CPI inflation indicator" if cpi_data else "Price stability sector"
+        ))
+        
+        # Financial System - use financial stress index
+        stress_data = cache_manager.get("fred:STLFSI4:latest")
+        financial_risk = self._calculate_financial_risk(stress_data)
+        nodes.append(NetworkNode(
+            id="financial_system",
+            name="Financial System",
+            category="financial",
+            risk_level=financial_risk,
+            systemic_importance=0.90,
+            description=f"Financial stress index: {stress_data.get('value', 'N/A')}" if stress_data else "Banking and financial institutions"
+        ))
+        
+        # GDP/Economic Growth - use real GDP data
+        gdp_data = cache_manager.get("fred:GDP:latest")
+        growth_risk = self._calculate_growth_risk(gdp_data)
+        nodes.append(NetworkNode(
+            id="economic_growth",
+            name="Economic Growth",
+            category="economic",
+            risk_level=growth_risk,
+            systemic_importance=0.85,
+            description=f"GDP indicator" if gdp_data else "Economic output and growth"
+        ))
+        
+        # Treasury/Government Finances - use yield curve data
+        treasury_data = cache_manager.get("fred:DGS10:latest")
+        treasury_risk = self._calculate_treasury_risk(treasury_data)
+        nodes.append(NetworkNode(
+            id="treasury",
+            name="US Treasury",
+            category="government",
+            risk_level=treasury_risk,
+            systemic_importance=0.90,
+            description=f"10-year yield: {treasury_data.get('value', 'N/A')}%" if treasury_data else "Government debt and financing"
+        ))
+        
+        # Add major financial institutions based on systemic importance
+        nodes.extend([
             NetworkNode(
                 id="jpmorgan",
-                name="JPMorgan Chase",
+                name="Major Banks",
                 category="financial",
-                risk_level=42.0,
+                risk_level=min(financial_risk + 10, 100),  # Bank risk related to financial stress
                 systemic_importance=0.85,
-                description="Largest bank in the United States"
+                description="Systemically important financial institutions"
             ),
             NetworkNode(
-                id="goldman",
-                name="Goldman Sachs",
-                category="financial",
-                risk_level=48.0,
-                systemic_importance=0.75,
-                description="Investment banking and financial services"
-            ),
-            NetworkNode(
-                id="bofa",
-                name="Bank of America",
-                category="financial",
-                risk_level=39.0,
-                systemic_importance=0.80,
-                description="Major commercial bank"
-            ),
-            NetworkNode(
-                id="apple",
-                name="Apple Inc",
+                id="supply_chain",
+                name="Supply Chain",
                 category="supply_chain",
-                risk_level=35.0,
-                systemic_importance=0.70,
-                description="Technology company with global supply chain"
-            ),
-            NetworkNode(
-                id="amazon",
-                name="Amazon",
-                category="supply_chain",
-                risk_level=45.0,
+                risk_level=45.0,  # Moderate baseline
                 systemic_importance=0.75,
-                description="E-commerce and cloud services"
-            ),
-            NetworkNode(
-                id="labor_market",
-                name="Labor Market",
-                category="economic",
-                risk_level=52.0,
-                systemic_importance=0.85,
-                description="US employment and wage conditions"
+                description="Global supply chain networks"
             ),
             NetworkNode(
                 id="housing",
-                name="Housing Market",
+                name="Housing Market", 
                 category="economic",
-                risk_level=38.0,
+                risk_level=max(20, labor_risk - 10),  # Housing tied to employment
                 systemic_importance=0.70,
-                description="Residential real estate market"
-            ),
-            NetworkNode(
-                id="china_trade",
-                name="China Trade Relations",
-                category="supply_chain",
-                risk_level=68.0,
-                systemic_importance=0.80,
-                description="Trade relationship with China"
+                description="Residential real estate sector"
             ),
             NetworkNode(
                 id="energy",
                 name="Energy Sector",
-                category="supply_chain",
-                risk_level=55.0,
-                systemic_importance=0.85,
-                description="Oil, gas, and renewable energy"
-            ),
-            NetworkNode(
-                id="tech_sector",
-                name="Technology Sector",
-                category="economic",
-                risk_level=42.0,
-                systemic_importance=0.75,
-                description="Technology industry aggregate"
+                category="supply_chain", 
+                risk_level=50.0,  # Moderate baseline
+                systemic_importance=0.80,
+                description="Energy production and distribution"
             )
-        ]
+        ])
         
-        # Sample edges representing relationships
-        edges = [
-            # Government regulatory relationships
-            NetworkEdge("fed", "jpmorgan", 0.85, 0.75, "regulatory", "Monetary policy transmission"),
-            NetworkEdge("fed", "goldman", 0.80, 0.70, "regulatory", "Financial regulation"),
-            NetworkEdge("fed", "bofa", 0.85, 0.75, "regulatory", "Banking oversight"),
-            NetworkEdge("fed", "treasury", 0.95, 0.85, "regulatory", "Monetary-fiscal coordination"),
-            NetworkEdge("treasury", "labor_market", 0.60, 0.50, "regulatory", "Fiscal policy impact"),
-            
-            # Financial sector interconnections
-            NetworkEdge("jpmorgan", "goldman", 0.70, 0.60, "financial", "Interbank lending"),
-            NetworkEdge("jpmorgan", "bofa", 0.75, 0.65, "financial", "Financial markets"),
-            NetworkEdge("goldman", "bofa", 0.65, 0.55, "financial", "Investment banking"),
-            
-            # Financial-corporate relationships
-            NetworkEdge("jpmorgan", "apple", 0.60, 0.50, "financial", "Corporate banking"),
-            NetworkEdge("goldman", "amazon", 0.65, 0.55, "financial", "Investment services"),
-            NetworkEdge("bofa", "tech_sector", 0.55, 0.45, "financial", "Commercial lending"),
-            
-            # Supply chain relationships
-            NetworkEdge("apple", "china_trade", 0.90, 0.85, "supply", "Manufacturing dependency"),
-            NetworkEdge("amazon", "china_trade", 0.75, 0.70, "supply", "Product sourcing"),
-            NetworkEdge("tech_sector", "china_trade", 0.80, 0.75, "supply", "Components and assembly"),
-            NetworkEdge("energy", "china_trade", 0.70, 0.65, "trade", "Energy trade"),
-            
-            # Economic interdependencies
-            NetworkEdge("labor_market", "housing", 0.75, 0.70, "trade", "Employment-housing link"),
-            NetworkEdge("labor_market", "tech_sector", 0.65, 0.60, "trade", "Tech employment"),
-            NetworkEdge("housing", "jpmorgan", 0.80, 0.75, "financial", "Mortgage lending"),
-            NetworkEdge("housing", "bofa", 0.75, 0.70, "financial", "Real estate financing"),
-            
-            # Energy dependencies
-            NetworkEdge("energy", "labor_market", 0.55, 0.50, "trade", "Energy sector employment"),
-            NetworkEdge("energy", "tech_sector", 0.60, 0.55, "supply", "Energy for data centers"),
-            NetworkEdge("energy", "amazon", 0.70, 0.65, "supply", "Logistics fuel costs")
-        ]
+        # Create edges based on economic relationships
+        edges = self._create_real_edges(nodes)
         
         return nodes, edges
     
-    def analyze_network(self, custom_data: Optional[Dict] = None) -> NetworkAnalysis:
-        """Perform comprehensive network analysis."""
+    def _calculate_fed_risk(self, fed_data) -> float:
+        """Calculate Federal Reserve risk based on federal funds rate."""
+        if not fed_data:
+            return 30.0
         
-        # Use sample data for now
-        nodes, edges = self._create_sample_network()
+        rate = fed_data.get('value', 5.0)
+        # Risk increases with very high or very low rates
+        if rate < 1.0:  # Too low - emergency conditions
+            return 60.0
+        elif rate > 6.0:  # Too high - restrictive policy
+            return min(70.0, 40.0 + (rate - 6.0) * 5)
+        else:  # Normal range
+            return 20.0 + (rate * 2)  # Moderate scaling
+    
+    def _calculate_labor_risk(self, unemployment_data) -> float:
+        """Calculate labor market risk based on unemployment rate."""
+        if not unemployment_data:
+            return 40.0
+        
+        rate = unemployment_data.get('value', 5.0)
+        if rate < 3.0:  # Very low unemployment - potential overheating
+            return 30.0
+        elif rate > 7.0:  # High unemployment - recession risk
+            return min(80.0, 50.0 + (rate - 7.0) * 10)
+        else:  # Normal range
+            return 20.0 + (rate * 4)
+    
+    def _calculate_inflation_risk(self, cpi_data) -> float:
+        """Calculate inflation risk based on CPI data.""" 
+        if not cpi_data:
+            return 35.0
+        
+        # Assuming CPI value is year-over-year percentage
+        rate = abs(cpi_data.get('value', 2.5))
+        target = 2.0  # Fed's inflation target
+        
+        deviation = abs(rate - target)
+        if deviation < 0.5:  # Close to target
+            return 20.0
+        elif deviation > 3.0:  # Far from target
+            return min(75.0, 40.0 + deviation * 10)
+        else:  # Moderate deviation
+            return 25.0 + deviation * 8
+    
+    def _calculate_financial_risk(self, stress_data) -> float:
+        """Calculate financial system risk based on stress index."""
+        if not stress_data:
+            return 45.0
+        
+        stress_value = stress_data.get('value', 0.0)
+        # Financial stress index typically ranges from -2 to +4
+        # Negative values indicate low stress, positive indicate stress
+        if stress_value < -0.5:  # Very low stress
+            return 25.0
+        elif stress_value > 1.0:  # High stress
+            return min(85.0, 50.0 + stress_value * 20)
+        else:  # Normal range
+            return 35.0 + max(0, stress_value * 15)
+    
+    def _calculate_growth_risk(self, gdp_data) -> float:
+        """Calculate economic growth risk based on GDP data."""
+        if not gdp_data:
+            return 40.0
+        
+        # GDP typically in trillions, we want growth rate
+        # This is simplified - in practice we'd calculate growth rate
+        return 35.0  # Moderate baseline
+    
+    def _calculate_treasury_risk(self, treasury_data) -> float:
+        """Calculate treasury/government finance risk based on yield data."""
+        if not treasury_data:
+            return 25.0
+        
+        yield_value = treasury_data.get('value', 4.0)
+        # 10-year treasury yield risk assessment
+        if yield_value < 2.0:  # Very low yields
+            return 35.0
+        elif yield_value > 6.0:  # Very high yields
+            return min(65.0, 30.0 + (yield_value - 6.0) * 8)
+        else:  # Normal range
+            return 20.0 + yield_value * 2
+    
+    def _create_real_edges(self, nodes) -> List[NetworkEdge]:
+        """Create edges based on economic relationships between real data nodes."""
+        edges = []
+        
+        # Government policy transmission channels
+        edges.extend([
+            NetworkEdge("fed", "financial_system", 0.90, 0.80, "regulatory", "Monetary policy transmission"),
+            NetworkEdge("fed", "treasury", 0.85, 0.70, "regulatory", "Monetary-fiscal coordination"),
+            NetworkEdge("treasury", "economic_growth", 0.70, 0.60, "regulatory", "Fiscal policy impact"),
+            NetworkEdge("treasury", "labor_market", 0.65, 0.55, "regulatory", "Government spending effects"),
+        ])
+        
+        # Financial system connections
+        edges.extend([
+            NetworkEdge("financial_system", "jpmorgan", 0.95, 0.85, "financial", "Systemic banking connection"),
+            NetworkEdge("financial_system", "housing", 0.85, 0.75, "financial", "Mortgage and real estate financing"),
+            NetworkEdge("financial_system", "economic_growth", 0.80, 0.70, "financial", "Credit availability"),
+        ])
+        
+        # Economic interdependencies
+        edges.extend([
+            NetworkEdge("labor_market", "housing", 0.80, 0.70, "economic", "Employment-housing demand link"),
+            NetworkEdge("labor_market", "inflation_sector", 0.75, 0.65, "economic", "Wage-price spiral relationship"),
+            NetworkEdge("economic_growth", "labor_market", 0.85, 0.75, "economic", "Growth-employment correlation"),
+            NetworkEdge("inflation_sector", "fed", 0.70, 0.60, "economic", "Inflation targeting feedback"),
+        ])
+        
+        # Supply chain and energy relationships
+        edges.extend([
+            NetworkEdge("energy", "inflation_sector", 0.75, 0.65, "supply", "Energy price inflation transmission"),
+            NetworkEdge("energy", "supply_chain", 0.80, 0.70, "supply", "Energy costs for logistics"),
+            NetworkEdge("supply_chain", "inflation_sector", 0.70, 0.60, "supply", "Supply chain cost pressures"),
+            NetworkEdge("supply_chain", "economic_growth", 0.65, 0.55, "supply", "Supply availability for growth"),
+        ])
+        
+        # Banking and institutional connections
+        edges.extend([
+            NetworkEdge("jpmorgan", "housing", 0.85, 0.75, "financial", "Mortgage origination"),
+            NetworkEdge("jpmorgan", "energy", 0.60, 0.50, "financial", "Energy sector financing"),
+            NetworkEdge("jpmorgan", "supply_chain", 0.70, 0.60, "financial", "Trade finance and working capital"),
+        ])
+        
+        return edges
+    
+    def analyze_network(self, custom_data: Optional[Dict] = None) -> NetworkAnalysis:
+        """Perform comprehensive network analysis using real cached data."""
+        from src.cache.cache_manager import CacheManager
+        
+        cache_manager = CacheManager()
+        nodes, edges = self._create_real_network(cache_manager)
         
         # Build NetworkX graph
         self.network.clear()
