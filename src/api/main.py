@@ -121,6 +121,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Root endpoint for basic API info
 @app.get("/")
+@app.head("/")
 async def root():
     """Basic API information endpoint."""
     return {
