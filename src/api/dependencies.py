@@ -11,12 +11,13 @@ import logging
 
 from ..core.config import get_settings
 from ..core.security import security_middleware, SecurityMiddleware, input_validator
-from ..core.database import get_db_session
+from ..core.database import get_db
 from ..core.exceptions import (
     AuthenticationError, AuthorizationError, RateLimitExceededError,
     ValidationError, handle_exception
 )
 from ..core.logging import performance_logger, security_logger
+from ..cache.cache_manager import CacheManager
 
 logger = logging.getLogger('riskx.api.dependencies')
 
@@ -62,8 +63,18 @@ async def get_request_context(request: Request) -> RequestContext:
 
 async def get_database_session():
     """Get database session dependency."""
-    async with get_db_session() as session:
+    async for session in get_db():
         yield session
+
+
+def get_cache_instance() -> Optional[CacheManager]:
+    """Get cache manager instance."""
+    try:
+        cache_manager = CacheManager()
+        return cache_manager
+    except Exception as e:
+        logger.warning(f"Failed to initialize cache manager: {e}")
+        return None
 
 
 async def verify_rate_limit(

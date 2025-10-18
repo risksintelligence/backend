@@ -60,13 +60,14 @@ class RiskNetworkAnalyzer:
         # Federal Reserve - use real federal funds rate data
         fed_data = cache_manager.get("fred:FEDFUNDS:latest")
         fed_risk = self._calculate_fed_risk(fed_data)
+        print(f"DEBUG: fed_data = {fed_data}")  # Debug line
         nodes.append(NetworkNode(
             id="fed",
             name="Federal Reserve",
             category="government",
             risk_level=fed_risk,
             systemic_importance=0.95,
-            description=f"Federal funds rate: {fed_data.get('value', 'N/A')}%" if fed_data else "Central banking system"
+            description=f"Federal funds rate: {fed_data.get('value', 'N/A')}%" if fed_data else "Central banking system - no cache data"
         ))
         
         # Labor Market - use real unemployment data
