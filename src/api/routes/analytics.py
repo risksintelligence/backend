@@ -1,12 +1,15 @@
 """
 Economic analytics and aggregation API endpoints for RiskX.
 """
+import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.data.processors.indicator_aggregator import run_indicator_aggregation, IndicatorAggregator
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
