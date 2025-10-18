@@ -91,12 +91,25 @@ async def get_economic_overview(
         EconomicOverviewResponse: Comprehensive economic overview
     """
     try:
-        # Run aggregation
+        # Use optimized cache-first approach for real data
+        from src.cache.cache_manager import CacheManager
+        cache_manager = CacheManager()
+        
+        # Try to get pre-aggregated results from cache first
+        cache_key = "analytics:overview:aggregated"
+        cached_result = cache_manager.get(cache_key)
+        
+        if cached_result and use_cache:
+            logger.info("Serving analytics overview from cache")
+            return EconomicOverviewResponse(**cached_result)
+        
+        # If no cache, run aggregation but with timeout protection
+        logger.info("Running real-time aggregation with cache fallback")
         aggregation_results = run_indicator_aggregation(use_cache=not force_refresh)
         
         economic_overview = aggregation_results["economic_overview"]
         
-        return EconomicOverviewResponse(
+        result = EconomicOverviewResponse(
             overall_risk_level=economic_overview.overall_risk_level,
             economic_momentum=economic_overview.economic_momentum,
             market_stress_level=economic_overview.market_stress_level,
@@ -105,7 +118,22 @@ async def get_economic_overview(
             timestamp=economic_overview.timestamp
         )
         
+        # Cache the result for future requests
+        cache_manager.set(cache_key, result.dict(), ttl=3600)  # 1 hour TTL
+        
+        return result
+        
     except Exception as e:
+        logger.error(f"Analytics overview error: {str(e)}")
+        # Fallback to last known good data from cache
+        from src.cache.fallback_handler import FallbackHandler
+        fallback = FallbackHandler()
+        fallback_data = fallback.get_fallback_data("analytics_overview")
+        
+        if fallback_data:
+            logger.info("Using fallback data for analytics overview")
+            return EconomicOverviewResponse(**fallback_data)
+            
         raise HTTPException(
             status_code=500,
             detail=f"Error generating economic overview: {str(e)}"
