@@ -422,17 +422,30 @@ class IndicatorAggregator:
         """Identify key economic concerns."""
         concerns = []
         
+        # Category display mapping for proper terminology
+        category_display = {
+            "inflation": "inflation indicators",
+            "interest_rates": "interest rate environment", 
+            "employment": "employment conditions",
+            "economic_growth": "economic growth indicators",
+            "financial_stress": "financial stress indicators",
+            "gdp": "GDP and economic output",
+            "credit": "credit market conditions"
+        }
+        
         # Check for high-risk categories
         for category, summary in category_summaries.items():
             if summary.avg_risk_score > 70:
-                concerns.append(f"Elevated risk in {category.replace('_', ' ')} sector")
+                display_name = category_display.get(category, category.replace('_', ' '))
+                logger.info(f"DEBUG: Creating concern for category '{category}' -> display_name '{display_name}'")
+                concerns.append(f"Elevated risk in {display_name}")
         
         # Check for declining trends
         declining_categories = [cat for cat, summary in category_summaries.items() 
                               if summary.category_trend == "down"]
         
         if len(declining_categories) >= 2:
-            concerns.append("Multiple sectors showing declining trends")
+            concerns.append("Multiple economic categories showing declining trends")
         
         # Check for high volatility
         high_vol_indicators = [ind for ind in indicator_summaries 
@@ -448,17 +461,29 @@ class IndicatorAggregator:
         """Identify positive economic signals."""
         signals = []
         
+        # Category display mapping for proper terminology
+        category_display = {
+            "inflation": "inflation indicators",
+            "interest_rates": "interest rate environment", 
+            "employment": "employment conditions",
+            "economic_growth": "economic growth indicators",
+            "financial_stress": "financial stress indicators",
+            "gdp": "GDP and economic output",
+            "credit": "credit market conditions"
+        }
+        
         # Check for low-risk categories
         for category, summary in category_summaries.items():
             if summary.avg_risk_score < 30:
-                signals.append(f"Stable conditions in {category.replace('_', ' ')} sector")
+                display_name = category_display.get(category, category.replace('_', ' '))
+                signals.append(f"Stable conditions in {display_name}")
         
         # Check for improving trends
         improving_categories = [cat for cat, summary in category_summaries.items() 
                               if summary.category_trend == "up"]
         
         if len(improving_categories) >= 2:
-            signals.append("Multiple sectors showing positive momentum")
+            signals.append("Multiple economic categories showing positive momentum")
         
         # Check for low volatility
         stable_indicators = [ind for ind in indicator_summaries 
