@@ -4,7 +4,7 @@
       "conn_id": "postgres_default",
       "conn_type": "postgres",
       "description": "Default PostgreSQL connection for RiskX",
-      "host": "localhost",
+      "host": "postgres-production.onrender.com",
       "login": "riskx_write",
       "password": "your_postgres_password",
       "schema": "riskx",
@@ -18,7 +18,7 @@
       "conn_id": "redis_default",
       "conn_type": "redis",
       "description": "Default Redis connection for caching",
-      "host": "localhost",
+      "host": "redis-production.onrender.com",
       "password": "your_redis_password",
       "port": 6379,
       "extra": {
@@ -159,17 +159,17 @@
       "conn_id": "mlflow_tracking",
       "conn_type": "http",
       "description": "MLflow Model Registry",
-      "host": "http://localhost:5000",
+      "host": "https://mlflow-production.onrender.com",
       "extra": {
-        "tracking_uri": "http://localhost:5000",
-        "registry_uri": "http://localhost:5000"
+        "tracking_uri": "https://mlflow-production.onrender.com",
+        "registry_uri": "https://mlflow-production.onrender.com"
       }
     },
     {
       "conn_id": "riskx_api",
       "conn_type": "http",
       "description": "RiskX Internal API",
-      "host": "http://localhost:8000",
+      "host": "https://backend-1-il1e.onrender.com",
       "extra": {
         "timeout": 30,
         "verify": true
@@ -223,7 +223,7 @@
       "conn_id": "elasticsearch_logs",
       "conn_type": "elasticsearch",
       "description": "Elasticsearch for log aggregation",
-      "host": "localhost",
+      "host": "elasticsearch-production.onrender.com",
       "port": 9200,
       "extra": {
         "http_compress": true,
