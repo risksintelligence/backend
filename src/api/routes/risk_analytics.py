@@ -264,7 +264,7 @@ async def get_active_alerts(
                 "threshold_value": alert.threshold_value,
                 "current_value": alert.current_value,
                 "triggered_at": alert.triggered_at.isoformat(),
-                "metadata": alert.metadata
+                "metadata": alert.alert_metadata
             })
         
         data = {

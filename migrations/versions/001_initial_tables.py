@@ -157,7 +157,7 @@ def upgrade() -> None:
         sa.Column('acknowledged_by', sa.Integer(), nullable=True),
         sa.Column('acknowledged_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('alert_metadata', sa.JSON(), nullable=True),
         sa.Column('triggered_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
@@ -182,7 +182,7 @@ def upgrade() -> None:
         sa.Column('environment', sa.String(length=20), nullable=True),
         sa.Column('instance_id', sa.String(length=100), nullable=True),
         sa.Column('tags', sa.JSON(), nullable=True),
-        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('metric_metadata', sa.JSON(), nullable=True),
         sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.PrimaryKeyConstraint('id')
     )

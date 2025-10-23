@@ -177,8 +177,8 @@ class Alert(Base):
     acknowledged_at = Column(DateTime(timezone=True))
     resolved_at = Column(DateTime(timezone=True))
     
-    # Metadata
-    metadata = Column(JSON)  # Additional alert-specific data
+    # Additional data
+    alert_metadata = Column(JSON)  # Additional alert-specific data
     
     # Timestamps
     triggered_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
@@ -213,7 +213,7 @@ class SystemMetric(Base):
     
     # Additional data
     tags = Column(JSON)  # Key-value tags for grouping/filtering
-    metadata = Column(JSON)  # Additional metric metadata
+    metric_metadata = Column(JSON)  # Additional metric metadata
     
     # Timestamps
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
