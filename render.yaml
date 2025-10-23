@@ -5,8 +5,8 @@ services:
     region: oregon
     plan: starter
     branch: main
-    buildCommand: python -m pip install -r requirements.txt
-    startCommand: python -m uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/v1/health
     envVars:
       - key: DATABASE_URL
@@ -18,8 +18,6 @@ services:
           type: redis
           name: riskx-redis
           property: connectionString
-      - key: PYTHON_VERSION
-        value: "3.11"
       - key: ENVIRONMENT
         value: "production"
       - key: PYTHONPATH
