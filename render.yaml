@@ -24,6 +24,14 @@ services:
         value: "production"
       - key: PYTHONPATH
         value: "."
+      - key: FRED_API_KEY
+        value: "08cfc7737f0b2840a85fd6054d5ba7af"
+      - key: CENSUS_API_KEY
+        value: "6d5a84b1fdf9b5b7b4b33594a950007d71fd3f03"
+      - key: BEA_API_KEY
+        value: "9837E93D-2FB5-42FF-BADF-2B4F0DC7DE28"
+      - key: BLS_API_KEY
+        value: "210f8163b18e40d2a6d7905e66e9dd44"
 
 databases:
   - name: riskx-postgres

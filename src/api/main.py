@@ -299,3 +299,7 @@ async def cache_demo():
 app.include_router(risk.router)
 app.include_router(economic.router)
 app.include_router(cache_management.router)
+
+# Include external API routes
+from src.api.routes import external_apis
+app.include_router(external_apis.router)

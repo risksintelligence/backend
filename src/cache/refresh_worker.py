@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import logging
 import aiohttp
 from src.cache.cache_manager import IntelligentCacheManager
+from src.data.sources import fred, bea, bls, census
 
 logger = logging.getLogger(__name__)
 
@@ -173,31 +174,66 @@ class BackgroundRefreshWorker:
             await asyncio.sleep(60)
     
     async def _fetch_from_api(self, source: str, series: str) -> Optional[Dict]:
-        """Fetch data from external API or return sample data."""
+        """Fetch data from external API with fallback to sample data."""
         
-        cache_key = f"{source}:{series}"
+        try:
+            # Try real API first
+            if source == "fred":
+                if series == "GDP":
+                    return await fred.get_gdp()
+                elif series == "UNRATE":
+                    return await fred.get_unemployment_rate()
+                elif series == "CPIAUCSL":
+                    return await fred.get_inflation_rate()
+                elif series == "FEDFUNDS":
+                    return await fred.get_fed_funds_rate()
+            
+            elif source == "bea":
+                if series == "NIPA":
+                    accounts = await bea.get_economic_accounts()
+                    if accounts and "indicators" in accounts:
+                        return accounts["indicators"]
+            
+            elif source == "bls":
+                if series == "employment":
+                    return await bls.get_labor_statistics()
+            
+            elif source == "census":
+                if series == "population":
+                    return await census.get_population_data()
+                elif series == "income":
+                    return await census.get_household_income()
+            
+            # If real API fails or series not found, fall back to sample data
+            cache_key = f"{source}:{series}"
+            
+            if cache_key in self.sample_data:
+                data = self.sample_data[cache_key].copy()
+                
+                # Add some realistic variation to numeric values
+                if "value" in data and isinstance(data["value"], (int, float)):
+                    import random
+                    variation = random.uniform(-0.02, 0.02)  # ±2% variation
+                    data["value"] = round(data["value"] * (1 + variation), 2)
+                
+                # Update timestamp
+                data["last_updated"] = datetime.utcnow().isoformat()
+                
+                return data
         
-        # For demo purposes, return sample data with some variation
-        if cache_key in self.sample_data:
-            data = self.sample_data[cache_key].copy()
+        except Exception as e:
+            logger.warning(f"API call failed for {source}:{series}: {e}")
             
-            # Add some realistic variation to numeric values
-            if "value" in data and isinstance(data["value"], (int, float)):
-                import random
-                variation = random.uniform(-0.02, 0.02)  # ±2% variation
-                data["value"] = round(data["value"] * (1 + variation), 2)
-            
-            # Update timestamp
-            data["last_updated"] = datetime.utcnow().isoformat()
-            
-            # Simulate occasional API failures (5% chance)
-            if random.random() < 0.05:
-                raise Exception("Simulated API failure")
-            
-            return data
+            # Fall back to sample data
+            cache_key = f"{source}:{series}"
+            if cache_key in self.sample_data:
+                data = self.sample_data[cache_key].copy()
+                data["last_updated"] = datetime.utcnow().isoformat()
+                data["note"] = "Sample data - API unavailable"
+                return data
         
         # For unknown series, return None (API not available)
-        logger.warning(f"No sample data available for {cache_key}")
+        logger.warning(f"No data available for {source}:{series}")
         return None
     
     async def _health_check_loop(self):
@@ -228,18 +264,18 @@ class BackgroundRefreshWorker:
     async def _check_api_health(self, source: str) -> bool:
         """Quick health check for an API."""
         try:
-            # For demo purposes, simulate health checks
-            # In real implementation, make actual API calls
-            import random
-            
-            # Simulate 95% uptime
-            is_healthy = random.random() > 0.05
-            
-            if not is_healthy:
-                logger.debug(f"Simulated {source} API downtime")
-            
-            return is_healthy
-            
+            # Make actual API health checks
+            if source == "fred":
+                return await fred.health_check()
+            elif source == "bea":
+                return await bea.health_check()
+            elif source == "bls":
+                return await bls.health_check()
+            elif source == "census":
+                return await census.health_check()
+            else:
+                return False
+                
         except Exception:
             return False
     
