@@ -16,17 +16,17 @@ class Settings(BaseSettings):
     # Database
     database_url: str = os.getenv("DATABASE_URL", "")
     
-    # Cache (will be configured in next phase)  
-    redis_url: str = ""
+    # Cache
+    redis_url: str = os.getenv("REDIS_URL", "")
     
-    # External APIs (will be configured in next phase)
-    fred_api_key: str = ""
-    bea_api_key: str = ""
-    bls_api_key: str = ""
-    census_api_key: str = ""
+    # External APIs
+    fred_api_key: str = os.getenv("FRED_API_KEY", "")
+    bea_api_key: str = os.getenv("BEA_API_KEY", "")
+    bls_api_key: str = os.getenv("BLS_API_KEY", "")
+    census_api_key: str = os.getenv("CENSUS_API_KEY", "")
     
     # Security
-    secret_key: str = ""
+    secret_key: str = os.getenv("SECRET_KEY", "")
     
     class Config:
         env_file = ".env"
