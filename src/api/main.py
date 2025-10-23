@@ -301,5 +301,6 @@ app.include_router(economic.router)
 app.include_router(cache_management.router)
 
 # Include external API routes
-from src.api.routes import external_apis
+from src.api.routes import external_apis, risk_analytics
 app.include_router(external_apis.router)
+app.include_router(risk_analytics.router)
