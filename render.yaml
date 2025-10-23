@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: starter
     branch: main
-    buildCommand: pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip==24.0 setuptools==69.5.1 wheel==0.43.0 && pip install --only-binary=all -r requirements.txt
     startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/v1/health
     envVars:
@@ -22,6 +22,12 @@ services:
         value: "production"
       - key: PYTHONPATH
         value: "."
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: PIP_DISABLE_PIP_VERSION_CHECK
+        value: "1"
+      - key: PIP_NO_CACHE_DIR
+        value: "1"
       - key: FRED_API_KEY
         value: "08cfc7737f0b2840a85fd6054d5ba7af"
       - key: CENSUS_API_KEY
