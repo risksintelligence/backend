@@ -1,15 +1,62 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+import asyncio
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db, check_database_connection, get_database_info
 from src.core.cache import check_redis_connection, get_redis_info, test_cache_operations, BasicCacheManager
+from src.cache.cache_manager import IntelligentCacheManager
+from src.cache.refresh_worker import BackgroundRefreshWorker
+from src.core.dependencies import get_cache_manager
+from src.api.routes import risk, economic, cache_management
 import os
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+# Global worker reference
+refresh_worker = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Startup: Initialize cache and start background workers.
+    Shutdown: Cleanup gracefully.
+    """
+    global refresh_worker
+    
+    # Startup
+    logger.info("🚀 Starting RiskX Backend with Intelligent Caching")
+    
+    # Initialize cache manager
+    cache_manager = get_cache_manager()
+    
+    # Start background refresh workers
+    refresh_worker = BackgroundRefreshWorker(cache_manager)
+    
+    # Start workers in background
+    asyncio.create_task(refresh_worker.start())
+    
+    logger.info("✅ Intelligent caching system and background workers started")
+    
+    yield  # Application runs
+    
+    # Shutdown
+    logger.info("🛑 Shutting down RiskX Backend")
+    
+    if refresh_worker:
+        await refresh_worker.stop()
+        await refresh_worker.cleanup()
+    
+    logger.info("✅ Cleanup complete")
+
 
 app = FastAPI(
     title="RiskX API",
     version="1.0.0",
-    description="Risk Intelligence Platform - Bloomberg Terminal Style"
+    description="Risk Intelligence Platform - Bloomberg Terminal Style with Intelligent Caching",
+    lifespan=lifespan
 )
 
 # CORS middleware for frontend connection
@@ -247,3 +294,8 @@ async def cache_demo():
             "message": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }
+
+# Include intelligent caching API routes
+app.include_router(risk.router)
+app.include_router(economic.router)
+app.include_router(cache_management.router)

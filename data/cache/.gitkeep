@@ -1,0 +1,3 @@
+# Cache directory for file-based caching tier
+# This directory is used by the intelligent caching system
+# for the L3 (file system) cache tier
