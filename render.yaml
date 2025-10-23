@@ -13,6 +13,11 @@ services:
         fromDatabase:
           name: riskx-postgres
           property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: riskx-redis
+          property: connectionString
       - key: PYTHON_VERSION
         value: "3.11"
       - key: ENVIRONMENT
@@ -24,4 +29,8 @@ databases:
   - name: riskx-postgres
     databaseName: riskx
     user: riskx_user
+    plan: starter
+
+redis:
+  - name: riskx-redis
     plan: starter
