@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     # API Configuration
     api_v1_str: str = "/api/v1"
     
-    # Database (will be configured in next phase)
-    database_url: str = ""
+    # Database
+    database_url: str = os.getenv("DATABASE_URL", "")
     
     # Cache (will be configured in next phase)  
     redis_url: str = ""
