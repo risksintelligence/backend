@@ -1,21 +1,24 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
+from typing import Dict, Any, Optional
 from src.cache.cache_manager import IntelligentCacheManager
 from src.core.dependencies import get_cache_manager
+from src.ml.serving.model_server import get_model_server, ModelServer
 
 router = APIRouter(prefix="/api/v1/risk", tags=["risk"])
 
 
 @router.get("/overview")
 async def get_risk_overview(
-    cache: IntelligentCacheManager = Depends(get_cache_manager)
+    cache: IntelligentCacheManager = Depends(get_cache_manager),
+    model_server: ModelServer = Depends(get_model_server)
 ):
     """
-    Get risk overview - INSTANT response from cache.
-    Zero external API calls.
+    Get comprehensive risk overview from all ML models.
+    Returns cached data for speed, generates fresh data in background.
     """
     
-    # Try to get from cache (< 10ms)
+    # Try to get from cache first (< 10ms)
     cache_key = "risk:overview"
     cached_data = await cache.get(cache_key, max_age_seconds=300)
     
@@ -27,14 +30,41 @@ async def get_risk_overview(
             "timestamp": datetime.utcnow().isoformat()
         }
     
-    # If cache completely empty (first request ever)
-    # Return loading state
-    return {
-        "status": "loading",
-        "message": "Data is being prepared. Please try again in a moment.",
-        "retry_after_seconds": 5,
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    try:
+        # Generate fresh comprehensive risk assessment
+        assessment = await model_server.get_comprehensive_risk_assessment()
+        
+        # Cache the result for 5 minutes
+        await cache.set(cache_key, assessment, ttl_seconds=300)
+        
+        return {
+            "status": "success",
+            "data": assessment,
+            "source": "real_time",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        # If ML models fail, return cached data if available (even if old)
+        fallback_data = await cache.get(cache_key, max_age_seconds=3600)  # 1 hour fallback
+        
+        if fallback_data:
+            return {
+                "status": "success",
+                "data": fallback_data,
+                "source": "cache_fallback",
+                "warning": "Using cached data due to model unavailability",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        # Ultimate fallback
+        return {
+            "status": "service_initializing",
+            "message": "Risk assessment models are initializing. Please try again in a moment.",
+            "retry_after_seconds": 10,
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
 @router.get("/factors")
@@ -107,3 +137,101 @@ async def get_realtime_risk_score(
         "message": "Risk score temporarily unavailable",
         "timestamp": datetime.utcnow().isoformat()
     }
+
+
+@router.get("/predictions/recession")
+async def get_recession_prediction(
+    model_server: ModelServer = Depends(get_model_server)
+):
+    """Get recession probability prediction from ML model"""
+    try:
+        prediction = await model_server.predict_recession_probability()
+        return {
+            "status": "success",
+            "data": prediction,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Recession prediction failed: {str(e)}")
+
+
+@router.get("/predictions/supply-chain")
+async def get_supply_chain_prediction(
+    model_server: ModelServer = Depends(get_model_server)
+):
+    """Get supply chain risk prediction from ML model"""
+    try:
+        prediction = await model_server.predict_supply_chain_risk()
+        return {
+            "status": "success",
+            "data": prediction,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Supply chain prediction failed: {str(e)}")
+
+
+@router.get("/predictions/market-volatility")
+async def get_market_volatility_prediction(
+    model_server: ModelServer = Depends(get_model_server)
+):
+    """Get market volatility prediction from ML model"""
+    try:
+        prediction = await model_server.predict_market_volatility()
+        return {
+            "status": "success",
+            "data": prediction,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Market volatility prediction failed: {str(e)}")
+
+
+@router.get("/predictions/geopolitical")
+async def get_geopolitical_prediction(
+    model_server: ModelServer = Depends(get_model_server)
+):
+    """Get geopolitical risk prediction from ML model"""
+    try:
+        prediction = await model_server.predict_geopolitical_risk()
+        return {
+            "status": "success",
+            "data": prediction,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Geopolitical prediction failed: {str(e)}")
+
+
+@router.get("/models/status")
+async def get_models_status(
+    model_server: ModelServer = Depends(get_model_server)
+):
+    """Get status of all ML models"""
+    try:
+        status = model_server.get_model_status()
+        return {
+            "status": "success",
+            "data": status,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model status check failed: {str(e)}")
+
+
+@router.post("/models/train")
+async def trigger_model_training():
+    """Trigger training of all ML models"""
+    try:
+        from src.ml.training.model_trainer import ModelTrainingPipeline
+        
+        pipeline = ModelTrainingPipeline()
+        results = await pipeline.train_all_models()
+        
+        return {
+            "status": "success",
+            "data": results,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model training failed: {str(e)}")

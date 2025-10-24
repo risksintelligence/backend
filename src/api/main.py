@@ -21,13 +21,13 @@ refresh_worker = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Startup: Initialize cache and start background workers.
+    Startup: Initialize cache, background workers, and real-time streaming.
     Shutdown: Cleanup gracefully.
     """
     global refresh_worker
     
     # Startup
-    logger.info("🚀 Starting RiskX Backend with Intelligent Caching")
+    logger.info("🚀 Starting RiskX Backend with Intelligent Caching and Real-Time Streaming")
     
     # Initialize cache manager
     cache_manager = get_cache_manager()
@@ -38,7 +38,11 @@ async def lifespan(app: FastAPI):
     # Start workers in background
     asyncio.create_task(refresh_worker.start())
     
-    logger.info("✅ Intelligent caching system and background workers started")
+    # Initialize real-time streaming
+    from src.api.routes.websocket import initialize_real_time_streaming
+    await initialize_real_time_streaming(cache_manager)
+    
+    logger.info("✅ Intelligent caching system, background workers, and real-time streaming started")
     
     yield  # Application runs
     
@@ -49,13 +53,17 @@ async def lifespan(app: FastAPI):
         await refresh_worker.stop()
         await refresh_worker.cleanup()
     
+    # Shutdown real-time streaming
+    from src.api.routes.websocket import shutdown_real_time_streaming
+    await shutdown_real_time_streaming()
+    
     logger.info("✅ Cleanup complete")
 
 
 app = FastAPI(
     title="RiskX API",
     version="1.0.0",
-    description="Risk Intelligence Platform - Bloomberg Terminal Style with Intelligent Caching",
+    description="Risk Intelligence Platform - Sophisticated White Background Dashboard with Intelligent Caching",
     lifespan=lifespan
 )
 
@@ -145,7 +153,7 @@ async def test_endpoint():
 async def platform_info():
     return {
         "platform": "RiskX Risk Intelligence",
-        "style": "Bloomberg Terminal Inspired",
+        "style": "Sophisticated White Background Dashboard",
         "capabilities": [
             "Real-time risk assessment",
             "Economic intelligence analytics", 
@@ -301,7 +309,11 @@ app.include_router(economic.router)
 app.include_router(cache_management.router)
 
 # Include external API routes
-from src.api.routes import external_apis, risk_analytics, database_setup
+from src.api.routes import external_apis, risk_analytics, database_setup, network, websocket, simulation, explainability
 app.include_router(external_apis.router)
 app.include_router(risk_analytics.router)
 app.include_router(database_setup.router)
+app.include_router(network.router)
+app.include_router(websocket.router)
+app.include_router(simulation.router)
+app.include_router(explainability.router)

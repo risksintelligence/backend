@@ -1,0 +1,455 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "RiskX Risk Intelligence Platform API",
+    "version": "1.0.0",
+    "description": "\n# RiskX Risk Intelligence Platform API\n\nA comprehensive risk assessment platform providing real-time analysis of economic, geopolitical, \nenvironmental, and supply chain risks through advanced machine learning models and data integration.\n\n## Features\n\n- **Real-time Risk Assessment**: Live risk scoring using ML models\n- **Economic Data Integration**: FRED, BEA, BLS, Census API integration  \n- **Geopolitical Analysis**: CISA cybersecurity and threat intelligence\n- **Environmental Monitoring**: NOAA weather and climate risk assessment\n- **Geological Hazards**: USGS earthquake and natural disaster tracking\n- **Supply Chain Intelligence**: Transportation and logistics risk analysis\n- **Network Analysis**: Risk propagation and vulnerability assessment\n- **Intelligent Caching**: Three-tier caching for optimal performance\n\n## Architecture\n\n- **Backend**: FastAPI with async support\n- **Database**: PostgreSQL with SQLAlchemy ORM\n- **Cache**: Redis + PostgreSQL + File system (3-tier)\n- **ML Models**: Scikit-learn with real-time prediction serving\n- **ETL Pipeline**: Apache Airflow for data processing\n- **Deployment**: Render cloud platform\n\n## Authentication\n\nThis is an **open research platform** - no authentication required.\nAll endpoints are publicly accessible for research and educational purposes.\n            ",
+    "contact": {
+      "name": "RiskX Support",
+      "email": "support@riskx.ai",
+      "url": "https://docs.riskx.ai"
+    },
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.riskx.ai",
+      "description": "Production server"
+    },
+    {
+      "url": "https://staging-api.riskx.ai",
+      "description": "Staging server"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health check and system status"
+    },
+    {
+      "name": "risk",
+      "description": "Core risk assessment and predictions"
+    },
+    {
+      "name": "economic",
+      "description": "Economic indicators and market data"
+    },
+    {
+      "name": "external",
+      "description": "External data source integrations"
+    },
+    {
+      "name": "network",
+      "description": "Risk network analysis and propagation"
+    },
+    {
+      "name": "cache",
+      "description": "Intelligent caching system management"
+    },
+    {
+      "name": "database",
+      "description": "Database operations and data management"
+    },
+    {
+      "name": "websocket",
+      "description": "Real-time data streaming"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Root endpoint",
+        "description": "Get platform information and status",
+        "responses": {
+          "200": {
+            "description": "Platform information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health check",
+        "description": "Comprehensive system health check",
+        "responses": {
+          "200": {
+            "description": "System health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/risk/overview": {
+      "get": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Get risk overview",
+        "description": "Comprehensive risk assessment from all ML models",
+        "responses": {
+          "200": {
+            "description": "Risk overview data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "examples": {
+                  "example1": {
+                    "$ref": "#/components/examples/RiskOverviewExample"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/risk/predictions/recession": {
+      "get": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Recession probability prediction",
+        "description": "Get recession probability from ML model",
+        "responses": {
+          "200": {
+            "description": "Recession prediction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/risk/predictions/supply-chain": {
+      "get": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Supply chain risk prediction",
+        "description": "Get supply chain risk assessment from ML model",
+        "responses": {
+          "200": {
+            "description": "Supply chain risk prediction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/risk/predictions/market-volatility": {
+      "get": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Market volatility prediction",
+        "description": "Get market volatility prediction from ML model",
+        "responses": {
+          "200": {
+            "description": "Market volatility prediction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/risk/predictions/geopolitical": {
+      "get": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Geopolitical risk prediction",
+        "description": "Get geopolitical risk prediction from ML model",
+        "responses": {
+          "200": {
+            "description": "Geopolitical risk prediction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/economic/indicators": {
+      "get": {
+        "tags": [
+          "economic"
+        ],
+        "summary": "Get economic indicators",
+        "description": "Retrieve current economic indicators from multiple sources",
+        "responses": {
+          "200": {
+            "description": "Economic indicators data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/network/simulation": {
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Run risk simulation",
+        "description": "Execute shock propagation simulation on risk network",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Simulation results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cache/metrics": {
+      "get": {
+        "tags": [
+          "cache"
+        ],
+        "summary": "Cache performance metrics",
+        "description": "Get cache system performance metrics",
+        "responses": {
+          "200": {
+            "description": "Cache metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object"
+          },
+          "source": {
+            "type": "string",
+            "example": "real_time"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "error"
+          },
+          "error": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RiskOverview": {
+        "type": "object",
+        "properties": {
+          "overall_risk_score": {
+            "type": "number",
+            "example": 65.5
+          },
+          "risk_level": {
+            "type": "string",
+            "example": "Medium-High"
+          },
+          "confidence": {
+            "type": "number",
+            "example": 0.85
+          },
+          "factors": {
+            "type": "object",
+            "properties": {
+              "economic": {
+                "type": "number",
+                "example": 70.0
+              },
+              "geopolitical": {
+                "type": "number",
+                "example": 60.0
+              },
+              "supply_chain": {
+                "type": "number",
+                "example": 65.0
+              },
+              "environmental": {
+                "type": "number",
+                "example": 45.0
+              }
+            }
+          },
+          "assessment_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EconomicIndicator": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number",
+            "example": 27100000.0
+          },
+          "units": {
+            "type": "string",
+            "example": "millions_usd"
+          },
+          "date": {
+            "type": "string",
+            "example": "2024-Q2"
+          },
+          "source": {
+            "type": "string",
+            "example": "fred"
+          },
+          "change_pct": {
+            "type": "number",
+            "example": 2.1
+          },
+          "trend": {
+            "type": "string",
+            "example": "growing"
+          }
+        }
+      },
+      "SimulationRequest": {
+        "type": "object",
+        "required": [
+          "initial_nodes",
+          "shock_magnitude"
+        ],
+        "properties": {
+          "initial_nodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "BANK_A"
+            ]
+          },
+          "shock_magnitude": {
+            "type": "number",
+            "example": 0.5
+          },
+          "simulation_steps": {
+            "type": "integer",
+            "example": 20
+          },
+          "containment_threshold": {
+            "type": "number",
+            "example": 0.1
+          }
+        }
+      }
+    },
+    "examples": {
+      "RiskOverviewExample": {
+        "summary": "Risk Overview Response",
+        "value": {
+          "status": "success",
+          "data": {
+            "overall_risk_score": 65.5,
+            "risk_level": "Medium-High",
+            "confidence": 0.85,
+            "factors": {
+              "economic": 70.0,
+              "geopolitical": 60.0,
+              "supply_chain": 65.0,
+              "environmental": 45.0
+            },
+            "assessment_timestamp": "2024-01-01T12:00:00Z"
+          },
+          "source": "real_time",
+          "timestamp": "2024-01-01T12:00:00Z"
+        }
+      }
+    }
+  }
+}

@@ -77,11 +77,11 @@ class CensusClient:
             logger.error(f"Census API error for {endpoint}: {e}")
             return None
     
-    async def get_population_estimates(self, year: str = "2023") -> Optional[Dict]:
+    async def get_population_estimates(self, year: str = "2021") -> Optional[Dict]:
         """Get population estimates."""
         
         params = {
-            "get": "NAME,POP",
+            "get": "NAME,POP_2021",
             "for": "us:1"
         }
         
@@ -98,7 +98,7 @@ class CensusClient:
                     result[header.lower()] = values[i]
             
             return {
-                "population": int(result.get("pop", 0)),
+                "population": int(result.get("pop_2021", 0)),
                 "name": result.get("name", "United States"),
                 "year": year,
                 "source": "census",
@@ -116,7 +116,7 @@ class CensusClient:
             "for": "us:1"
         }
         
-        data = await self._make_request("2022/acs/acs1", params)
+        data = await self._make_request("2019/acs/acs1", params)
         
         if data and len(data) > 1:
             income_value = data[1][1]
@@ -124,7 +124,7 @@ class CensusClient:
             return {
                 "median_household_income": int(income_value) if income_value else None,
                 "currency": "USD",
-                "year": "2022",
+                "year": "2019",
                 "source": "census_acs",
                 "last_updated": datetime.utcnow().isoformat()
             }
