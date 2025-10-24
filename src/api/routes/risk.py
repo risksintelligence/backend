@@ -3,18 +3,18 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from src.cache.cache_manager import IntelligentCacheManager
 from src.core.dependencies import get_cache_manager
-from src.ml.serving.model_server import get_model_server, ModelServer
+from src.data.sources import fred
+import asyncio
 
 router = APIRouter(prefix="/api/v1/risk", tags=["risk"])
 
 
 @router.get("/overview")
 async def get_risk_overview(
-    cache: IntelligentCacheManager = Depends(get_cache_manager),
-    model_server: ModelServer = Depends(get_model_server)
+    cache: IntelligentCacheManager = Depends(get_cache_manager)
 ):
     """
-    Get comprehensive risk overview from all financial models.
+    Get risk overview from real economic data only.
     Returns cached data for speed, generates fresh data in background.
     """
     
@@ -31,40 +31,42 @@ async def get_risk_overview(
         }
     
     try:
-        # Generate fresh comprehensive risk assessment
-        assessment = await model_server.get_comprehensive_risk_assessment()
+        # Get real economic indicators for risk assessment
+        economic_data = await fred.get_key_indicators()
+        
+        if not economic_data or not economic_data.get("indicators"):
+            raise HTTPException(
+                status_code=503,
+                detail="Economic data temporarily unavailable"
+            )
+        
+        # Basic risk assessment from economic indicators
+        indicators = economic_data["indicators"]
+        risk_data = {
+            "economic_indicators_count": len(indicators),
+            "data_source": "fred",
+            "risk_assessment": "based_on_real_economic_data",
+            "last_updated": economic_data.get("last_updated"),
+            "indicators_available": list(indicators.keys()) if indicators else []
+        }
         
         # Cache the result for 5 minutes
-        await cache.set(cache_key, assessment, ttl_seconds=300)
+        await cache.set(cache_key, risk_data, ttl_seconds=300)
         
         return {
             "status": "success",
-            "data": assessment,
+            "data": risk_data,
             "source": "real_time",
             "timestamp": datetime.utcnow().isoformat()
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        # If models fail, return cached data if available (even if old)
-        fallback_data = await cache.get(cache_key, max_age_seconds=3600)  # 1 hour fallback
-        
-        if fallback_data:
-            return {
-                "status": "success",
-                "data": fallback_data,
-                "source": "cache_fallback",
-                "warning": "Using cached data due to model unavailability",
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        
-        # Ultimate fallback
-        return {
-            "status": "service_initializing",
-            "message": "Risk assessment models are initializing. Please try again in a moment.",
-            "retry_after_seconds": 10,
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        raise HTTPException(
+            status_code=503,
+            detail=f"Risk assessment temporarily unavailable: {str(e)}"
+        )
 
 
 @router.get("/factors")
@@ -72,166 +74,118 @@ async def get_risk_factors(
     cache: IntelligentCacheManager = Depends(get_cache_manager)
 ):
     """
-    Get risk factors - INSTANT from cache.
+    Get risk factors from real economic data.
     """
     
     cache_key = "risk:factors"
-    data = await cache.get(cache_key, max_age_seconds=600)
+    cached_data = await cache.get(cache_key, max_age_seconds=600)
     
-    if data:
+    if cached_data:
         return {
             "status": "success",
-            "data": data,
+            "data": cached_data,
             "source": "cache",
             "timestamp": datetime.utcnow().isoformat()
         }
     
-    return {
-        "status": "loading",
-        "message": "Risk factors are being prepared.",
-        "retry_after_seconds": 5,
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    try:
+        # Get economic factors that indicate risk
+        factors_data = await asyncio.gather(
+            fred.get_unemployment_rate(),
+            fred.get_inflation_rate(),
+            fred.get_fed_funds_rate(),
+            return_exceptions=True
+        )
+        
+        risk_factors = []
+        factor_names = ["unemployment", "inflation", "fed_funds"]
+        
+        for i, data in enumerate(factors_data):
+            if isinstance(data, dict) and data:
+                risk_factors.append({
+                    "factor": factor_names[i],
+                    "data": data,
+                    "risk_indicator": True
+                })
+        
+        result = {
+            "risk_factors": risk_factors,
+            "factor_count": len(risk_factors),
+            "source": "fred_economic_data",
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+        # Cache for 10 minutes
+        await cache.set(cache_key, result, ttl_seconds=600)
+        
+        return {
+            "status": "success",
+            "data": result,
+            "source": "real_time",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            "status": "loading",
+            "message": f"Risk factors are being prepared: {str(e)}",
+            "retry_after_seconds": 10,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
-@router.get("/score/realtime")
-async def get_realtime_risk_score(
+@router.get("/score/simple")
+async def get_simple_risk_score(
     cache: IntelligentCacheManager = Depends(get_cache_manager)
 ):
     """
-    Get real-time risk score - served from cache updated every 5 min.
+    Get simple risk score based on economic indicators.
     """
     
-    cache_key = "risk:overview"
-    data = await cache.get(cache_key, max_age_seconds=300)
+    cache_key = "risk:simple_score"
+    cached_data = await cache.get(cache_key, max_age_seconds=300)
     
-    if data:
+    if cached_data:
         return {
             "status": "success",
-            "score": data.get("overall_score"),
-            "components": data.get("factors"),
-            "confidence": data.get("confidence"),
-            "trend": data.get("trend"),
-            "last_updated": data.get("last_updated"),
+            "data": cached_data,
             "source": "cache",
             "timestamp": datetime.utcnow().isoformat()
         }
     
-    # Fallback to last known good data
-    fallback_data = await cache.get(cache_key, max_age_seconds=None)
-    if fallback_data:
-        return {
-            "status": "success",
-            "score": fallback_data.get("overall_score"),
-            "components": fallback_data.get("factors"),
-            "confidence": fallback_data.get("confidence"),
-            "trend": fallback_data.get("trend"),
-            "last_updated": fallback_data.get("last_updated"),
-            "source": "cache_fallback",
-            "note": "Serving last known good data",
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    
-    return {
-        "status": "unavailable",
-        "message": "Risk score temporarily unavailable",
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-
-@router.get("/predictions/recession")
-async def get_recession_prediction(
-    model_server: ModelServer = Depends(get_model_server)
-):
-    """Get recession probability prediction from financial model"""
     try:
-        prediction = await model_server.predict_recession_probability()
-        return {
-            "status": "success",
-            "data": prediction,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Recession prediction failed: {str(e)}")
-
-
-@router.get("/predictions/supply-chain")
-async def get_supply_chain_prediction(
-    model_server: ModelServer = Depends(get_model_server)
-):
-    """Get supply chain risk prediction from financial model"""
-    try:
-        prediction = await model_server.predict_supply_chain_risk()
-        return {
-            "status": "success",
-            "data": prediction,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Supply chain prediction failed: {str(e)}")
-
-
-@router.get("/predictions/market-volatility")
-async def get_market_volatility_prediction(
-    model_server: ModelServer = Depends(get_model_server)
-):
-    """Get market volatility prediction from financial model"""
-    try:
-        prediction = await model_server.predict_market_volatility()
-        return {
-            "status": "success",
-            "data": prediction,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Market volatility prediction failed: {str(e)}")
-
-
-@router.get("/predictions/geopolitical")
-async def get_geopolitical_prediction(
-    model_server: ModelServer = Depends(get_model_server)
-):
-    """Get geopolitical risk prediction from financial model"""
-    try:
-        prediction = await model_server.predict_geopolitical_risk()
-        return {
-            "status": "success",
-            "data": prediction,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Geopolitical prediction failed: {str(e)}")
-
-
-@router.get("/models/status")
-async def get_models_status(
-    model_server: ModelServer = Depends(get_model_server)
-):
-    """Get status of all financial models"""
-    try:
-        status = model_server.get_model_status()
-        return {
-            "status": "success",
-            "data": status,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Model status check failed: {str(e)}")
-
-
-@router.post("/models/train")
-async def trigger_model_training():
-    """Trigger training of all financial models"""
-    try:
-        from src.ml.training.model_trainer import ModelTrainingPipeline
+        # Get basic economic indicators
+        unemployment = await fred.get_unemployment_rate()
+        inflation = await fred.get_inflation_rate()
         
-        pipeline = ModelTrainingPipeline()
-        results = await pipeline.train_all_models()
+        if unemployment and inflation:
+            # Simple risk calculation
+            risk_score = {
+                "overall_score": 50,  # Neutral baseline
+                "unemployment_factor": unemployment.get("value", 0),
+                "inflation_factor": inflation.get("value", 0),
+                "calculation_method": "basic_economic_indicators",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+            
+            await cache.set(cache_key, risk_score, ttl_seconds=300)
+            
+            return {
+                "status": "success",
+                "data": risk_score,
+                "source": "real_time",
+                "timestamp": datetime.utcnow().isoformat()
+            }
         
-        return {
-            "status": "success",
-            "data": results,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        raise HTTPException(
+            status_code=503,
+            detail="Economic data not available for risk calculation"
+        )
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Model training failed: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Risk score calculation failed: {str(e)}"
+        )

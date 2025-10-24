@@ -168,6 +168,26 @@ class FREDClient:
             ]
         
         return []
+    
+    async def get_multiple_series(self, series_ids: List[str], limit: int = 100) -> Dict[str, Any]:
+        """Get multiple FRED series data concurrently."""
+        # Fetch multiple series concurrently
+        results = await asyncio.gather(
+            *[self.get_series(series_id, limit=limit) for series_id in series_ids],
+            return_exceptions=True
+        )
+        
+        series_data = {}
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                series_data[series_ids[i]] = result
+        
+        return {
+            "series_data": series_data,
+            "count": len(series_data),
+            "source": "fred_multiple_series",
+            "last_updated": datetime.utcnow().isoformat()
+        }
 
 
 # Convenience functions for common series
@@ -404,6 +424,31 @@ async def get_economic_stability_indicators() -> Optional[Dict]:
             return {
                 "stability_indicators": indicators,
                 "source": "fred_stability",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        return None
+
+
+async def get_recent_indicators(limit: int = 100) -> Optional[Dict]:
+    """Get recent economic indicators from FRED."""
+    async with FREDClient() as client:
+        # Get recent data from key economic series
+        series_ids = ["GDP", "UNRATE", "CPIAUCSL", "FEDFUNDS", "PAYEMS", "INDPRO"]
+        results = await asyncio.gather(
+            *[client.get_series(series_id, limit=min(limit//len(series_ids), 50)) for series_id in series_ids],
+            return_exceptions=True
+        )
+        
+        indicators = {}
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                indicators[series_ids[i]] = result
+        
+        if indicators:
+            return {
+                "recent_indicators": indicators,
+                "series_count": len(indicators),
+                "source": "fred_recent",
                 "last_updated": datetime.utcnow().isoformat()
             }
         return None
