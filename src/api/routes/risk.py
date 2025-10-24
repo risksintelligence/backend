@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from src.cache.cache_manager import IntelligentCacheManager
 from src.core.dependencies import get_cache_manager
 from src.data.sources import fred
@@ -37,7 +37,7 @@ async def get_risk_overview(
         if not economic_data or not economic_data.get("indicators"):
             raise HTTPException(
                 status_code=503,
-                detail="Economic data temporarily unavailable"
+                detail="Economic data temporarily unavailable - FRED API configuration required"
             )
         
         # Basic risk assessment from economic indicators
@@ -189,3 +189,4 @@ async def get_simple_risk_score(
             status_code=503,
             detail=f"Risk score calculation failed: {str(e)}"
         )
+

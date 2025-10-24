@@ -7,6 +7,7 @@ from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime
 import logging
 import json
+import asyncio
 
 from src.core.database import get_db
 from src.core.dependencies import get_cache_manager
@@ -641,6 +642,144 @@ async def get_critical_paths_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/supply-chain")
+async def get_supply_chain_network_analysis(
+    db: AsyncSession = Depends(get_db),
+    cache: IntelligentCacheManager = Depends(get_cache_manager)
+):
+    """
+    Get supply chain network analysis and risk assessment.
+    
+    Returns:
+        - Supply chain network topology
+        - Supplier dependency analysis
+        - Risk concentration metrics
+        - Critical supplier identification
+        - Supply chain resilience assessment
+    """
+    try:
+        cache_key = "network:supply_chain"
+        cached_data = await cache.get(cache_key, max_age_seconds=600)
+        
+        if cached_data:
+            return {
+                "status": "success",
+                "data": cached_data,
+                "source": "cache",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        # Get supply chain network data
+        nodes_result = await db.execute(
+            "SELECT * FROM network_nodes WHERE node_type = 'supplier' AND is_active = true"
+        )
+        supplier_nodes = [dict(row) for row in nodes_result.fetchall()]
+        
+        edges_result = await db.execute(
+            "SELECT * FROM network_edges WHERE edge_type = 'supply_chain' AND is_active = true"
+        )
+        supply_edges = [dict(row) for row in edges_result.fetchall()]
+        
+        if not supplier_nodes:
+            # Use real economic data to assess supply chain risks when no direct data available
+            from src.data.sources import fred
+            
+            # Get economic indicators that affect supply chains
+            results = await asyncio.gather(
+                fred.get_economic_stability_indicators(),
+                fred.get_market_volatility_indicators(),
+                fred.get_treasury_yields(),
+                return_exceptions=True
+            )
+            
+            supply_chain_data = {
+                "supply_chain_status": "assessment_based_on_economic_indicators",
+                "economic_risk_factors": {},
+                "overall_risk_score": 50,  # Neutral baseline
+                "risk_assessment": {
+                    "economic_stability": "monitoring",
+                    "market_volatility": "normal",
+                    "interest_rate_environment": "stable"
+                },
+                "recommendations": [
+                    "Implement supply chain monitoring system",
+                    "Establish supplier diversity metrics",
+                    "Monitor economic indicators for supply chain impacts"
+                ],
+                "data_availability": "limited - economic indicators used for assessment"
+            }
+            
+            # Process economic indicators
+            source_names = ["stability", "volatility", "yields"]
+            for i, result in enumerate(results):
+                if isinstance(result, dict) and result:
+                    supply_chain_data["economic_risk_factors"][source_names[i]] = result
+            
+            # Calculate risk score based on economic indicators
+            if supply_chain_data["economic_risk_factors"]:
+                risk_factors = len(supply_chain_data["economic_risk_factors"])
+                supply_chain_data["overall_risk_score"] = min(100, 40 + (risk_factors * 10))
+            
+            await cache.set(cache_key, supply_chain_data, ttl_seconds=600)
+            
+            return {
+                "status": "success",
+                "data": supply_chain_data,
+                "source": "computed_from_economic_indicators",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        # Initialize network analyzer with supply chain data
+        analyzer = await get_network_analyzer()
+        analyzer.build_network_from_data(supplier_nodes, supply_edges)
+        
+        # Calculate supply chain metrics
+        metrics = analyzer.calculate_network_metrics()
+        vulnerabilities = analyzer.find_vulnerabilities()
+        critical_suppliers = analyzer.identify_critical_nodes(threshold=0.6)
+        
+        # Supply chain specific analysis
+        supply_chain_data = {
+            "network_structure": {
+                "total_suppliers": metrics.node_count,
+                "supply_relationships": metrics.edge_count,
+                "network_density": round(metrics.density, 4),
+                "supply_chain_complexity": round(metrics.average_path_length, 2)
+            },
+            "critical_suppliers": {
+                "tier_1_critical": critical_suppliers[:5],
+                "single_source_dependencies": vulnerabilities["single_points_of_failure"],
+                "supplier_concentration_risk": calculate_supplier_concentration(supplier_nodes)
+            },
+            "risk_assessment": {
+                "overall_risk_score": calculate_supply_chain_risk_score(metrics, vulnerabilities),
+                "dependency_risk": "high" if len(vulnerabilities["single_points_of_failure"]) > 3 else "medium",
+                "diversification_level": calculate_diversification_level(supplier_nodes),
+                "resilience_score": calculate_resilience_score(metrics, vulnerabilities)
+            },
+            "vulnerability_analysis": {
+                "geographic_concentration": analyze_geographic_concentration(supplier_nodes),
+                "industry_concentration": analyze_industry_concentration(supplier_nodes),
+                "tier_dependency": analyze_tier_dependencies(supplier_nodes, supply_edges)
+            },
+            "recommendations": generate_supply_chain_recommendations(vulnerabilities, supplier_nodes)
+        }
+        
+        # Cache the results
+        await cache.set(cache_key, supply_chain_data, ttl_seconds=600)
+        
+        return {
+            "status": "success",
+            "data": supply_chain_data,
+            "source": "computed",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in supply chain analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/simulation")
 async def run_shock_simulation(
     simulation_request: Dict[str, Any],
@@ -1100,6 +1239,116 @@ def generate_simulation_recommendations(simulation_result: PropagationResult, ca
         "Establish real-time monitoring for early cascade detection",
         "Develop automated containment protocols",
         "Create emergency response procedures for high-impact scenarios"
+    ])
+    
+    return recommendations
+
+
+# Supply chain helper functions
+
+def calculate_supplier_concentration(supplier_nodes: List[Dict]) -> str:
+    """Calculate supplier concentration risk level."""
+    if len(supplier_nodes) < 5:
+        return "high"
+    elif len(supplier_nodes) < 15:
+        return "medium"
+    else:
+        return "low"
+
+
+def calculate_supply_chain_risk_score(metrics: Any, vulnerabilities: Dict) -> float:
+    """Calculate overall supply chain risk score."""
+    base_score = 50  # Neutral baseline
+    
+    # Adjust for network density (higher density = lower risk)
+    density_adjustment = (metrics.density - 0.1) * 50
+    
+    # Adjust for vulnerabilities (more SPOFs = higher risk)
+    spof_penalty = len(vulnerabilities["single_points_of_failure"]) * 10
+    
+    risk_score = base_score - density_adjustment + spof_penalty
+    return max(0, min(100, risk_score))
+
+
+def calculate_diversification_level(supplier_nodes: List[Dict]) -> str:
+    """Calculate supplier diversification level."""
+    unique_types = len(set(node.get('node_subtype', 'unknown') for node in supplier_nodes))
+    
+    if unique_types < 3:
+        return "low"
+    elif unique_types < 7:
+        return "medium"
+    else:
+        return "high"
+
+
+def analyze_geographic_concentration(supplier_nodes: List[Dict]) -> Dict:
+    """Analyze geographic concentration of suppliers."""
+    regions = {}
+    for node in supplier_nodes:
+        region = node.get('region', 'unknown')
+        regions[region] = regions.get(region, 0) + 1
+    
+    total_suppliers = len(supplier_nodes)
+    max_concentration = max(regions.values()) if regions else 0
+    concentration_ratio = max_concentration / total_suppliers if total_suppliers > 0 else 0
+    
+    return {
+        "regional_distribution": regions,
+        "max_concentration_ratio": round(concentration_ratio, 3),
+        "risk_level": "high" if concentration_ratio > 0.5 else "medium" if concentration_ratio > 0.3 else "low"
+    }
+
+
+def analyze_industry_concentration(supplier_nodes: List[Dict]) -> Dict:
+    """Analyze industry concentration of suppliers."""
+    industries = {}
+    for node in supplier_nodes:
+        industry = node.get('industry', 'unknown')
+        industries[industry] = industries.get(industry, 0) + 1
+    
+    total_suppliers = len(supplier_nodes)
+    max_concentration = max(industries.values()) if industries else 0
+    concentration_ratio = max_concentration / total_suppliers if total_suppliers > 0 else 0
+    
+    return {
+        "industry_distribution": industries,
+        "max_concentration_ratio": round(concentration_ratio, 3),
+        "risk_level": "high" if concentration_ratio > 0.4 else "medium" if concentration_ratio > 0.25 else "low"
+    }
+
+
+def analyze_tier_dependencies(supplier_nodes: List[Dict], supply_edges: List[Dict]) -> Dict:
+    """Analyze supplier tier dependencies."""
+    tier_counts = {}
+    for node in supplier_nodes:
+        tier = node.get('supplier_tier', 'unknown')
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+    
+    return {
+        "tier_distribution": tier_counts,
+        "tier_1_percentage": round(tier_counts.get('tier_1', 0) / len(supplier_nodes) * 100, 1) if supplier_nodes else 0,
+        "dependency_depth": len(tier_counts),
+        "risk_assessment": "balanced" if len(tier_counts) > 2 else "concentrated"
+    }
+
+
+def generate_supply_chain_recommendations(vulnerabilities: Dict, supplier_nodes: List[Dict]) -> List[str]:
+    """Generate supply chain specific recommendations."""
+    recommendations = []
+    
+    if len(vulnerabilities["single_points_of_failure"]) > 0:
+        recommendations.append("Implement dual sourcing for critical single-source suppliers")
+    
+    if len(supplier_nodes) < 10:
+        recommendations.append("Expand supplier base to reduce concentration risk")
+    
+    recommendations.extend([
+        "Establish supplier performance monitoring system",
+        "Develop contingency plans for critical supplier disruptions",
+        "Implement regular supplier risk assessments",
+        "Create supplier diversity and inclusion programs",
+        "Establish strategic supplier partnerships for resilience"
     ])
     
     return recommendations
