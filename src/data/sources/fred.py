@@ -281,6 +281,134 @@ async def get_vix_data() -> Optional[Dict]:
         return None
 
 
+async def get_multiple_series(series_ids: List[str], limit: int = 100) -> Dict[str, Any]:
+    """Get multiple FRED series data concurrently."""
+    async with FREDClient() as client:
+        # Fetch multiple series concurrently
+        results = await asyncio.gather(
+            *[client.get_series(series_id, limit=limit) for series_id in series_ids],
+            return_exceptions=True
+        )
+        
+        series_data = {}
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                series_data[series_ids[i]] = result
+        
+        return {
+            "series_data": series_data,
+            "count": len(series_data),
+            "source": "fred_multiple_series",
+            "last_updated": datetime.utcnow().isoformat()
+        }
+
+
+async def get_market_volatility_indicators() -> Optional[Dict]:
+    """Get market volatility indicators from FRED."""
+    async with FREDClient() as client:
+        results = await asyncio.gather(
+            client.get_series("VIXCLS"),    # VIX Volatility Index
+            client.get_series("WILL5000PR"), # Wilshire 5000 Price Index
+            client.get_series("NASDAQCOM"),  # NASDAQ Composite Index
+            return_exceptions=True
+        )
+        
+        indicators = {}
+        series_names = ["vix", "wilshire_5000", "nasdaq"]
+        
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                indicators[series_names[i]] = result
+        
+        if indicators:
+            return {
+                "volatility_indicators": indicators,
+                "source": "fred_volatility",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        return None
+
+
+async def get_economic_uncertainty_data() -> Optional[Dict]:
+    """Get economic uncertainty indicators from FRED."""
+    async with FREDClient() as client:
+        results = await asyncio.gather(
+            client.get_series("USEPUINDXD"),  # Economic Policy Uncertainty Index
+            client.get_series("UNRATE"),      # Unemployment Rate
+            client.get_series("CPIAUCSL"),    # Consumer Price Index
+            return_exceptions=True
+        )
+        
+        indicators = {}
+        series_names = ["policy_uncertainty", "unemployment", "inflation"]
+        
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                indicators[series_names[i]] = result
+        
+        if indicators:
+            return {
+                "uncertainty_indicators": indicators,
+                "source": "fred_uncertainty",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        return None
+
+
+async def get_treasury_yields() -> Optional[Dict]:
+    """Get Treasury yield data from FRED."""
+    async with FREDClient() as client:
+        results = await asyncio.gather(
+            client.get_series("DGS3MO"),   # 3-Month Treasury Rate
+            client.get_series("DGS2"),     # 2-Year Treasury Rate
+            client.get_series("DGS10"),    # 10-Year Treasury Rate
+            client.get_series("DGS30"),    # 30-Year Treasury Rate
+            return_exceptions=True
+        )
+        
+        yields = {}
+        series_names = ["3_month", "2_year", "10_year", "30_year"]
+        
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                yields[series_names[i]] = result
+        
+        if yields:
+            return {
+                "treasury_yields": yields,
+                "source": "fred_yields",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        return None
+
+
+async def get_economic_stability_indicators() -> Optional[Dict]:
+    """Get economic stability indicators from FRED."""
+    async with FREDClient() as client:
+        results = await asyncio.gather(
+            client.get_series("GDP"),         # Gross Domestic Product
+            client.get_series("PAYEMS"),      # Non-farm Payrolls
+            client.get_series("INDPRO"),      # Industrial Production Index
+            client.get_series("HOUST"),       # Housing Starts
+            return_exceptions=True
+        )
+        
+        indicators = {}
+        series_names = ["gdp", "employment", "production", "housing"]
+        
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                indicators[series_names[i]] = result
+        
+        if indicators:
+            return {
+                "stability_indicators": indicators,
+                "source": "fred_stability",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        return None
+
+
 async def health_check(timeout: int = 5) -> bool:
     """Check if FRED API is accessible."""
     try:

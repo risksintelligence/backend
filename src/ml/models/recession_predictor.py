@@ -140,7 +140,7 @@ class RecessionPredictor:
         from src.core.config import get_settings
         
         settings = get_settings()
-        fred_client = FREDClient(api_key=settings.fred_api_key)
+        fred_client = FREDClient()
         
         # Fetch historical data from 1980 to present
         end_date = datetime.now()

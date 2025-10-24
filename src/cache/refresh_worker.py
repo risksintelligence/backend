@@ -152,26 +152,43 @@ class BackgroundRefreshWorker:
             elif source == "risk":
                 # Route to real economic data APIs for risk indicators
                 if series == "overview":
-                    # Use real economic indicators as risk overview
-                    indicators = await fred.get_key_indicators()
-                    if indicators and "indicators" in indicators:
+                    # Use comprehensive economic stability indicators for risk overview
+                    results = await asyncio.gather(
+                        fred.get_economic_stability_indicators(),
+                        fred.get_economic_uncertainty_data(),
+                        fred.get_treasury_yields(),
+                        return_exceptions=True
+                    )
+                    
+                    risk_data = {}
+                    source_names = ["stability", "uncertainty", "yields"]
+                    
+                    for i, result in enumerate(results):
+                        if isinstance(result, dict) and result:
+                            risk_data[source_names[i]] = result
+                    
+                    if risk_data:
                         return {
-                            "economic_indicators": indicators["indicators"],
-                            "source": "fred_economic_data",
+                            "risk_overview": risk_data,
+                            "overall_score": 50 + sum([len(d) for d in risk_data.values()]) * 5,  # Basic scoring
+                            "source": "fred_risk_overview",
                             "last_updated": datetime.utcnow().isoformat()
                         }
+                    
                 elif series == "factors":
-                    # Use real economic factors
+                    # Use comprehensive risk factors from multiple sources
                     factors = await asyncio.gather(
                         fred.get_unemployment_rate(),
                         fred.get_inflation_rate(), 
                         fred.get_fed_funds_rate(),
+                        fred.get_market_volatility_indicators(),
                         return_exceptions=True
                     )
                     valid_factors = [f for f in factors if isinstance(f, dict) and f]
                     return {
                         "risk_factors": valid_factors,
-                        "source": "fred_economic_factors",
+                        "factor_count": len(valid_factors),
+                        "source": "fred_risk_factors",
                         "last_updated": datetime.utcnow().isoformat()
                     }
             

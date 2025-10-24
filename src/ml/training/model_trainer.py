@@ -27,9 +27,9 @@ class ModelTrainingPipeline:
     """Comprehensive financial model training pipeline"""
     
     def __init__(self):
-        self.fred_client = FREDClient(api_key=settings.fred_api_key)
-        self.bea_client = BEAClient(api_key=settings.bea_api_key)
-        self.bls_client = BLSClient(api_key=settings.bls_api_key)
+        self.fred_client = FREDClient()
+        self.bea_client = BEAClient()
+        self.bls_client = BLSClient()
         
         self.models = {
             'recession_predictor': RecessionPredictor(),
