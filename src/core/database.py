@@ -4,11 +4,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 import logging
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Get database URL and convert to async format
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Get database URL from settings configuration
+settings = get_settings()
+DATABASE_URL = settings.database_url
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 

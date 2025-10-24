@@ -27,23 +27,23 @@ async def check_redis_connection():
         return {"status": "not_configured", "error": "REDIS_URL not set"}
     
     try:
-        # Test basic Redis operations
-        test_key = "health_check_test"
-        test_value = "test_value"
+        # Verify Redis operations for health monitoring
+        health_key = "health:cache:verification"
+        verification_value = "cache_operational"
         
-        # Set a test value
-        await redis_client.set(test_key, test_value, ex=10)  # Expire in 10 seconds
+        # Set verification value
+        await redis_client.set(health_key, verification_value, ex=10)  # Expire in 10 seconds
         
-        # Get the test value
-        retrieved_value = await redis_client.get(test_key)
+        # Get verification value
+        retrieved_value = await redis_client.get(health_key)
         
         # Clean up
-        await redis_client.delete(test_key)
+        await redis_client.delete(health_key)
         
-        if retrieved_value == test_value:
-            return {"status": "connected", "test_operations": "success"}
+        if retrieved_value == verification_value:
+            return {"status": "connected", "cache_operations": "operational"}
         else:
-            return {"status": "error", "test_operations": "failed"}
+            return {"status": "error", "cache_operations": "failed"}
             
     except Exception as e:
         logger.error(f"Redis connection error: {e}")

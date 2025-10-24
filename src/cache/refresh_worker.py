@@ -141,6 +141,40 @@ class BackgroundRefreshWorker:
                 elif series == "income":
                     return await census.get_household_income()
             
+            elif source == "market":
+                if series == "overview":
+                    return await fred.get_market_overview()
+                elif series == "SP500":
+                    return await fred.get_sp500_data()
+                elif series == "VIX":
+                    return await fred.get_vix_data()
+            
+            elif source == "risk":
+                # Route to real economic data APIs for risk indicators
+                if series == "overview":
+                    # Use real economic indicators as risk overview
+                    indicators = await fred.get_key_indicators()
+                    if indicators and "indicators" in indicators:
+                        return {
+                            "economic_indicators": indicators["indicators"],
+                            "source": "fred_economic_data",
+                            "last_updated": datetime.utcnow().isoformat()
+                        }
+                elif series == "factors":
+                    # Use real economic factors
+                    factors = await asyncio.gather(
+                        fred.get_unemployment_rate(),
+                        fred.get_inflation_rate(), 
+                        fred.get_fed_funds_rate(),
+                        return_exceptions=True
+                    )
+                    valid_factors = [f for f in factors if isinstance(f, dict) and f]
+                    return {
+                        "risk_factors": valid_factors,
+                        "source": "fred_economic_factors",
+                        "last_updated": datetime.utcnow().isoformat()
+                    }
+            
             # No real API data available for this series
             logger.error(f"No real API implementation for {source}:{series}")
             raise ValueError(f"Real data not available for {source}:{series}")

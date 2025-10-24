@@ -225,6 +225,62 @@ async def get_key_indicators() -> Dict[str, Any]:
         }
 
 
+async def get_market_overview() -> Dict[str, Any]:
+    """Get comprehensive market overview from FRED data."""
+    async with FREDClient() as client:
+        # Fetch key market indicators concurrently
+        results = await asyncio.gather(
+            client.get_series("SP500"),      # S&P 500
+            client.get_series("VIXCLS"),     # VIX Volatility Index
+            client.get_series("DGS10"),      # 10-Year Treasury Rate
+            client.get_series("DGS2"),       # 2-Year Treasury Rate
+            client.get_series("DEXUSEU"),    # USD/EUR Exchange Rate
+            return_exceptions=True
+        )
+        
+        indicators = {}
+        series_names = ["sp500", "vix", "treasury_10y", "treasury_2y", "usd_eur"]
+        
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and result:
+                indicators[series_names[i]] = result
+        
+        return {
+            "market_indicators": indicators,
+            "count": len(indicators),
+            "source": "fred_market",
+            "last_updated": datetime.utcnow().isoformat()
+        }
+
+
+async def get_sp500_data() -> Optional[Dict]:
+    """Get S&P 500 index data."""
+    async with FREDClient() as client:
+        data = await client.get_series("SP500")
+        if data:
+            return {
+                "symbol": "SP500",
+                "data": data,
+                "source": "fred",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        return None
+
+
+async def get_vix_data() -> Optional[Dict]:
+    """Get VIX volatility index data."""
+    async with FREDClient() as client:
+        data = await client.get_series("VIXCLS")
+        if data:
+            return {
+                "symbol": "VIX",
+                "data": data,
+                "source": "fred",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        return None
+
+
 async def health_check(timeout: int = 5) -> bool:
     """Check if FRED API is accessible."""
     try:

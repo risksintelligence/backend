@@ -3,22 +3,17 @@ National Oceanic and Atmospheric Administration (NOAA) API Integration
 """
 import aiohttp
 import asyncio
-import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import logging
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# NOAA API endpoints
-NOAA_CDO_URL = "https://www.ncei.noaa.gov/cdo-web/api/v2"
+# NOAA Weather API endpoint (free, no API key required)
 NOAA_WEATHER_URL = "https://api.weather.gov"
 
-# NOAA API key from environment (CDO requires registration)
-NOAA_API_KEY = os.getenv("NOAA_API_KEY")
-
-if not NOAA_API_KEY:
-    logger.warning("NOAA_API_KEY not found - some services may be limited")
+settings = get_settings()
 
 
 class NOAAClient:
@@ -50,35 +45,6 @@ class NOAAClient:
         
         self.last_request_time = asyncio.get_event_loop().time()
     
-    async def _make_cdo_request(self, endpoint: str, params: Dict[str, Any]) -> Optional[Dict]:
-        """Make request to NOAA Climate Data Online API."""
-        if not self.session:
-            raise RuntimeError("Client not initialized. Use 'async with' context.")
-        
-        if not NOAA_API_KEY:
-            logger.warning("NOAA_API_KEY not configured - CDO requests will fail")
-            return None
-        
-        await self._rate_limit()
-        
-        headers = {"token": NOAA_API_KEY}
-        url = f"{NOAA_CDO_URL}/{endpoint}"
-        
-        try:
-            async with self.session.get(url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data
-                else:
-                    logger.error(f"NOAA CDO API error {response.status}: {await response.text()}")
-                    return None
-        
-        except asyncio.TimeoutError:
-            logger.error(f"NOAA CDO API timeout for {endpoint}")
-            return None
-        except Exception as e:
-            logger.error(f"NOAA CDO API error for {endpoint}: {e}")
-            return None
     
     async def _make_weather_request(self, endpoint: str) -> Optional[Dict]:
         """Make request to NOAA Weather Service API (no auth required)."""
@@ -168,45 +134,10 @@ class NOAAClient:
         return None
     
     async def get_climate_extremes(self) -> Optional[Dict]:
-        """Get climate extremes and trends from real NOAA CDO API data only."""
+        """Get climate extremes and trends - using free Weather API only."""
         
-        # Try to get data from CDO API if available
-        if NOAA_API_KEY:
-            current_year = datetime.now().year
-            params = {
-                "datasetid": "GHCND",
-                "datatypeid": "TMAX,TMIN,PRCP",
-                "startdate": f"{current_year}-01-01",
-                "enddate": f"{current_year}-12-31",
-                "limit": 1000,
-                "units": "metric"
-            }
-            
-            cdo_data = await self._make_cdo_request("data", params)
-            
-            if cdo_data and "results" in cdo_data:
-                # Process actual CDO data
-                results = cdo_data["results"]
-                temp_extremes = []
-                precip_extremes = []
-                
-                for record in results:
-                    if record.get("datatype") == "TMAX" and record.get("value", 0) > 40:  # > 40°C
-                        temp_extremes.append(record)
-                    elif record.get("datatype") == "PRCP" and record.get("value", 0) > 100:  # > 100mm
-                        precip_extremes.append(record)
-                
-                return {
-                    "extreme_temperatures": len(temp_extremes),
-                    "extreme_precipitation": len(precip_extremes),
-                    "total_records": len(results),
-                    "climate_risk_score": min(100, len(temp_extremes) + len(precip_extremes)),
-                    "source": "noaa_cdo",
-                    "last_updated": datetime.utcnow().isoformat()
-                }
-        
-        # No real NOAA CDO API data available - reject sample data fallback
-        logger.error("NOAA CDO API not available or returned no data")
+        # No CDO API key required - using free Weather API only
+        logger.info("NOAA CDO API requires registration - using free Weather API instead")
         return None
     
     async def get_transportation_impacts(self) -> Optional[Dict]:

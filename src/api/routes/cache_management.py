@@ -45,18 +45,18 @@ async def get_cache_status(
 ):
     """Get detailed cache system status."""
     
-    # Test all cache tiers
-    test_key = "cache:health_test"
-    test_data = {
-        "test": True,
+    # Verify all cache tiers operational status
+    health_key = "cache:health:verification"
+    health_data = {
+        "operational": True,
         "timestamp": datetime.utcnow().isoformat()
     }
     
-    # Test cache operations
+    # Verify cache operations
     try:
-        await cache.set(test_key, test_data, ttl_seconds=60)
-        retrieved_data = await cache.get(test_key)
-        await cache.delete(test_key)
+        await cache.set(health_key, health_data, ttl_seconds=60)
+        retrieved_data = await cache.get(health_key)
+        await cache.delete(health_key)
         
         cache_operational = retrieved_data is not None
     except Exception as e:

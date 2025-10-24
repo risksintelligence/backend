@@ -2,7 +2,7 @@
 SHAP (SHapley Additive exPlanations) Analyzer for RiskX Platform.
 
 This module provides comprehensive model explainability using SHAP values,
-enabling transparent AI decision-making in financial risk assessment.
+enabling transparent model interpretability in financial risk assessment.
 """
 
 import numpy as np
