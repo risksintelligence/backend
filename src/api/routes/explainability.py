@@ -61,6 +61,8 @@ class ModelRegistrationRequest(BaseModel):
     model_type: str = Field("tree", description="Model type (tree, linear, kernel, deep)")
     feature_names: List[str] = Field(..., description="Feature names")
     background_data: Optional[List[List[float]]] = Field(None, description="Background data for explainer")
+    
+    model_config = {"protected_namespaces": ()}
 
 
 class ModelComparisonRequest(BaseModel):
@@ -68,6 +70,8 @@ class ModelComparisonRequest(BaseModel):
     model_ids: List[str] = Field(..., description="List of model identifiers")
     validation_data: List[List[float]] = Field(..., description="Validation data for comparison")
     sample_size: int = Field(1000, description="Sample size for comparison")
+    
+    model_config = {"protected_namespaces": ()}
 
 
 @router.post("/register-model")

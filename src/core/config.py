@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-import os
 
 class Settings(BaseSettings):
     """Production settings for RiskX Platform."""
@@ -14,19 +13,19 @@ class Settings(BaseSettings):
     api_v1_str: str = "/api/v1"
     
     # Database
-    database_url: str = os.getenv("DATABASE_URL", "")
+    database_url: str = ""
     
     # Cache
-    redis_url: str = os.getenv("REDIS_URL", "")
+    redis_url: str = ""
     
     # External APIs
-    fred_api_key: str = os.getenv("FRED_API_KEY", "")
-    bea_api_key: str = os.getenv("BEA_API_KEY", "")
-    bls_api_key: str = os.getenv("BLS_API_KEY", "")
-    census_api_key: str = os.getenv("CENSUS_API_KEY", "")
+    fred_api_key: str = ""
+    bea_api_key: str = ""
+    bls_api_key: str = ""
+    census_api_key: str = ""
     
     # Security
-    secret_key: str = os.getenv("SECRET_KEY", "")
+    secret_key: str = ""
     
     class Config:
         env_file = ".env"
