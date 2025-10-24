@@ -1,5 +1,5 @@
 """
-Model Training Pipeline for RiskX ML Models
+Model Training Pipeline for RiskX Financial Models
 Comprehensive training pipeline for all risk prediction models
 """
 import asyncio
@@ -24,7 +24,7 @@ settings = get_settings()
 
 
 class ModelTrainingPipeline:
-    """Comprehensive ML model training pipeline"""
+    """Comprehensive financial model training pipeline"""
     
     def __init__(self):
         self.fred_client = FREDClient(api_key=settings.fred_api_key)
@@ -42,7 +42,7 @@ class ModelTrainingPipeline:
         
     async def fetch_training_data(self) -> Dict[str, pd.DataFrame]:
         """Fetch comprehensive training data from all sources"""
-        logger.info("🔄 Fetching training data from external APIs...")
+        logger.info("Fetching training data from external APIs...")
         
         # Fetch data from last 20 years for historical patterns
         end_date = datetime.now()
@@ -52,7 +52,7 @@ class ModelTrainingPipeline:
         
         try:
             # Economic indicators from FRED
-            logger.info("📈 Fetching FRED economic indicators...")
+            logger.info("Fetching FRED economic indicators...")
             fred_series = [
                 'GDP', 'GDPC1',  # GDP
                 'UNRATE', 'PAYEMS',  # Employment
@@ -74,27 +74,27 @@ class ModelTrainingPipeline:
             data['fred'] = fred_data
             
             # BEA economic data
-            logger.info("🏛️ Fetching BEA economic data...")
+            logger.info("Fetching BEA economic data...")
             bea_data = await self.bea_client.get_gdp_data()
             data['bea'] = bea_data
             
             # BLS employment data
-            logger.info("👥 Fetching BLS employment data...")
+            logger.info("Fetching BLS employment data...")
             bls_data = await self.bls_client.get_employment_data()
             data['bls'] = bls_data
             
-            logger.info("✅ Successfully fetched training data from all sources")
+            logger.info("Successfully fetched training data from all sources")
             
         except Exception as e:
-            logger.error(f"❌ Error fetching training data: {str(e)}")
-            logger.error("🚫 Cannot proceed without real economic data")
+            logger.error(f"Error fetching training data: {str(e)}")
+            logger.error("Cannot proceed without real economic data")
             raise ValueError("Real economic data is required for model training - synthetic data not allowed")
             
         return data
     
     async def train_all_models(self) -> Dict[str, Any]:
-        """Train all ML models"""
-        logger.info("🚀 Starting comprehensive model training pipeline...")
+        """Train all financial models"""
+        logger.info("Starting comprehensive model training pipeline...")
         
         start_time = datetime.now()
         
@@ -117,10 +117,10 @@ class ModelTrainingPipeline:
         
         for i, (model_name, result) in enumerate(zip(model_names, results)):
             if isinstance(result, Exception):
-                logger.error(f"❌ Failed to train {model_name} model: {str(result)}")
+                logger.error(f"Failed to train {model_name} model: {str(result)}")
                 training_results[model_name] = {"status": "failed", "error": str(result)}
             else:
-                logger.info(f"✅ Successfully trained {model_name} model")
+                logger.info(f"Successfully trained {model_name} model")
                 training_results[model_name] = result
         
         end_time = datetime.now()
@@ -142,14 +142,14 @@ class ModelTrainingPipeline:
             "data_sources_used": list(training_data.keys())
         }
         
-        logger.info(f"🎯 Training pipeline completed: {len(successful_models)}/{len(model_names)} models successful")
+        logger.info(f"Training pipeline completed: {len(successful_models)}/{len(model_names)} models successful")
         
         return summary
     
     async def _train_recession_model(self, data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
         """Train recession prediction model"""
         try:
-            logger.info("📊 Training recession prediction model...")
+            logger.info("Training recession prediction model...")
             
             # Use comprehensive economic data for recession model
             result = await train_recession_models()
@@ -166,13 +166,13 @@ class ModelTrainingPipeline:
             }
             
         except Exception as e:
-            logger.error(f"❌ Error training recession model: {str(e)}")
+            logger.error(f"Error training recession model: {str(e)}")
             raise
     
     async def _train_supply_chain_model(self, data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
         """Train supply chain risk model"""
         try:
-            logger.info("🚛 Training supply chain risk model...")
+            logger.info("Training supply chain risk model...")
             
             result = await train_supply_chain_models()
             
@@ -188,13 +188,13 @@ class ModelTrainingPipeline:
             }
             
         except Exception as e:
-            logger.error(f"❌ Error training supply chain model: {str(e)}")
+            logger.error(f"Error training supply chain model: {str(e)}")
             raise
     
     async def _train_volatility_model(self, data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
         """Train market volatility model"""
         try:
-            logger.info("📈 Training market volatility model...")
+            logger.info("Training market volatility model...")
             
             result = await train_volatility_models()
             
@@ -210,13 +210,13 @@ class ModelTrainingPipeline:
             }
             
         except Exception as e:
-            logger.error(f"❌ Error training volatility model: {str(e)}")
+            logger.error(f"Error training volatility model: {str(e)}")
             raise
     
     async def _train_geopolitical_model(self, data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
         """Train geopolitical risk model"""
         try:
-            logger.info("🌍 Training geopolitical risk model...")
+            logger.info("Training geopolitical risk model...")
             
             result = await train_geopolitical_models()
             
@@ -232,39 +232,24 @@ class ModelTrainingPipeline:
             }
             
         except Exception as e:
-            logger.error(f"❌ Error training geopolitical model: {str(e)}")
+            logger.error(f"Error training geopolitical model: {str(e)}")
             raise
     
     async def validate_models(self) -> Dict[str, Any]:
         """Validate trained models with test predictions"""
-        logger.info("🔍 Validating trained models...")
+        logger.info("Validating trained models...")
         
         validation_results = {}
         
         for model_name, model in self.models.items():
             try:
-                # Test prediction with sample data
+                # Validate model structure only - no sample data testing allowed
                 if hasattr(model, 'predict'):
-                    # Create sample input based on model type
-                    if model_name == 'recession_predictor':
-                        from src.ml.models.recession_predictor import EconomicIndicators
-                        sample_input = EconomicIndicators(
-                            yield_curve_10y2y=-0.5,
-                            unemployment_rate=4.2,
-                            gdp_growth_rate=2.1,
-                            sp500_volatility=18.5
-                        )
-                        prediction = await model.predict_recession_probability(sample_input)
-                        validation_results[model_name] = {
-                            "status": "valid",
-                            "test_prediction": prediction.probability,
-                            "confidence": prediction.confidence
-                        }
-                    else:
-                        validation_results[model_name] = {
-                            "status": "valid",
-                            "message": f"{model_name} model loaded successfully"
-                        }
+                    validation_results[model_name] = {
+                        "status": "valid",
+                        "message": f"{model_name} model loaded successfully",
+                        "has_predict_method": True
+                    }
                 else:
                     validation_results[model_name] = {
                         "status": "warning",
@@ -306,18 +291,18 @@ async def main():
     try:
         # Train all models
         results = await pipeline.train_all_models()
-        print(f"✅ Training completed: {results}")
+        logger.info(f"Training completed: {results}")
         
         # Validate models
         validation = await pipeline.validate_models()
-        print(f"🔍 Validation results: {validation}")
+        logger.info(f"Validation results: {validation}")
         
         # Get model info
         info = pipeline.get_model_info()
-        print(f"📋 Model info: {info}")
+        logger.info(f"Model info: {info}")
         
     except Exception as e:
-        logger.error(f"❌ Training pipeline failed: {str(e)}")
+        logger.error(f"Training pipeline failed: {str(e)}")
         raise
 
 

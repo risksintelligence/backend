@@ -48,7 +48,7 @@ class IntelligentCacheManager:
         data = await self._get_from_redis(cache_key, max_age_seconds)
         if data is not None:
             self.metrics["redis_hits"] += 1
-            logger.debug(f"✅ Redis hit: {cache_key}")
+            logger.debug(f"Redis hit: {cache_key}")
             return data
         
         # L2: Check PostgreSQL
@@ -56,7 +56,7 @@ class IntelligentCacheManager:
             data = await self._get_from_postgres(cache_key, max_age_seconds)
             if data is not None:
                 self.metrics["postgres_hits"] += 1
-                logger.debug(f"✅ PostgreSQL hit: {cache_key}")
+                logger.debug(f"PostgreSQL hit: {cache_key}")
                 # Warm up Redis
                 await self._set_to_redis(cache_key, data)
                 return data
@@ -65,7 +65,7 @@ class IntelligentCacheManager:
         data = await self._get_from_file(cache_key, max_age_seconds)
         if data is not None:
             self.metrics["file_hits"] += 1
-            logger.debug(f"✅ File hit: {cache_key}")
+            logger.debug(f"File hit: {cache_key}")
             # Warm up Redis and PostgreSQL
             await self._set_to_redis(cache_key, data)
             if self.db_session:
@@ -74,7 +74,7 @@ class IntelligentCacheManager:
         
         # Cache miss - data never cached before
         self.metrics["cache_misses"] += 1
-        logger.warning(f"⚠️ Cache miss: {cache_key}")
+        logger.warning(f"Cache miss: {cache_key}")
         return None
     
     async def set(
@@ -99,7 +99,7 @@ class IntelligentCacheManager:
         
         await asyncio.gather(*tasks, return_exceptions=True)
         
-        logger.info(f"✅ Cached across all tiers: {cache_key}")
+        logger.info(f"Cached across all tiers: {cache_key}")
     
     async def delete(self, cache_key: str) -> None:
         """Delete from all cache tiers."""
@@ -112,7 +112,7 @@ class IntelligentCacheManager:
             tasks.append(self._delete_from_postgres(cache_key))
         
         await asyncio.gather(*tasks, return_exceptions=True)
-        logger.info(f"🗑️ Deleted from all tiers: {cache_key}")
+        logger.info(f"Deleted from all tiers: {cache_key}")
     
     async def keys(self, pattern: str = "*") -> List[str]:
         """Get keys matching pattern from Redis."""

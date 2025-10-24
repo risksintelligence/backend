@@ -37,70 +37,7 @@ class BackgroundRefreshWorker:
             {"source": "risk", "series": "factors", "interval": 900, "priority": 3},
         ]
         
-        # Sample data for demonstration
-        self.sample_data = {
-            "fred:GDP": {
-                "value": 27000000,
-                "units": "millions_of_dollars",
-                "frequency": "quarterly",
-                "last_updated": datetime.utcnow().isoformat()
-            },
-            "fred:UNRATE": {
-                "value": 3.7,
-                "units": "percent",
-                "frequency": "monthly",
-                "last_updated": datetime.utcnow().isoformat()
-            },
-            "fred:CPIAUCSL": {
-                "value": 307.026,
-                "units": "index_1982_1984_100",
-                "frequency": "monthly",
-                "last_updated": datetime.utcnow().isoformat()
-            },
-            "fred:FEDFUNDS": {
-                "value": 5.25,
-                "units": "percent",
-                "frequency": "daily",
-                "last_updated": datetime.utcnow().isoformat()
-            },
-            "market:VIX": {
-                "value": 18.5,
-                "units": "volatility_index",
-                "frequency": "realtime",
-                "last_updated": datetime.utcnow().isoformat()
-            },
-            "market:SP500": {
-                "value": 4550.2,
-                "units": "index_points",
-                "frequency": "realtime",
-                "last_updated": datetime.utcnow().isoformat()
-            },
-            "risk:overview": {
-                "overall_score": 75.5,
-                "factors": {
-                    "economic": 78.2,
-                    "market": 72.1,
-                    "geopolitical": 68.9,
-                    "technical": 81.3
-                },
-                "trend": "stable",
-                "confidence": 0.87,
-                "last_updated": datetime.utcnow().isoformat()
-            },
-            "risk:factors": {
-                "economic_factors": [
-                    {"name": "GDP Growth", "score": 78.2, "impact": "moderate"},
-                    {"name": "Unemployment", "score": 85.1, "impact": "low"},
-                    {"name": "Inflation", "score": 65.4, "impact": "high"}
-                ],
-                "market_factors": [
-                    {"name": "Volatility", "score": 72.1, "impact": "high"},
-                    {"name": "Liquidity", "score": 88.9, "impact": "low"},
-                    {"name": "Sentiment", "score": 67.3, "impact": "moderate"}
-                ],
-                "last_updated": datetime.utcnow().isoformat()
-            }
-        }
+        # No sample data - only real API data allowed
     
     async def start(self):
         """Start background refresh workers."""
@@ -114,7 +51,7 @@ class BackgroundRefreshWorker:
             asyncio.create_task(self._cache_warmer_loop())
         ]
         
-        logger.info("🚀 Background workers started")
+        logger.info("Background workers started")
         
         try:
             await asyncio.gather(*workers)
@@ -142,7 +79,7 @@ class BackgroundRefreshWorker:
                     break
                     
                 try:
-                    # Get fresh data from API or sample data
+                    # Get fresh data from real API only
                     fresh_data = await self._fetch_from_api(
                         series_config["source"],
                         series_config["series"]
@@ -157,13 +94,13 @@ class BackgroundRefreshWorker:
                             ttl_seconds=series_config["interval"] * 2
                         )
                         
-                        logger.info(f"✅ Refreshed: {cache_key}")
+                        logger.info(f"Refreshed: {cache_key}")
                     
                 except Exception as e:
                     # API failed? No problem - cache serves stale data
                     cache_key = f"{series_config['source']}:{series_config['series']}"
                     logger.warning(
-                        f"⚠️ API unavailable: {cache_key} - "
+                        f"API unavailable: {cache_key} - "
                         f"Error: {e}. Serving cached data."
                     )
                 
@@ -174,10 +111,10 @@ class BackgroundRefreshWorker:
             await asyncio.sleep(60)
     
     async def _fetch_from_api(self, source: str, series: str) -> Optional[Dict]:
-        """Fetch data from external API with fallback to sample data."""
+        """Fetch data from external API - real data only."""
         
         try:
-            # Try real API first
+            # Only use real API data
             if source == "fred":
                 if series == "GDP":
                     return await fred.get_gdp()
@@ -204,37 +141,13 @@ class BackgroundRefreshWorker:
                 elif series == "income":
                     return await census.get_household_income()
             
-            # If real API fails or series not found, fall back to sample data
-            cache_key = f"{source}:{series}"
-            
-            if cache_key in self.sample_data:
-                data = self.sample_data[cache_key].copy()
-                
-                # Add some realistic variation to numeric values
-                if "value" in data and isinstance(data["value"], (int, float)):
-                    import random
-                    variation = random.uniform(-0.02, 0.02)  # ±2% variation
-                    data["value"] = round(data["value"] * (1 + variation), 2)
-                
-                # Update timestamp
-                data["last_updated"] = datetime.utcnow().isoformat()
-                
-                return data
+            # No real API data available for this series
+            logger.error(f"No real API implementation for {source}:{series}")
+            raise ValueError(f"Real data not available for {source}:{series}")
         
         except Exception as e:
-            logger.warning(f"API call failed for {source}:{series}: {e}")
-            
-            # Fall back to sample data
-            cache_key = f"{source}:{series}"
-            if cache_key in self.sample_data:
-                data = self.sample_data[cache_key].copy()
-                data["last_updated"] = datetime.utcnow().isoformat()
-                data["note"] = "Sample data - API unavailable"
-                return data
-        
-        # For unknown series, return None (API not available)
-        logger.warning(f"No data available for {source}:{series}")
-        return None
+            logger.error(f"API call failed for {source}:{series}: {e}")
+            raise ValueError(f"Failed to fetch real data for {source}:{series} - synthetic data not allowed")
     
     async def _health_check_loop(self):
         """Monitor API health and adjust refresh intervals."""
@@ -252,12 +165,12 @@ class BackgroundRefreshWorker:
                     is_healthy = await self._check_api_health(source)
                     
                     if is_healthy:
-                        logger.debug(f"✅ {source} API healthy")
+                        logger.debug(f"{source} API healthy")
                     else:
-                        logger.warning(f"⚠️ {source} API degraded")
+                        logger.warning(f"{source} API degraded")
                 
                 except Exception as e:
-                    logger.error(f"❌ {source} API health check failed: {e}")
+                    logger.error(f"{source} API health check failed: {e}")
             
             await asyncio.sleep(300)  # Check every 5 minutes
     
@@ -284,7 +197,7 @@ class BackgroundRefreshWorker:
         
         while self.is_running:
             # On startup or periodically, warm up cache
-            logger.info("🔥 Warming up cache...")
+            logger.info("Warming up cache...")
             
             # Pre-load most common queries
             common_queries = [
@@ -313,13 +226,13 @@ class BackgroundRefreshWorker:
                         )
                         if fresh_data:
                             await self.cache.set(cache_key, fresh_data, ttl_seconds=3600)
-                            logger.debug(f"🔥 Warmed cache: {cache_key}")
+                            logger.debug(f"Warmed cache: {cache_key}")
                     
                 except Exception as e:
                     cache_key = f"{query['source']}:{query['series']}"
                     logger.error(f"Cache warm error for {cache_key}: {e}")
             
-            logger.info("✅ Cache warmed")
+            logger.info("Cache warmed")
             
             # Warm up every hour
             await asyncio.sleep(3600)

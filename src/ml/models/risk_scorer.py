@@ -140,51 +140,16 @@ class RiskScorer:
         """
         targets = {}
         
-        # Use historical risk scores as targets, or create composite targets
+        # Use only real historical risk scores as targets
         for category in self.category_weights.keys():
             if f'{category}_risk_score' in data.columns:
                 targets[category] = data[f'{category}_risk_score']
             else:
-                # Create synthetic target based on feature combinations
-                targets[category] = self._create_synthetic_target(data, category)
+                # Require real historical data - no synthetic targets allowed
+                raise ValueError(f"No historical risk scores available for {category}. Real historical data required.")
         
         return targets
     
-    def _create_synthetic_target(self, data: pd.DataFrame, category: str) -> pd.Series:
-        """Create synthetic risk targets when historical scores unavailable."""
-        
-        if category == 'economic':
-            # Higher unemployment, inflation = higher risk
-            target = (
-                data.get('unemployment_rate', 0) * 0.3 +
-                data.get('inflation_rate', 0) * 0.3 +
-                (10 - data.get('gdp_growth', 2)) * 0.4  # Invert GDP growth
-            )
-        elif category == 'market':
-            # Higher volatility, spreads = higher risk
-            target = (
-                data.get('vix_volatility', 20) * 0.4 +
-                data.get('credit_spread', 1) * 30 +  # Scale to similar magnitude
-                abs(data.get('sp500_returns', 0)) * 100  # Convert to percentage
-            )
-        elif category == 'geopolitical':
-            # Higher uncertainty indices = higher risk
-            target = (
-                data.get('geopolitical_index', 50) * 0.5 +
-                data.get('policy_uncertainty', 100) * 0.3 +
-                data.get('trade_tension_index', 30) * 0.2
-            )
-        else:  # technical
-            # Higher threat levels and disruptions = higher risk
-            target = (
-                data.get('cyber_threat_level', 3) * 20 +
-                data.get('supply_chain_disruption', 3) * 15 +
-                data.get('infrastructure_risk', 3) * 15
-            )
-        
-        # Normalize to 0-100 scale
-        target = np.clip(target, 0, 100)
-        return pd.Series(target, index=data.index)
     
     def train(self, data: pd.DataFrame) -> Dict[str, ModelMetrics]:
         """

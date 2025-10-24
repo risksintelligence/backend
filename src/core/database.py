@@ -17,7 +17,7 @@ engine = None
 if DATABASE_URL:
     engine = create_async_engine(
         DATABASE_URL,
-        echo=False,  # Set to True for SQL logging in development
+        echo=False,  # SQL logging disabled for production
         pool_pre_ping=True,
         pool_recycle=300,
     )
@@ -55,12 +55,12 @@ async def check_database_connection():
     
     try:
         async with engine.begin() as conn:
-            result = await conn.execute(text("SELECT 1 as test"))
+            result = await conn.execute(text("SELECT 1 as connection_check"))
             row = result.fetchone()
             if row and row[0] == 1:
-                return {"status": "connected", "test_query": "success"}
+                return {"status": "connected", "query_result": "success"}
             else:
-                return {"status": "error", "test_query": "failed"}
+                return {"status": "error", "query_result": "failed"}
     except Exception as e:
         logger.error(f"Database connection error: {e}")
         return {"status": "error", "message": str(e)}

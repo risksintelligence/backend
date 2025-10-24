@@ -82,69 +82,68 @@ async def get_cache_status(
 async def warm_cache(
     cache: IntelligentCacheManager = Depends(get_cache_manager)
 ):
-    """Manually trigger cache warming with sample data."""
+    """Manually trigger cache warming with real data from external APIs."""
     
-    # Sample data to warm the cache
-    warm_data = [
-        {
-            "key": "risk:overview",
-            "data": {
-                "overall_score": 75.5,
-                "factors": {
-                    "economic": 78.2,
-                    "market": 72.1,
-                    "geopolitical": 68.9,
-                    "technical": 81.3
-                },
-                "trend": "stable",
-                "confidence": 0.87,
-                "last_updated": datetime.utcnow().isoformat()
-            }
-        },
-        {
-            "key": "fred:GDP",
-            "data": {
-                "value": 27000000,
-                "units": "millions_of_dollars",
-                "frequency": "quarterly",
-                "last_updated": datetime.utcnow().isoformat()
-            }
-        },
-        {
-            "key": "fred:UNRATE",
-            "data": {
-                "value": 3.7,
-                "units": "percent",
-                "frequency": "monthly",
-                "last_updated": datetime.utcnow().isoformat()
-            }
-        },
-        {
-            "key": "market:VIX",
-            "data": {
-                "value": 18.5,
-                "units": "volatility_index",
-                "frequency": "realtime",
-                "last_updated": datetime.utcnow().isoformat()
-            }
-        }
-    ]
+    # Load real data from external sources to warm cache
+    from src.data.sources import fred, bea, bls
     
     warmed_keys = []
+    failed_keys = []
     
-    for item in warm_data:
-        try:
-            await cache.set(item["key"], item["data"], ttl_seconds=3600)
-            warmed_keys.append(item["key"])
-        except Exception as e:
-            # Continue warming other keys even if one fails
-            pass
+    try:
+        # Get real GDP data
+        gdp_data = await fred.get_gdp()
+        if gdp_data:
+            await cache.set("fred:GDP", gdp_data, ttl_seconds=3600)
+            warmed_keys.append("fred:GDP")
+        else:
+            failed_keys.append("fred:GDP")
+        
+        # Get real unemployment data
+        unemployment_data = await fred.get_unemployment_rate()
+        if unemployment_data:
+            await cache.set("fred:UNRATE", unemployment_data, ttl_seconds=3600)
+            warmed_keys.append("fred:UNRATE")
+        else:
+            failed_keys.append("fred:UNRATE")
+        
+        # Get real inflation data
+        inflation_data = await fred.get_inflation_rate()
+        if inflation_data:
+            await cache.set("fred:CPIAUCSL", inflation_data, ttl_seconds=3600)
+            warmed_keys.append("fred:CPIAUCSL")
+        else:
+            failed_keys.append("fred:CPIAUCSL")
+        
+        # Generate risk overview from real data only if components available
+        if len(warmed_keys) >= 2:
+            from src.ml.serving.model_server import ModelServer
+            model_server = ModelServer()
+            try:
+                risk_overview = await model_server.get_comprehensive_risk_assessment()
+                if risk_overview:
+                    await cache.set("risk:overview", risk_overview, ttl_seconds=300)
+                    warmed_keys.append("risk:overview")
+                else:
+                    failed_keys.append("risk:overview")
+            except Exception as e:
+                logger.error(f"Failed to generate risk overview: {e}")
+                failed_keys.append("risk:overview")
+        
+    except Exception as e:
+        logger.error(f"Cache warming failed: {e}")
+        return {
+            "status": "error",
+            "message": f"Cache warming failed: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
     
     return {
-        "status": "success",
-        "message": "Cache warming completed",
+        "status": "success" if warmed_keys else "partial",
+        "message": f"Cache warmed with {len(warmed_keys)} real data keys",
         "warmed_keys": warmed_keys,
-        "count": len(warmed_keys),
+        "failed_keys": failed_keys,
+        "note": "Only real external API data used for cache warming",
         "timestamp": datetime.utcnow().isoformat()
     }
 

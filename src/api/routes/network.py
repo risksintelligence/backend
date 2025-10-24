@@ -58,8 +58,11 @@ async def get_network_overview(
         edges_data = [dict(row) for row in edges_result.fetchall()]
         
         if not nodes_data:
-            # Generate sample network for demonstration
-            nodes_data, edges_data = generate_sample_network()
+            # Require real network data - no sample data allowed
+            raise HTTPException(
+                status_code=503,
+                detail="No real network data available - synthetic network data not allowed"
+            )
         
         # Initialize network analyzer
         analyzer = await get_network_analyzer()
@@ -151,7 +154,11 @@ async def get_node_analysis(
         edges_data = [dict(row) for row in edges_result.fetchall()]
         
         if not nodes_data:
-            nodes_data, edges_data = generate_sample_network()
+            # Require real network data - no sample data allowed
+            raise HTTPException(
+                status_code=503,
+                detail="No real network data available - synthetic network data not allowed"
+            )
         
         # Initialize analyzer
         analyzer = await get_network_analyzer()
@@ -249,7 +256,11 @@ async def get_centrality_analysis(
         edges_data = [dict(row) for row in edges_result.fetchall()]
         
         if not nodes_data:
-            nodes_data, edges_data = generate_sample_network()
+            # Require real network data - no sample data allowed
+            raise HTTPException(
+                status_code=503,
+                detail="No real network data available - synthetic network data not allowed"
+            )
         
         # Initialize analyzer
         analyzer = await get_network_analyzer()
@@ -344,7 +355,11 @@ async def get_vulnerability_assessment(
         edges_data = [dict(row) for row in edges_result.fetchall()]
         
         if not nodes_data:
-            nodes_data, edges_data = generate_sample_network()
+            # Require real network data - no sample data allowed
+            raise HTTPException(
+                status_code=503,
+                detail="No real network data available - synthetic network data not allowed"
+            )
         
         # Initialize analyzer
         analyzer = await get_network_analyzer()
@@ -452,7 +467,11 @@ async def get_risk_propagation_analysis(
         edges_data = [dict(row) for row in edges_result.fetchall()]
         
         if not nodes_data:
-            nodes_data, edges_data = generate_sample_network()
+            # Require real network data - no sample data allowed
+            raise HTTPException(
+                status_code=503,
+                detail="No real network data available - synthetic network data not allowed"
+            )
         
         # Initialize analyzer
         analyzer = await get_network_analyzer()
@@ -569,7 +588,11 @@ async def get_critical_paths_analysis(
         edges_data = [dict(row) for row in edges_result.fetchall()]
         
         if not nodes_data:
-            nodes_data, edges_data = generate_sample_network()
+            # Require real network data - no sample data allowed
+            raise HTTPException(
+                status_code=503,
+                detail="No real network data available - synthetic network data not allowed"
+            )
         
         # Verify source node exists
         if not any(node['node_id'] == source_node for node in nodes_data):
@@ -660,7 +683,11 @@ async def run_shock_simulation(
         edges_data = [dict(row) for row in edges_result.fetchall()]
         
         if not nodes_data:
-            nodes_data, edges_data = generate_sample_network()
+            # Require real network data - no sample data allowed
+            raise HTTPException(
+                status_code=503,
+                detail="No real network data available - synthetic network data not allowed"
+            )
         
         # Verify all initial nodes exist
         available_nodes = {node['node_id'] for node in nodes_data}
@@ -727,31 +754,6 @@ async def run_shock_simulation(
 
 # Helper functions
 
-def generate_sample_network() -> Tuple[List[Dict], List[Dict]]:
-    """Generate sample network data for demonstration."""
-    nodes = [
-        {"node_id": "BANK_A", "name": "Major Bank A", "node_type": "financial", "risk_level": 25.0, "weight": 2.0, "x_position": 0.1, "y_position": 0.5},
-        {"node_id": "BANK_B", "name": "Regional Bank B", "node_type": "financial", "risk_level": 35.0, "weight": 1.5, "x_position": 0.3, "y_position": 0.3},
-        {"node_id": "TECH_CORP", "name": "Tech Corporation", "node_type": "technology", "risk_level": 40.0, "weight": 1.8, "x_position": 0.7, "y_position": 0.6},
-        {"node_id": "SUPPLY_HUB", "name": "Supply Chain Hub", "node_type": "logistics", "risk_level": 60.0, "weight": 2.5, "x_position": 0.5, "y_position": 0.8},
-        {"node_id": "ENERGY_GRID", "name": "Power Grid Station", "node_type": "infrastructure", "risk_level": 45.0, "weight": 3.0, "x_position": 0.2, "y_position": 0.2},
-        {"node_id": "DATA_CENTER", "name": "Data Center", "node_type": "technology", "risk_level": 30.0, "weight": 2.2, "x_position": 0.8, "y_position": 0.4},
-        {"node_id": "TRANSPORT", "name": "Transportation Network", "node_type": "logistics", "risk_level": 50.0, "weight": 2.8, "x_position": 0.4, "y_position": 0.7},
-        {"node_id": "TELECOM", "name": "Telecom Provider", "node_type": "infrastructure", "risk_level": 20.0, "weight": 2.3, "x_position": 0.6, "y_position": 0.1}
-    ]
-    
-    edges = [
-        {"edge_id": "E1", "source_node_id": "BANK_A", "target_node_id": "BANK_B", "edge_type": "financial", "weight": 1.5, "propagation_probability": 0.7, "amplification_factor": 1.2},
-        {"edge_id": "E2", "source_node_id": "BANK_A", "target_node_id": "TECH_CORP", "edge_type": "financial", "weight": 1.0, "propagation_probability": 0.3, "amplification_factor": 0.8},
-        {"edge_id": "E3", "source_node_id": "TECH_CORP", "target_node_id": "DATA_CENTER", "edge_type": "dependency", "weight": 2.0, "propagation_probability": 0.9, "amplification_factor": 1.5},
-        {"edge_id": "E4", "source_node_id": "SUPPLY_HUB", "target_node_id": "TRANSPORT", "edge_type": "logistics", "weight": 2.5, "propagation_probability": 0.8, "amplification_factor": 1.3},
-        {"edge_id": "E5", "source_node_id": "ENERGY_GRID", "target_node_id": "DATA_CENTER", "edge_type": "infrastructure", "weight": 3.0, "propagation_probability": 0.95, "amplification_factor": 1.8},
-        {"edge_id": "E6", "source_node_id": "ENERGY_GRID", "target_node_id": "TELECOM", "edge_type": "infrastructure", "weight": 2.8, "propagation_probability": 0.85, "amplification_factor": 1.4},
-        {"edge_id": "E7", "source_node_id": "TELECOM", "target_node_id": "BANK_A", "edge_type": "communication", "weight": 1.8, "propagation_probability": 0.5, "amplification_factor": 1.0},
-        {"edge_id": "E8", "source_node_id": "TRANSPORT", "target_node_id": "SUPPLY_HUB", "edge_type": "logistics", "weight": 2.2, "propagation_probability": 0.75, "amplification_factor": 1.25}
-    ]
-    
-    return nodes, edges
 
 
 def calculate_resilience_score(metrics: Any, vulnerabilities: Dict) -> float:

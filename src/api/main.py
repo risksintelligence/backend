@@ -5,7 +5,7 @@ import asyncio
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db, check_database_connection, get_database_info
-from src.core.cache import check_redis_connection, get_redis_info, test_cache_operations, BasicCacheManager
+from src.core.cache import check_redis_connection, get_redis_info, BasicCacheManager
 from src.cache.cache_manager import IntelligentCacheManager
 from src.cache.refresh_worker import BackgroundRefreshWorker
 from src.core.dependencies import get_cache_manager
@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     global refresh_worker
     
     # Startup
-    logger.info("🚀 Starting RiskX Backend with Intelligent Caching and Real-Time Streaming")
+    logger.info("Starting RiskX Backend with Intelligent Caching and Real-Time Streaming")
     
     # Initialize cache manager
     cache_manager = get_cache_manager()
@@ -42,12 +42,12 @@ async def lifespan(app: FastAPI):
     from src.api.routes.websocket import initialize_real_time_streaming
     await initialize_real_time_streaming(cache_manager)
     
-    logger.info("✅ Intelligent caching system, background workers, and real-time streaming started")
+    logger.info("Intelligent caching system, background workers, and real-time streaming started")
     
     yield  # Application runs
     
     # Shutdown
-    logger.info("🛑 Shutting down RiskX Backend")
+    logger.info("Shutting down RiskX Backend")
     
     if refresh_worker:
         await refresh_worker.stop()
@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
     from src.api.routes.websocket import shutdown_real_time_streaming
     await shutdown_real_time_streaming()
     
-    logger.info("✅ Cleanup complete")
+    logger.info("Cleanup complete")
 
 
 app = FastAPI(
@@ -131,23 +131,6 @@ async def api_status():
         }
     }
 
-@app.get("/api/v1/test")
-async def test_endpoint():
-    return {
-        "message": "Test endpoint operational",
-        "timestamp": datetime.utcnow().isoformat(),
-        "test_data": {
-            "sample_risk_score": 75.5,
-            "sample_factors": ["economic", "financial", "geopolitical"],
-            "sample_indicators": {
-                "gdp_growth": 2.1,
-                "unemployment": 3.7,
-                "inflation": 3.2,
-                "market_volatility": 0.18
-            }
-        },
-        "platform_status": "initialization_complete"
-    }
 
 @app.get("/api/v1/platform/info")
 async def platform_info():
@@ -170,26 +153,6 @@ async def platform_info():
         "deployment": "Production Ready on Render"
     }
 
-# Database testing endpoints
-@app.get("/api/v1/database/test")
-async def test_database():
-    """Test database connection and basic operations."""
-    connection_test = await check_database_connection()
-    
-    if connection_test.get("status") == "connected":
-        database_info = await get_database_info()
-        return {
-            "database_connection": "success",
-            "connection_test": connection_test,
-            "database_info": database_info,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    else:
-        return {
-            "database_connection": "failed",
-            "connection_test": connection_test,
-            "timestamp": datetime.utcnow().isoformat()
-        }
 
 @app.get("/api/v1/database/info")
 async def database_info():
@@ -222,86 +185,13 @@ async def list_database_tables(db: AsyncSession = Depends(get_db)):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-# Redis cache testing endpoints
-@app.get("/api/v1/cache/test")
-async def test_cache():
-    """Test Redis cache connection and operations."""
-    connection_test = await check_redis_connection()
-    
-    if connection_test.get("status") == "connected":
-        cache_ops_test = await test_cache_operations()
-        cache_info = await get_redis_info()
-        
-        return {
-            "cache_connection": "success",
-            "connection_test": connection_test,
-            "operations_test": cache_ops_test,
-            "cache_info": cache_info,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    else:
-        return {
-            "cache_connection": "failed",
-            "connection_test": connection_test,
-            "timestamp": datetime.utcnow().isoformat()
-        }
 
 @app.get("/api/v1/cache/info")
 async def cache_info():
     """Get detailed Redis cache information."""
     return await get_redis_info()
 
-@app.get("/api/v1/cache/operations")
-async def test_cache_ops():
-    """Test comprehensive cache operations."""
-    return await test_cache_operations()
 
-@app.get("/api/v1/cache/demo")
-async def cache_demo():
-    """Demonstrate cache operations with sample data."""
-    cache_manager = BasicCacheManager()
-    
-    try:
-        # Test cache set/get with sample risk data
-        sample_data = {
-            "risk_score": 78.5,
-            "sector": "technology",
-            "volatility": 0.24,
-            "indicators": {
-                "market_stress": 0.45,
-                "liquidity": 0.82,
-                "sentiment": 0.67
-            }
-        }
-        
-        cache_key = "demo:risk_assessment:tech_sector"
-        
-        # Set cache
-        await cache_manager.set(cache_key, sample_data, ttl_seconds=300)
-        
-        # Get from cache
-        cached_data = await cache_manager.get(cache_key)
-        
-        # List keys
-        demo_keys = await cache_manager.keys("demo:*")
-        
-        return {
-            "status": "success",
-            "demo_operation": "cache_set_get",
-            "original_data": sample_data,
-            "cached_data": cached_data,
-            "cache_key": cache_key,
-            "demo_keys": demo_keys,
-            "data_match": cached_data == sample_data,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }
 
 # Include intelligent caching API routes
 app.include_router(risk.router)

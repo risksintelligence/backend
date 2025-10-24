@@ -14,7 +14,7 @@ async def get_risk_overview(
     model_server: ModelServer = Depends(get_model_server)
 ):
     """
-    Get comprehensive risk overview from all ML models.
+    Get comprehensive risk overview from all financial models.
     Returns cached data for speed, generates fresh data in background.
     """
     
@@ -45,7 +45,7 @@ async def get_risk_overview(
         }
         
     except Exception as e:
-        # If ML models fail, return cached data if available (even if old)
+        # If models fail, return cached data if available (even if old)
         fallback_data = await cache.get(cache_key, max_age_seconds=3600)  # 1 hour fallback
         
         if fallback_data:
@@ -143,7 +143,7 @@ async def get_realtime_risk_score(
 async def get_recession_prediction(
     model_server: ModelServer = Depends(get_model_server)
 ):
-    """Get recession probability prediction from ML model"""
+    """Get recession probability prediction from financial model"""
     try:
         prediction = await model_server.predict_recession_probability()
         return {
@@ -159,7 +159,7 @@ async def get_recession_prediction(
 async def get_supply_chain_prediction(
     model_server: ModelServer = Depends(get_model_server)
 ):
-    """Get supply chain risk prediction from ML model"""
+    """Get supply chain risk prediction from financial model"""
     try:
         prediction = await model_server.predict_supply_chain_risk()
         return {
@@ -175,7 +175,7 @@ async def get_supply_chain_prediction(
 async def get_market_volatility_prediction(
     model_server: ModelServer = Depends(get_model_server)
 ):
-    """Get market volatility prediction from ML model"""
+    """Get market volatility prediction from financial model"""
     try:
         prediction = await model_server.predict_market_volatility()
         return {
@@ -191,7 +191,7 @@ async def get_market_volatility_prediction(
 async def get_geopolitical_prediction(
     model_server: ModelServer = Depends(get_model_server)
 ):
-    """Get geopolitical risk prediction from ML model"""
+    """Get geopolitical risk prediction from financial model"""
     try:
         prediction = await model_server.predict_geopolitical_risk()
         return {
@@ -207,7 +207,7 @@ async def get_geopolitical_prediction(
 async def get_models_status(
     model_server: ModelServer = Depends(get_model_server)
 ):
-    """Get status of all ML models"""
+    """Get status of all financial models"""
     try:
         status = model_server.get_model_status()
         return {
@@ -221,7 +221,7 @@ async def get_models_status(
 
 @router.post("/models/train")
 async def trigger_model_training():
-    """Trigger training of all ML models"""
+    """Trigger training of all financial models"""
     try:
         from src.ml.training.model_trainer import ModelTrainingPipeline
         

@@ -8,8 +8,6 @@ The RiskX Risk Intelligence Platform provides a comprehensive REST API for real-
 
 ### Base URL
 - **Production**: `https://api.riskx.ai`
-- **Staging**: `https://staging-api.riskx.ai`
-- **Local Development**: `http://localhost:8000`
 
 ### Interactive Documentation
 - **Swagger UI**: `/docs`

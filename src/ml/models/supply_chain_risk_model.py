@@ -288,12 +288,12 @@ class SupplyChainRiskModel:
             if len(features) == 0:
                 raise ValueError("No supply chain data available from external sources")
             
-            logger.info(f"✅ Created training dataset with {len(features)} real supply chain samples")
+            logger.info(f"Created training dataset with {len(features)} real supply chain samples")
             return np.array(features), np.array(risk_scores)
             
         except Exception as e:
-            logger.error(f"❌ Failed to fetch real supply chain data: {str(e)}")
-            logger.error("🚫 Cannot use synthetic data - real data required for production")
+            logger.error(f"Failed to fetch real supply chain data: {str(e)}")
+            logger.error("Cannot use synthetic data - real data required for production")
             raise ValueError("Real supply chain data is required for model training")
     
     def _calculate_risk_score(self, features: List[float]) -> float:

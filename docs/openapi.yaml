@@ -29,10 +29,6 @@ info:
 servers:
 - url: https://api.riskx.ai
   description: Production server
-- url: https://staging-api.riskx.ai
-  description: Staging server
-- url: http://localhost:8000
-  description: Local development server
 tags:
 - name: health
   description: Health check and system status

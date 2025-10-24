@@ -62,14 +62,6 @@ All endpoints are publicly accessible for research and educational purposes.
                 "url": "https://api.riskx.ai",
                 "description": "Production server"
             },
-            {
-                "url": "https://staging-api.riskx.ai",
-                "description": "Staging server"
-            },
-            {
-                "url": "http://localhost:8000",
-                "description": "Local development server"
-            }
         ],
         "tags": [
             {"name": "health", "description": "Health check and system status"},
@@ -369,7 +361,7 @@ def add_api_endpoints(schema):
 def generate_documentation():
     """Generate OpenAPI documentation files."""
     
-    print("🚀 Generating RiskX API Documentation...")
+    print("Generating RiskX API Documentation...")
     
     try:
         # Create docs directory
@@ -392,8 +384,8 @@ def generate_documentation():
         # Generate endpoint summary
         generate_endpoint_summary(openapi_schema, docs_dir)
         
-        print("✅ API documentation generated successfully!")
-        print(f"📁 Files created:")
+        print("API documentation generated successfully!")
+        print(f"Files created:")
         print(f"   - OpenAPI JSON: {json_file}")
         print(f"   - OpenAPI YAML: {yaml_file}")
         print(f"   - README: {docs_dir / 'README.md'}")
@@ -402,7 +394,7 @@ def generate_documentation():
         return True
         
     except Exception as e:
-        print(f"❌ Error generating documentation: {e}")
+        print(f"Error generating documentation: {e}")
         return False
 
 

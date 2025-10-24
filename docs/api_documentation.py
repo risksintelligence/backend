@@ -129,14 +129,6 @@ For questions, issues, or contributions:
             "url": "https://api.riskx.ai",
             "description": "Production server"
         },
-        {
-            "url": "https://staging-api.riskx.ai", 
-            "description": "Staging server"
-        },
-        {
-            "url": "http://localhost:8000",
-            "description": "Local development server"
-        }
     ]
     
     # Add response examples
@@ -331,14 +323,14 @@ def generate_api_docs():
         with open(docs_dir / "openapi.yaml", "w") as f:
             yaml.dump(openapi_schema, f, default_flow_style=False, sort_keys=False)
         
-        print("✅ API documentation generated successfully!")
-        print(f"📁 OpenAPI JSON: {docs_dir / 'openapi.json'}")
-        print(f"📁 OpenAPI YAML: {docs_dir / 'openapi.yaml'}")
+        print("API documentation generated successfully!")
+        print(f"OpenAPI JSON: {docs_dir / 'openapi.json'}")
+        print(f"OpenAPI YAML: {docs_dir / 'openapi.yaml'}")
         
         return True
         
     except Exception as e:
-        print(f"❌ Error generating API documentation: {e}")
+        print(f"Error generating API documentation: {e}")
         return False
 
 

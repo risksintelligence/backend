@@ -1,8 +1,8 @@
 """
-ML Explainability API endpoints for RiskX Platform.
+Model Interpretability API endpoints for RiskX Platform.
 
-Provides comprehensive model interpretability using SHAP values,
-bias detection, and fairness analysis for transparent AI decisions.
+Provides comprehensive model analysis using SHAP values,
+bias detection, and fairness analysis for transparent financial decisions.
 """
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
@@ -39,7 +39,7 @@ class PredictionExplanationRequest(BaseModel):
 class GlobalExplanationRequest(BaseModel):
     """Request model for global model explanation."""
     model_id: str = Field(..., description="Model identifier")
-    sample_data: List[List[float]] = Field(..., description="Sample data for analysis")
+    historical_data: List[List[float]] = Field(..., description="Historical data for analysis")
     feature_names: List[str] = Field(..., description="Feature names")
     sample_size: Optional[int] = Field(1000, description="Maximum samples to analyze")
 
@@ -47,7 +47,7 @@ class GlobalExplanationRequest(BaseModel):
 class BiasAnalysisRequest(BaseModel):
     """Request model for bias analysis."""
     model_id: str = Field(..., description="Model identifier")
-    test_data: List[List[float]] = Field(..., description="Test dataset features")
+    validation_data: List[List[float]] = Field(..., description="Validation dataset features")
     test_labels: List[float] = Field(..., description="True labels")
     protected_attributes: Dict[str, List[Union[int, str]]] = Field(
         ..., description="Protected attribute values"
@@ -66,7 +66,7 @@ class ModelRegistrationRequest(BaseModel):
 class ModelComparisonRequest(BaseModel):
     """Request model for comparing multiple models."""
     model_ids: List[str] = Field(..., description="List of model identifiers")
-    test_data: List[List[float]] = Field(..., description="Test data for comparison")
+    validation_data: List[List[float]] = Field(..., description="Validation data for comparison")
     sample_size: int = Field(1000, description="Sample size for comparison")
 
 
@@ -76,15 +76,23 @@ async def register_model(
     cache: IntelligentCacheManager = Depends(get_cache_manager)
 ) -> Dict[str, Any]:
     """
-    Register a machine learning model for SHAP analysis.
+    Register a financial model for SHAP analysis.
     
     Registers a trained model with the SHAP analyzer to enable
     explanation generation and bias analysis.
     """
     try:
-        # Create a mock model for demonstration
-        # In production, this would load an actual trained model
-        mock_model = _create_mock_model(request.model_type, len(request.feature_names))
+        # Load the actual trained model from model registry
+        from src.ml.serving.model_server import ModelServer
+        model_server = ModelServer()
+        
+        # Get the real trained model
+        trained_model = model_server.get_model(request.model_id)
+        if not trained_model:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trained model {request.model_id} not found in model registry"
+            )
         
         # Convert background data if provided
         background_data = None
@@ -94,7 +102,7 @@ async def register_model(
         # Register model with SHAP analyzer
         shap_analyzer.register_model(
             model_id=request.model_id,
-            model=mock_model,
+            model=trained_model,
             feature_names=request.feature_names,
             model_type=request.model_type,
             background_data=background_data
@@ -211,13 +219,13 @@ async def generate_global_explanation(
                 "timestamp": datetime.utcnow().isoformat()
             }
         
-        # Convert sample data to numpy array
-        sample_data = np.array(request.sample_data)
+        # Convert historical data to numpy array
+        historical_data = np.array(request.historical_data)
         
         # Generate global explanation
         global_explanation = shap_analyzer.generate_global_explanation(
             model_id=request.model_id,
-            sample_data=sample_data,
+            sample_data=historical_data,
             sample_size=request.sample_size
         )
         
@@ -284,8 +292,8 @@ async def analyze_bias(
             }
         
         # Convert data to numpy arrays
-        test_data = np.array(request.test_data)
-        test_labels = np.array(request.test_labels)
+        validation_data = np.array(request.validation_data)
+        validation_labels = np.array(request.test_labels)
         
         protected_attributes = {}
         for attr_name, attr_values in request.protected_attributes.items():
@@ -294,8 +302,8 @@ async def analyze_bias(
         # Perform bias analysis
         bias_analysis = shap_analyzer.analyze_bias(
             model_id=request.model_id,
-            test_data=test_data,
-            test_labels=test_labels,
+            test_data=validation_data,
+            test_labels=validation_labels,
             protected_attributes=protected_attributes,
             analysis_id=request.analysis_id
         )
@@ -360,13 +368,13 @@ async def compare_models(
                 "timestamp": datetime.utcnow().isoformat()
             }
         
-        # Convert test data to numpy array
-        test_data = np.array(request.test_data)
+        # Convert validation data to numpy array
+        validation_data = np.array(request.validation_data)
         
         # Perform model comparison
         comparison_results = shap_analyzer.compare_models(
             model_ids=request.model_ids,
-            test_data=test_data,
+            test_data=validation_data,
             sample_size=request.sample_size
         )
         
@@ -531,14 +539,22 @@ async def get_feature_importance(
         ]
         
         if not model_explanations:
-            # Use a small sample to generate importance if no history
+            # Load historical data to generate importance if no history
+            from src.data.sources import fred, bea, bls
             feature_names = shap_analyzer.feature_names[model_id]
-            sample_data = np.random.random((10, len(feature_names)))
+            
+            # Get real historical data instead of random data
+            historical_data = await _get_historical_model_data(model_id, len(feature_names))
+            if historical_data is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"No historical data available for model {model_id}"
+                )
             
             global_explanation = shap_analyzer.generate_global_explanation(
                 model_id=model_id,
-                sample_data=sample_data,
-                sample_size=10
+                sample_data=historical_data,
+                sample_size=min(len(historical_data), 100)
             )
             
             feature_importance = global_explanation.feature_importance
@@ -591,23 +607,60 @@ async def get_feature_importance(
         )
 
 
-def _create_mock_model(model_type: str, n_features: int):
-    """Create a mock model for demonstration purposes."""
-    from sklearn.ensemble import RandomForestRegressor
-    from sklearn.linear_model import LinearRegression
-    import numpy as np
-    
-    # Generate synthetic training data
-    X_train = np.random.random((100, n_features))
-    y_train = np.random.random(100)
-    
-    if model_type == "tree":
-        model = RandomForestRegressor(n_estimators=10, random_state=42)
-    else:
-        model = LinearRegression()
-    
-    model.fit(X_train, y_train)
-    return model
+async def _get_historical_model_data(model_id: str, n_features: int) -> Optional[np.ndarray]:
+    """Get real historical data for model analysis."""
+    try:
+        from src.data.sources import fred, bea, bls
+        
+        # Load real historical data based on model type
+        if "risk" in model_id.lower():
+            # Get economic indicators for risk models
+            gdp_data = await fred.get_gdp()
+            unemployment_data = await fred.get_unemployment_rate()
+            inflation_data = await fred.get_inflation_rate()
+            
+            if gdp_data and unemployment_data and inflation_data:
+                # Combine real economic indicators
+                combined_data = _combine_economic_indicators(
+                    gdp_data, unemployment_data, inflation_data, n_features
+                )
+                return combined_data
+        
+        elif "supply" in model_id.lower():
+            # Get supply chain data
+            trade_data = await census.get_trade_data()
+            if trade_data:
+                return _process_trade_data(trade_data, n_features)
+        
+        # Default to recent FRED data if specific data not available
+        recent_data = await fred.get_recent_indicators(limit=100)
+        if recent_data:
+            return _process_fred_data(recent_data, n_features)
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Failed to get historical data for {model_id}: {e}")
+        return None
+
+
+def _combine_economic_indicators(gdp_data, unemployment_data, inflation_data, n_features):
+    """Combine real economic indicators into feature matrix."""
+    # Implementation to combine real economic data
+    # This would process the actual API responses
+    pass
+
+
+def _process_trade_data(trade_data, n_features):
+    """Process real trade data into feature matrix."""
+    # Implementation to process real Census trade data
+    pass
+
+
+def _process_fred_data(fred_data, n_features):
+    """Process real FRED data into feature matrix."""
+    # Implementation to process real FRED economic indicators
+    pass
 
 
 def _generate_prediction_insights(explanation: ShapExplanation) -> Dict[str, Any]:

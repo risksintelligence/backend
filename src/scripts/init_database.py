@@ -27,7 +27,7 @@ async def create_tables():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         
-        logger.info("✅ Database tables created successfully")
+        logger.info("Database tables created successfully")
         
         # Verify table creation
         async with AsyncSessionLocal() as session:
@@ -43,7 +43,7 @@ async def create_tables():
             logger.info(f"Created tables: {tables}")
             
     except Exception as e:
-        logger.error(f"❌ Error creating database tables: {e}")
+        logger.error(f"Error creating database tables: {e}")
         raise
 
 
@@ -54,10 +54,10 @@ async def init_database():
         
         await create_tables()
         
-        logger.info("✅ Database initialization completed successfully")
+        logger.info("Database initialization completed successfully")
         
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+        logger.error(f"Database initialization failed: {e}")
         raise
 
 

@@ -540,18 +540,9 @@ def calculate_risk_scores(**context):
     except Exception as e:
         logger.error(f"Risk calculation failed: {e}")
         
-        # Add placeholder risk data to ensure pipeline continues
-        transformed_data = ti.xcom_pull(key='transformed_data', task_ids='transform_data')
-        if transformed_data:
-            transformed_data['risk_assessment'] = {
-                'summary': {
-                    'overall_risk_score': 0.5,
-                    'recession_probability': 0.0,
-                    'supply_chain_risk': 0.0,
-                    'market_volatility_score': 0.0,
-                    'geopolitical_risk_score': 0.0,
-                    'last_updated': datetime.utcnow().isoformat(),
-                    'model_confidence': 0.0,
+        # Risk calculation failed - pipeline must halt
+        logger.error("Risk calculation failed - terminating pipeline to prevent incomplete data")
+        raise RuntimeError("Risk calculation failed - cannot proceed with incomplete assessment")
                     'risk_factors': {},
                     'risk_trend': 'unknown'
                 },

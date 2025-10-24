@@ -204,14 +204,14 @@ class RecessionPredictor:
             X = df_clean[feature_columns].values
             y = df_clean['is_recession'].values
             
-            logger.info(f"✅ Created training dataset with {len(X)} samples from real economic data")
-            logger.info(f"📊 Recession samples: {np.sum(y)} ({np.mean(y)*100:.1f}%)")
+            logger.info(f"Created training dataset with {len(X)} samples from real economic data")
+            logger.info(f"Recession samples: {np.sum(y)} ({np.mean(y)*100:.1f}%)")
             
             return X, y
             
         except Exception as e:
-            logger.error(f"❌ Failed to fetch real data from FRED: {str(e)}")
-            logger.error("🚫 Cannot use synthetic data - real data required for production")
+            logger.error(f"Failed to fetch real data from FRED: {str(e)}")
+            logger.error("Cannot use synthetic data - real data required for production")
             raise ValueError("Real economic data is required for model training")
     
     async def train_models(self) -> Dict[str, float]:

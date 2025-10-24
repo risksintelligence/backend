@@ -41,7 +41,7 @@ class ModelServer:
     
     async def initialize(self) -> Dict[str, Any]:
         """Initialize all models and load them into memory"""
-        logger.info("🚀 Initializing RiskX Model Server...")
+        logger.info("Initializing RiskX Model Server...")
         
         try:
             # Load all trained models
@@ -52,7 +52,7 @@ class ModelServer:
             
             self.is_initialized = True
             
-            logger.info("✅ Model server initialization completed")
+            logger.info("Model server initialization completed")
             
             return {
                 "status": "initialized",
@@ -63,7 +63,7 @@ class ModelServer:
             }
             
         except Exception as e:
-            logger.error(f"❌ Model server initialization failed: {str(e)}")
+            logger.error(f"Model server initialization failed: {str(e)}")
             raise
     
     async def _load_models(self) -> None:
@@ -94,10 +94,10 @@ class ModelServer:
                     "status": "loaded"
                 }
             
-            logger.info(f"✅ Loaded {len(self.models)} models successfully")
+            logger.info(f"Loaded {len(self.models)} models successfully")
             
         except Exception as e:
-            logger.error(f"❌ Error loading models: {str(e)}")
+            logger.error(f"Error loading models: {str(e)}")
             # Try to load models individually and report which ones fail
             for model_name in ['recession_predictor', 'supply_chain_risk', 'market_volatility', 'geopolitical_risk']:
                 try:
@@ -107,7 +107,7 @@ class ModelServer:
                         self.models[model_name] = model
                         self.model_metadata[model_name] = {"status": "loaded"}
                 except Exception as model_error:
-                    logger.warning(f"⚠️ Failed to load {model_name}: {str(model_error)}")
+                    logger.warning(f"Failed to load {model_name}: {str(model_error)}")
                     self.model_metadata[model_name] = {"status": "failed", "error": str(model_error)}
     
     async def _initialize_shap_analyzer(self) -> None:
@@ -121,10 +121,10 @@ class ModelServer:
                     first_model = model.models[first_model_name]
                     await self.shap_analyzer.add_model(model_name, first_model)
             
-            logger.info("✅ SHAP analyzer initialized")
+            logger.info("SHAP analyzer initialized")
             
         except Exception as e:
-            logger.warning(f"⚠️ SHAP analyzer initialization failed: {str(e)}")
+            logger.warning(f"SHAP analyzer initialization failed: {str(e)}")
     
     async def predict_recession_probability(self, 
                                            economic_data: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
@@ -164,7 +164,7 @@ class ModelServer:
                     [list(economic_data.values())]
                 )
             except Exception as e:
-                logger.warning(f"⚠️ SHAP explanation failed: {str(e)}")
+                logger.warning(f"SHAP explanation failed: {str(e)}")
             
             return {
                 "model": "recession_predictor",
@@ -182,7 +182,7 @@ class ModelServer:
             }
             
         except Exception as e:
-            logger.error(f"❌ Recession prediction failed: {str(e)}")
+            logger.error(f"Recession prediction failed: {str(e)}")
             raise
     
     async def predict_supply_chain_risk(self, 
@@ -226,7 +226,7 @@ class ModelServer:
             }
             
         except Exception as e:
-            logger.error(f"❌ Supply chain risk prediction failed: {str(e)}")
+            logger.error(f"Supply chain risk prediction failed: {str(e)}")
             raise
     
     async def predict_market_volatility(self, 
@@ -270,7 +270,7 @@ class ModelServer:
             }
             
         except Exception as e:
-            logger.error(f"❌ Market volatility prediction failed: {str(e)}")
+            logger.error(f"Market volatility prediction failed: {str(e)}")
             raise
     
     async def predict_geopolitical_risk(self, 
@@ -314,12 +314,12 @@ class ModelServer:
             }
             
         except Exception as e:
-            logger.error(f"❌ Geopolitical risk prediction failed: {str(e)}")
+            logger.error(f"Geopolitical risk prediction failed: {str(e)}")
             raise
     
     async def get_comprehensive_risk_assessment(self) -> Dict[str, Any]:
         """Get comprehensive risk assessment from all models"""
-        logger.info("🔍 Generating comprehensive risk assessment...")
+        logger.info("Generating comprehensive risk assessment...")
         
         try:
             # Get predictions from all models in parallel
@@ -337,7 +337,7 @@ class ModelServer:
             # Process results
             for i, (model_name, prediction) in enumerate(zip(model_names, predictions)):
                 if isinstance(prediction, Exception):
-                    logger.warning(f"⚠️ {model_name} prediction failed: {str(prediction)}")
+                    logger.warning(f"{model_name} prediction failed: {str(prediction)}")
                     results[model_name] = {"status": "failed", "error": str(prediction)}
                 else:
                     results[model_name] = prediction
@@ -375,7 +375,7 @@ class ModelServer:
             }
             
         except Exception as e:
-            logger.error(f"❌ Comprehensive risk assessment failed: {str(e)}")
+            logger.error(f"Comprehensive risk assessment failed: {str(e)}")
             raise
     
     def _categorize_risk_level(self, risk_score: float) -> str:
@@ -416,81 +416,92 @@ class ModelServer:
         return pred.get("confidence", 0.0)
     
     async def _fetch_real_time_economic_data(self) -> Dict[str, float]:
-        """Fetch real-time economic data from APIs"""
+        """Fetch real-time economic data from APIs - real data only"""
         try:
             # Get latest economic indicators from FRED
             series_data = await self.fred_client.get_multiple_series(
-                series_ids=['DGS10', 'DGS2', 'DGS3MO', 'UNRATE', 'VIXCLS'],
+                series_ids=['DGS10', 'DGS2', 'DGS3MO', 'UNRATE', 'VIXCLS', 'INDPRO', 'NAPM', 'UMCSENT'],
                 limit=1
             )
             
+            if not series_data:
+                raise ValueError("No real economic data available from FRED API")
+            
             # Calculate derived indicators
             data = {}
+            
+            # Yield curve calculations require real data
             if 'DGS10' in series_data and 'DGS2' in series_data:
                 data['yield_curve_10y2y'] = series_data['DGS10'][-1] - series_data['DGS2'][-1]
+            else:
+                raise ValueError("Yield curve data not available from FRED")
+                
             if 'DGS10' in series_data and 'DGS3MO' in series_data:
                 data['yield_curve_10y3m'] = series_data['DGS10'][-1] - series_data['DGS3MO'][-1]
+            else:
+                raise ValueError("3-month yield curve data not available from FRED")
+            
+            # All other data must come from real APIs
+            if 'UNRATE' not in series_data:
+                raise ValueError("Unemployment rate not available from FRED")
+            if 'VIXCLS' not in series_data:
+                raise ValueError("VIX volatility data not available from FRED")
+            if 'INDPRO' not in series_data:
+                raise ValueError("Industrial production data not available from FRED")
+            if 'NAPM' not in series_data:
+                raise ValueError("Manufacturing PMI data not available from FRED")
+            if 'UMCSENT' not in series_data:
+                raise ValueError("Consumer confidence data not available from FRED")
+            
+            # Get additional data from BEA for GDP growth
+            bea_data = await self.bea_client.get_gdp_data()
+            if not bea_data or 'growth_rate' not in bea_data:
+                raise ValueError("GDP growth rate not available from BEA API")
             
             data.update({
-                'unemployment_rate': series_data.get('UNRATE', [4.0])[-1],
-                'sp500_volatility': series_data.get('VIXCLS', [20.0])[-1],
-                'gdp_growth_rate': 2.1,  # Default - would fetch from BEA
-                'manufacturing_pmi': 52.0,  # Default - would fetch from additional source
-                'consumer_confidence': 100.0,  # Default
-                'industrial_production_change': 1.0  # Default
+                'unemployment_rate': series_data['UNRATE'][-1],
+                'sp500_volatility': series_data['VIXCLS'][-1],
+                'gdp_growth_rate': bea_data['growth_rate'],
+                'manufacturing_pmi': series_data['NAPM'][-1],
+                'consumer_confidence': series_data['UMCSENT'][-1],
+                'industrial_production_change': series_data['INDPRO'][-1]
             })
             
             return data
             
         except Exception as e:
-            logger.warning(f"⚠️ Failed to fetch real-time economic data: {str(e)}")
-            # Return default values
-            return {
-                'yield_curve_10y2y': 1.5,
-                'yield_curve_10y3m': 1.2,
-                'unemployment_rate': 4.0,
-                'gdp_growth_rate': 2.1,
-                'sp500_volatility': 20.0,
-                'manufacturing_pmi': 52.0,
-                'consumer_confidence': 100.0,
-                'industrial_production_change': 1.0
-            }
+            logger.error(f"Failed to fetch real-time economic data: {str(e)}")
+            raise ValueError(f"Real economic data not available - synthetic data not allowed: {str(e)}")
     
     async def _fetch_real_time_supply_chain_data(self) -> Dict[str, Any]:
-        """Fetch real-time supply chain data"""
-        # For now, return default values
-        # In production, this would fetch from supply chain APIs
-        return {
-            'supplier_concentration': 0.3,
-            'geographic_concentration': 0.4,
-            'single_source_dependencies': 2,
-            'capacity_utilization': 0.85,
-            'lead_time_variability': 0.2
-        }
+        """Fetch real-time supply chain data from APIs - real data only"""
+        try:
+            # Must implement real supply chain data APIs
+            # This would integrate with actual supply chain monitoring services
+            raise ValueError("Real supply chain APIs not yet implemented - synthetic data not allowed")
+        except Exception as e:
+            logger.error(f"Supply chain data not available: {str(e)}")
+            raise ValueError("Real supply chain data required - synthetic data not allowed")
     
     async def _fetch_real_time_market_data(self) -> Dict[str, float]:
-        """Fetch real-time market data"""
-        # For now, return default values
-        # In production, this would fetch from market data APIs
-        return {
-            'current_volatility': 20.0,
-            'price_change': 0.01,
-            'volume_change': 0.05,
-            'interest_rate': 4.5,
-            'economic_uncertainty': 0.3
-        }
+        """Fetch real-time market data from APIs - real data only"""
+        try:
+            # Must implement real market data APIs
+            # This would integrate with actual market data providers
+            raise ValueError("Real market data APIs not yet implemented - synthetic data not allowed")
+        except Exception as e:
+            logger.error(f"Market data not available: {str(e)}")
+            raise ValueError("Real market data required - synthetic data not allowed")
     
     async def _fetch_real_time_geopolitical_data(self) -> Dict[str, float]:
-        """Fetch real-time geopolitical data"""
-        # For now, return default values
-        # In production, this would fetch from geopolitical risk APIs
-        return {
-            'political_stability': 0.7,
-            'trade_tensions': 0.3,
-            'military_conflicts': 0.2,
-            'diplomatic_relations': 0.8,
-            'economic_sanctions': 0.1
-        }
+        """Fetch real-time geopolitical data from APIs - real data only"""
+        try:
+            # Must implement real geopolitical risk APIs
+            # This would integrate with actual geopolitical risk data providers
+            raise ValueError("Real geopolitical APIs not yet implemented - synthetic data not allowed")
+        except Exception as e:
+            logger.error(f"Geopolitical data not available: {str(e)}")
+            raise ValueError("Real geopolitical data required - synthetic data not allowed")
     
     def get_model_status(self) -> Dict[str, Any]:
         """Get status of all loaded models"""

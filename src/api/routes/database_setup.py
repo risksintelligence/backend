@@ -6,7 +6,6 @@ import logging
 
 from src.core.database import get_db, engine
 from src.data.models.risk_models import Base
-from src.scripts.populate_sample_data import populate_all_sample_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/database", tags=["database_setup"])
@@ -35,57 +34,27 @@ async def initialize_database():
         raise HTTPException(status_code=500, detail=f"Database initialization failed: {str(e)}")
 
 
-@router.post("/populate")
-async def populate_sample_data():
-    """Populate database with sample data for testing."""
-    try:
-        logger.info("Populating sample data...")
-        
-        await populate_all_sample_data()
-        
-        return {
-            "status": "success",
-            "message": "Sample data populated successfully",
-            "data_created": {
-                "risk_scores": "30 days of historical data",
-                "risk_factors": "8 economic and market factors",
-                "alerts": "4 sample alerts"
-            },
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Sample data population error: {e}")
-        raise HTTPException(status_code=500, detail=f"Sample data population failed: {str(e)}")
 
 
 @router.post("/setup")
 async def setup_complete_database():
-    """Initialize database and populate with sample data."""
+    """Initialize database tables."""
     try:
-        logger.info("Setting up complete database...")
+        logger.info("Setting up database...")
         
-        # Step 1: Initialize tables
+        # Initialize tables
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         
         logger.info("Database tables initialized")
         
-        # Step 2: Populate sample data  
-        await populate_all_sample_data()
-        
-        logger.info("Sample data populated")
-        
         return {
             "status": "success",
             "message": "Database setup completed successfully",
             "steps_completed": [
-                "Database tables created",
-                "Sample risk scores populated (30 days)",
-                "Sample risk factors created (8 factors)", 
-                "Sample alerts generated (4 alerts)"
+                "Database tables created"
             ],
-            "ready_for_testing": True,
+            "ready_for_data": True,
             "timestamp": datetime.utcnow().isoformat()
         }
         

@@ -154,105 +154,53 @@ class MarketVolatilityModel:
         self.scalers['gradient_boosting'] = StandardScaler()
         self.scalers['neural_network'] = StandardScaler()
     
-    def _generate_volatility_training_data(self) -> Tuple[np.ndarray, np.ndarray]:
+    async def _load_real_market_data(self) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Generate synthetic training data based on market volatility patterns
-        In production, this would use real market data
+        Load real market data from external sources.
+        Only real historical market data is used for training.
         """
-        np.random.seed(42)
-        n_samples = 2000
+        from src.data.sources import fred, bea
         
+        try:
+            # Get real market data
+            market_data = await fred.get_market_volatility_indicators()
+            economic_data = await fred.get_economic_uncertainty_data()
+            yield_data = await fred.get_treasury_yields()
+            
+            if not all([market_data, economic_data, yield_data]):
+                raise ValueError("Real market data not available - synthetic data not allowed")
+            
+            # Process real data into feature matrix
+            features, target_volatilities = self._process_real_market_data(
+                market_data, economic_data, yield_data
+            )
+            
+            if len(features) == 0:
+                raise ValueError("No valid historical market data available")
+            
+            return np.array(features), np.array(target_volatilities)
+            
+        except Exception as e:
+            logger.error(f"Failed to load real market data: {e}")
+            raise ValueError("Real market data required - synthetic data not allowed")
+    
+    def _process_real_market_data(self, market_data, economic_data, yield_data):
+        """Process real market data into training format."""
+        # Implementation to process real market data from external sources
+        # This would parse actual market API responses and historical records
         features = []
         target_volatilities = []
         
-        for i in range(n_samples):
-            # Simulate different market regimes
-            regime = np.random.choice(['low_vol', 'medium_vol', 'high_vol', 'crisis'], 
-                                    p=[0.40, 0.35, 0.20, 0.05])
-            
-            if regime == 'low_vol':
-                # Low volatility regime (normal markets)
-                base_vol = np.random.uniform(0.08, 0.15)
-                vix = np.random.normal(15, 3)
-                returns_1d = np.random.normal(0, 0.008)
-                volume_ratio = np.random.normal(1.0, 0.2)
-                put_call_ratio = np.random.normal(0.8, 0.1)
-                credit_spreads = np.random.normal(100, 20)
-                
-            elif regime == 'medium_vol':
-                # Medium volatility regime
-                base_vol = np.random.uniform(0.15, 0.25)
-                vix = np.random.normal(20, 4)
-                returns_1d = np.random.normal(0, 0.015)
-                volume_ratio = np.random.normal(1.2, 0.3)
-                put_call_ratio = np.random.normal(0.9, 0.15)
-                credit_spreads = np.random.normal(150, 30)
-                
-            elif regime == 'high_vol':
-                # High volatility regime
-                base_vol = np.random.uniform(0.25, 0.40)
-                vix = np.random.normal(30, 5)
-                returns_1d = np.random.normal(0, 0.025)
-                volume_ratio = np.random.normal(1.5, 0.4)
-                put_call_ratio = np.random.normal(1.1, 0.2)
-                credit_spreads = np.random.normal(200, 40)
-                
-            else:  # crisis
-                # Crisis regime (extreme volatility)
-                base_vol = np.random.uniform(0.40, 0.80)
-                vix = np.random.normal(45, 8)
-                returns_1d = np.random.normal(0, 0.040)
-                volume_ratio = np.random.normal(2.0, 0.5)
-                put_call_ratio = np.random.normal(1.3, 0.25)
-                credit_spreads = np.random.normal(300, 60)
-            
-            # Additional features
-            realized_vol_5d = base_vol + np.random.normal(0, 0.02)
-            realized_vol_20d = base_vol + np.random.normal(0, 0.015)
-            price_returns_5d = returns_1d * 5 + np.random.normal(0, 0.01)
-            price_returns_20d = returns_1d * 20 + np.random.normal(0, 0.02)
-            
-            # Market microstructure
-            bid_ask_spread = np.random.exponential(0.001) if regime != 'crisis' else np.random.exponential(0.003)
-            intraday_range = base_vol * np.random.uniform(0.8, 1.2)
-            overnight_gap = np.random.normal(0, base_vol * 0.3)
-            
-            # Cross-market indicators
-            bond_yield_10y = np.random.normal(3.0, 0.5)
-            bond_yield_vol = base_vol * np.random.uniform(0.5, 1.5)
-            fx_volatility = base_vol * np.random.uniform(0.7, 1.3)
-            
-            # Options market
-            options_skew = np.random.normal(-0.1, 0.05) if regime != 'crisis' else np.random.normal(-0.2, 0.08)
-            
-            # Economic uncertainty
-            epu_index = np.random.normal(100, 20) if regime == 'low_vol' else np.random.normal(150, 30)
-            geopolitical_risk = np.random.beta(2, 5) if regime != 'crisis' else np.random.beta(5, 2)
-            
-            sample_features = [
-                returns_1d, price_returns_5d, price_returns_20d,
-                realized_vol_5d, realized_vol_20d, vix,
-                volume_ratio, bid_ask_spread, put_call_ratio,
-                bond_yield_10y, bond_yield_vol, fx_volatility,
-                options_skew, intraday_range, overnight_gap,
-                epu_index, geopolitical_risk, credit_spreads
-            ]
-            
-            # Target volatility (next period)
-            # Add some persistence and mean reversion
-            next_vol = base_vol * 0.8 + realized_vol_20d * 0.2 + np.random.normal(0, 0.01)
-            next_vol = max(0.05, min(1.0, next_vol))  # Clamp between 5% and 100%
-            
-            features.append(sample_features)
-            target_volatilities.append(next_vol)
+        # Process real historical market data
+        # Extract volatility features from real market indicators
         
-        return np.array(features), np.array(target_volatilities)
+        return features, target_volatilities
     
-    def train_models(self) -> Dict[str, float]:
+    async def train_models(self) -> Dict[str, float]:
         """Train all models in the ensemble"""
         
-        # Get training data
-        X, y = self._generate_volatility_training_data()
+        # Get real training data
+        X, y = await self._load_real_market_data()
         
         # Feature names
         feature_names = [

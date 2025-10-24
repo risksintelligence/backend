@@ -22,12 +22,12 @@ def run_command(command, description):
     
     try:
         result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        print(f"✅ SUCCESS: {description}")
+        print(f"SUCCESS: {description}")
         if result.stdout:
             print("STDOUT:", result.stdout)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ FAILED: {description}")
+        print(f"FAILED: {description}")
         print("STDERR:", e.stderr)
         if e.stdout:
             print("STDOUT:", e.stdout)
@@ -120,7 +120,7 @@ def run_security_checks():
             results.append(result)
         except Exception:
             # Security tools might not be installed
-            print(f"⚠️  SKIPPED: {desc} (tool not installed)")
+            print(f"SKIPPED: {desc} (tool not installed)")
             results.append(True)  # Don't fail if security tools aren't available
     
     return all(results)
@@ -128,39 +128,39 @@ def run_security_checks():
 
 def check_test_environment():
     """Check if test environment is properly set up."""
-    print("🔍 Checking test environment...")
+    print("Checking test environment...")
     
     # Check if pytest is installed
     try:
         import pytest
-        print(f"✅ pytest {pytest.__version__} is installed")
+        print(f"pytest {pytest.__version__} is installed")
     except ImportError:
-        print("❌ pytest is not installed. Run: pip install pytest")
+        print("pytest is not installed. Run: pip install pytest")
         return False
     
     # Check if test database can be created
     try:
         import sqlite3
-        print("✅ SQLite available for test database")
+        print("SQLite available for test database")
     except ImportError:
-        print("❌ SQLite not available")
+        print("SQLite not available")
         return False
     
     # Check if async support is available
     try:
         import pytest_asyncio
-        print("✅ pytest-asyncio available for async tests")
+        print("pytest-asyncio available for async tests")
     except ImportError:
-        print("⚠️  pytest-asyncio not installed (install with: pip install pytest-asyncio)")
+        print("pytest-asyncio not installed (install with: pip install pytest-asyncio)")
     
     # Check if coverage tools are available
     try:
         import coverage
-        print("✅ coverage.py available for code coverage")
+        print("coverage.py available for code coverage")
     except ImportError:
-        print("⚠️  coverage.py not installed (install with: pip install coverage)")
+        print("coverage.py not installed (install with: pip install coverage)")
     
-    print("✅ Test environment check completed")
+    print("Test environment check completed")
     return True
 
 
@@ -204,12 +204,12 @@ def main():
     # Change to project directory
     os.chdir(project_root)
     
-    print("🚀 RiskX Backend Test Suite")
-    print(f"📁 Project Root: {project_root}")
+    print("RiskX Backend Test Suite")
+    print(f"Project Root: {project_root}")
     
     # Check environment
     if not check_test_environment():
-        print("❌ Test environment check failed")
+        print("Test environment check failed")
         sys.exit(1)
     
     # Determine what to run
@@ -247,27 +247,27 @@ def main():
     print("="*80)
     
     if all(results):
-        print("🎉 ALL TESTS PASSED!")
+        print("ALL TESTS PASSED!")
         exit_code = 0
     else:
-        print("❌ SOME TESTS FAILED!")
+        print("SOME TESTS FAILED!")
         exit_code = 1
     
     passed = sum(results)
     total = len(results)
-    print(f"📊 Results: {passed}/{total} test suites passed")
+    print(f"Results: {passed}/{total} test suites passed")
     
     if args.coverage or args.report:
-        print("\n📋 Coverage Report:")
+        print("\nCoverage Report:")
         print("  - HTML report: htmlcov/index.html")
         print("  - XML report: coverage.xml")
     
     if args.report:
-        print("\n📋 Test Report:")
+        print("\nTest Report:")
         print("  - HTML report: test-report.html")
         print("  - JUnit XML: test-results.xml")
     
-    print("\n💡 Quick commands:")
+    print("\nQuick commands:")
     print("  Run all tests:        python tests/run_tests.py --all")
     print("  Run with coverage:    python tests/run_tests.py --coverage")
     print("  Generate report:      python tests/run_tests.py --report")

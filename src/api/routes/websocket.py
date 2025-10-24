@@ -398,7 +398,7 @@ async def stream_simulation_updates(simulation_data: Dict[str, Any]):
 
 
 async def stream_prediction_updates(prediction_data: Dict[str, Any]):
-    """Stream ML prediction updates to subscribers."""
+    """Stream financial prediction updates to subscribers."""
     await connection_manager.broadcast_to_topic("prediction_updates", {
         "type": "prediction_update",
         "data": prediction_data,
@@ -548,14 +548,21 @@ class RealTimeDataStreamer:
                 market_data = await self.cache_manager.get("market:overview")
                 
                 if not market_data:
-                    # Generate sample market data
-                    import random
-                    market_data = {
-                        "sp500": round(4500 + random.uniform(-50, 50), 2),
-                        "vix": round(18 + random.uniform(-3, 3), 2),
-                        "treasury_10y": round(4.5 + random.uniform(-0.5, 0.5), 3),
-                        "last_updated": datetime.utcnow().isoformat()
-                    }
+                    # Get real market data from external APIs
+                    from src.data.sources import fred
+                    try:
+                        real_market_data = await fred.get_market_overview()
+                        if real_market_data:
+                            market_data = real_market_data
+                        else:
+                            # No real data available - skip this update
+                            logger.warning("No real market data available - skipping WebSocket update")
+                            await asyncio.sleep(20)
+                            continue
+                    except Exception as e:
+                        logger.error(f"Failed to get real market data: {e}")
+                        await asyncio.sleep(20)
+                        continue
                 
                 await stream_market_data(market_data)
                 

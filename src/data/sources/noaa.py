@@ -168,7 +168,7 @@ class NOAAClient:
         return None
     
     async def get_climate_extremes(self) -> Optional[Dict]:
-        """Get climate extremes and trends (uses sample data if CDO unavailable)."""
+        """Get climate extremes and trends from real NOAA CDO API data only."""
         
         # Try to get data from CDO API if available
         if NOAA_API_KEY:
@@ -205,34 +205,9 @@ class NOAAClient:
                     "last_updated": datetime.utcnow().isoformat()
                 }
         
-        # Fallback to estimated climate risk based on current patterns
-        # This provides value even without CDO API access
-        current_date = datetime.now()
-        season = "winter" if current_date.month in [12, 1, 2] else \
-                "spring" if current_date.month in [3, 4, 5] else \
-                "summer" if current_date.month in [6, 7, 8] else "fall"
-        
-        # Seasonal risk patterns based on historical data
-        seasonal_risks = {
-            "winter": {"temp_risk": 30, "precip_risk": 25, "severe_weather": 20},
-            "spring": {"temp_risk": 20, "precip_risk": 40, "severe_weather": 35},
-            "summer": {"temp_risk": 45, "precip_risk": 30, "severe_weather": 40},
-            "fall": {"temp_risk": 25, "precip_risk": 35, "severe_weather": 25}
-        }
-        
-        risk_data = seasonal_risks[season]
-        overall_risk = sum(risk_data.values()) / len(risk_data)
-        
-        return {
-            "season": season,
-            "temperature_risk": risk_data["temp_risk"],
-            "precipitation_risk": risk_data["precip_risk"],
-            "severe_weather_risk": risk_data["severe_weather"],
-            "climate_risk_score": overall_risk,
-            "risk_level": "High" if overall_risk >= 35 else "Medium" if overall_risk >= 25 else "Low",
-            "source": "noaa_climate_estimate",
-            "last_updated": datetime.utcnow().isoformat()
-        }
+        # No real NOAA CDO API data available - reject sample data fallback
+        logger.error("NOAA CDO API not available or returned no data")
+        return None
     
     async def get_transportation_impacts(self) -> Optional[Dict]:
         """Assess weather impacts on transportation systems."""

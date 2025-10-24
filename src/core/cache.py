@@ -77,70 +77,9 @@ async def get_redis_info():
         logger.error(f"Redis info error: {e}")
         return {"status": "error", "message": str(e)}
 
-async def test_cache_operations():
-    """Test comprehensive cache operations."""
-    if not redis_client:
-        return {"status": "not_configured"}
-    
-    try:
-        test_results = {}
-        
-        # Test 1: Basic set/get
-        await redis_client.set("test:basic", "basic_value", ex=60)
-        basic_value = await redis_client.get("test:basic")
-        test_results["basic_operations"] = basic_value == "basic_value"
-        
-        # Test 2: JSON data
-        test_data = {
-            "risk_score": 75.5,
-            "factors": ["economic", "financial"],
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        await redis_client.set("test:json", json.dumps(test_data), ex=60)
-        json_value = await redis_client.get("test:json")
-        retrieved_data = json.loads(json_value) if json_value else None
-        test_results["json_operations"] = retrieved_data == test_data
-        
-        # Test 3: Expiration
-        await redis_client.set("test:expire", "expire_value", ex=1)
-        ttl = await redis_client.ttl("test:expire")
-        test_results["expiration_set"] = ttl > 0
-        
-        # Test 4: Key operations
-        test_keys = ["test:key1", "test:key2", "test:key3"]
-        for i, key in enumerate(test_keys):
-            await redis_client.set(key, f"value_{i}", ex=60)
-        
-        existing_keys = await redis_client.keys("test:key*")
-        test_results["multiple_keys"] = len(existing_keys) == 3
-        
-        # Test 5: Hash operations
-        hash_data = {
-            "field1": "value1",
-            "field2": "value2",
-            "field3": "value3"
-        }
-        await redis_client.hset("test:hash", mapping=hash_data)
-        retrieved_hash = await redis_client.hgetall("test:hash")
-        test_results["hash_operations"] = retrieved_hash == hash_data
-        
-        # Clean up test keys
-        cleanup_keys = ["test:basic", "test:json", "test:expire", "test:hash"] + test_keys
-        await redis_client.delete(*cleanup_keys)
-        
-        return {
-            "status": "success",
-            "test_results": test_results,
-            "all_tests_passed": all(test_results.values()),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Cache operations test error: {e}")
-        return {"status": "error", "message": str(e)}
 
 class BasicCacheManager:
-    """Basic cache manager for testing purposes."""
+    """Basic cache manager for simple caching operations."""
     
     def __init__(self):
         self.redis_client = redis_client
