@@ -3,18 +3,14 @@ Bureau of Economic Analysis (BEA) API Integration
 """
 import aiohttp
 import asyncio
-import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import logging
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-BEA_API_KEY = os.getenv("BEA_API_KEY")
 BEA_BASE_URL = "https://apps.bea.gov/api/data"
-
-if not BEA_API_KEY:
-    logger.warning("BEA_API_KEY not found in environment variables")
 
 
 class BEAClient:
@@ -24,6 +20,7 @@ class BEAClient:
         self.session: Optional[aiohttp.ClientSession] = None
         self.rate_limit_delay = 1.0  # 1 second between requests
         self.last_request_time = 0
+        self.settings = get_settings()
     
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
@@ -50,7 +47,7 @@ class BEAClient:
         if not self.session:
             raise RuntimeError("Client not initialized. Use 'async with' context.")
         
-        if not BEA_API_KEY:
+        if not self.settings.bea_api_key:
             logger.error("BEA_API_KEY not configured")
             return None
         
@@ -58,7 +55,7 @@ class BEAClient:
         
         # Add API key and format
         params.update({
-            "UserID": BEA_API_KEY,
+            "UserID": self.settings.bea_api_key,
             "ResultFormat": "JSON"
         })
         

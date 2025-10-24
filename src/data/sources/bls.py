@@ -3,19 +3,15 @@ Bureau of Labor Statistics (BLS) API Integration
 """
 import aiohttp
 import asyncio
-import os
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import logging
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-BLS_API_KEY = os.getenv("BLS_API_KEY")
 BLS_BASE_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data"
-
-if not BLS_API_KEY:
-    logger.warning("BLS_API_KEY not found in environment variables")
 
 
 class BLSClient:
@@ -25,6 +21,7 @@ class BLSClient:
         self.session: Optional[aiohttp.ClientSession] = None
         self.rate_limit_delay = 2.0  # 2 seconds between requests (BLS has stricter limits)
         self.last_request_time = 0
+        self.settings = get_settings()
     
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
@@ -52,7 +49,7 @@ class BLSClient:
         if not self.session:
             raise RuntimeError("Client not initialized. Use 'async with' context.")
         
-        if not BLS_API_KEY:
+        if not self.settings.bls_api_key:
             logger.error("BLS_API_KEY not configured")
             return None
         
@@ -63,7 +60,7 @@ class BLSClient:
             "seriesid": series_ids,
             "startyear": start_year,
             "endyear": end_year,
-            "registrationkey": BLS_API_KEY
+            "registrationkey": self.settings.bls_api_key
         }
         
         try:

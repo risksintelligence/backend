@@ -3,18 +3,14 @@ U.S. Census Bureau API Integration
 """
 import aiohttp
 import asyncio
-import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import logging
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-CENSUS_API_KEY = os.getenv("CENSUS_API_KEY")
 CENSUS_BASE_URL = "https://api.census.gov/data"
-
-if not CENSUS_API_KEY:
-    logger.warning("CENSUS_API_KEY not found in environment variables")
 
 
 class CensusClient:
@@ -24,6 +20,7 @@ class CensusClient:
         self.session: Optional[aiohttp.ClientSession] = None
         self.rate_limit_delay = 1.0  # 1 second between requests
         self.last_request_time = 0
+        self.settings = get_settings()
     
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
@@ -50,14 +47,14 @@ class CensusClient:
         if not self.session:
             raise RuntimeError("Client not initialized. Use 'async with' context.")
         
-        if not CENSUS_API_KEY:
+        if not self.settings.census_api_key:
             logger.error("CENSUS_API_KEY not configured")
             return None
         
         await self._rate_limit()
         
         # Add API key
-        params["key"] = CENSUS_API_KEY
+        params["key"] = self.settings.census_api_key
         
         url = f"{CENSUS_BASE_URL}/{endpoint}"
         

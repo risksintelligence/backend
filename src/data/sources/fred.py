@@ -3,18 +3,14 @@ Federal Reserve Economic Data (FRED) API Integration
 """
 import aiohttp
 import asyncio
-import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import logging
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-FRED_API_KEY = os.getenv("FRED_API_KEY")
 FRED_BASE_URL = "https://api.stlouisfed.org/fred"
-
-if not FRED_API_KEY:
-    logger.warning("FRED_API_KEY not found in environment variables")
 
 
 class FREDClient:
@@ -24,6 +20,7 @@ class FREDClient:
         self.session: Optional[aiohttp.ClientSession] = None
         self.rate_limit_delay = 1.0  # 1 second between requests
         self.last_request_time = 0
+        self.settings = get_settings()
     
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
@@ -50,7 +47,7 @@ class FREDClient:
         if not self.session:
             raise RuntimeError("Client not initialized. Use 'async with' context.")
         
-        if not FRED_API_KEY:
+        if not self.settings.fred_api_key:
             logger.error("FRED_API_KEY not configured")
             return None
         
@@ -58,7 +55,7 @@ class FREDClient:
         
         # Add API key and format
         params.update({
-            "api_key": FRED_API_KEY,
+            "api_key": self.settings.fred_api_key,
             "file_type": "json"
         })
         
