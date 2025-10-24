@@ -26,6 +26,6 @@ networkx==3.2.1
 scipy==1.11.4
 pyvis==0.3.2
 xgboost==2.0.3
-lightgbm==4.1.0
+lightgbm==4.5.0
 statsmodels==0.14.1
 openpyxl==3.1.2

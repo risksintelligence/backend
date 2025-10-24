@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
-        case_sensitive = True
+        case_sensitive = False  # Allow uppercase environment variables
         extra = "ignore"  # Allow extra environment variables
 
 @lru_cache()

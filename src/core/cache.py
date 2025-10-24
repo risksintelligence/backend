@@ -12,14 +12,22 @@ redis_client = None
 REDIS_URL = os.getenv("REDIS_URL")
 
 if REDIS_URL:
-    redis_client = redis.from_url(
-        REDIS_URL,
-        encoding="utf-8",
-        decode_responses=True,
-        socket_timeout=5,
-        socket_connect_timeout=5,
-        retry_on_timeout=True
-    )
+    logger.info(f"Initializing Redis connection to: {REDIS_URL[:20]}...")
+    try:
+        redis_client = redis.from_url(
+            REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_timeout=5,
+            socket_connect_timeout=5,
+            retry_on_timeout=True
+        )
+        logger.info("Redis client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Redis client: {e}")
+        redis_client = None
+else:
+    logger.warning("REDIS_URL environment variable not found")
 
 async def check_redis_connection():
     """Check if Redis connection is working."""
