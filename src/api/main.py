@@ -280,5 +280,6 @@ app.include_router(risk_analytics.router)
 app.include_router(analytics.router)
 
 # Include working API routes only
-from src.api.routes import external_apis
+from src.api.routes import external_apis, explainability
 app.include_router(external_apis.router)
+app.include_router(explainability.router)

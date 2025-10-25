@@ -503,6 +503,10 @@ class ModelServer:
             logger.error(f"Geopolitical data not available: {str(e)}")
             raise ValueError("Real geopolitical data required - synthetic data not allowed")
     
+    def get_model(self, model_id: str):
+        """Get a specific model by ID"""
+        return self.models.get(model_id)
+    
     def get_model_status(self) -> Dict[str, Any]:
         """Get status of all loaded models"""
         return {
