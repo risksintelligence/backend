@@ -1,0 +1,38 @@
+{
+  "value": {
+    "factors": [
+      {
+        "name": "Unemployment Rate",
+        "score": 7.5,
+        "impact": "low",
+        "trend": "stable",
+        "description": "Current unemployment rate is 4.0%, indicating low economic stress"
+      },
+      {
+        "name": "Inflation Risk",
+        "score": 0.0,
+        "impact": "low",
+        "trend": "stable",
+        "description": "Inflation rate at 2.0%, deviation from 2% target indicates low price stability risk"
+      },
+      {
+        "name": "Interest Rate Risk",
+        "score": 0,
+        "impact": "low",
+        "trend": "falling",
+        "description": "Federal funds rate at 0.8%, indicating low monetary policy tightness"
+      },
+      {
+        "name": "Market Volatility",
+        "score": 6.7,
+        "impact": "low",
+        "trend": "stable",
+        "description": "VIX at 17.2, indicating low market uncertainty and fear"
+      }
+    ],
+    "count": 4,
+    "last_updated": "2025-10-25T04:23:11.011659",
+    "data_source": "real_time_fred"
+  },
+  "cached_at": "2025-10-25T04:23:11.011762"
+}

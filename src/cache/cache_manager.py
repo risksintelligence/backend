@@ -26,6 +26,11 @@ class IntelligentCacheManager:
         # Ensure cache directory exists
         os.makedirs(self.cache_dir, exist_ok=True)
         
+        # Log cache tier availability
+        redis_available = redis_client is not None
+        db_available = db_session is not None
+        logger.info(f"Cache tiers - Redis: {'available' if redis_available else 'unavailable'}, DB: {'available' if db_available else 'unavailable'}, File: available")
+        
         # Performance metrics
         self.metrics = {
             "redis_hits": 0,

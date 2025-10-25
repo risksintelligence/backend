@@ -1,0 +1,12 @@
+{
+  "value": {
+    "value": 2.9,
+    "date": "1962-10-01",
+    "series_id": "FEDFUNDS",
+    "title": "Federal Funds Effective Rate",
+    "units": "Percent",
+    "frequency": "Monthly",
+    "last_updated": "2025-10-25T04:22:33.205829"
+  },
+  "cached_at": "2025-10-25T04:22:33.206144"
+}
