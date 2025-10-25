@@ -85,9 +85,15 @@ class FREDClient:
     ) -> Optional[Dict]:
         """Get time series data for a specific series."""
         
+        # Default to recent data (last year) if no start date specified
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+        
         params = {
             "series_id": series_id,
-            "limit": limit
+            "limit": limit,
+            "sort_order": "desc",  # Most recent first
+            "start_date": start_date
         }
         
         if start_date:
@@ -250,16 +256,16 @@ async def get_market_overview() -> Dict[str, Any]:
     async with FREDClient() as client:
         # Fetch key market indicators concurrently
         results = await asyncio.gather(
-            client.get_series("SP500"),      # S&P 500
-            client.get_series("VIXCLS"),     # VIX Volatility Index
-            client.get_series("DGS10"),      # 10-Year Treasury Rate
-            client.get_series("DGS2"),       # 2-Year Treasury Rate
-            client.get_series("DEXUSEU"),    # USD/EUR Exchange Rate
+            client.get_series("WILL5000INDFC"),  # Wilshire 5000 (Stock Market Index)
+            client.get_series("VIXCLS"),         # VIX Volatility Index
+            client.get_series("DGS10"),          # 10-Year Treasury Rate
+            client.get_series("DGS2"),           # 2-Year Treasury Rate
+            client.get_series("DEXUSEU"),        # USD/EUR Exchange Rate
             return_exceptions=True
         )
         
         indicators = {}
-        series_names = ["sp500", "vix", "treasury_10y", "treasury_2y", "usd_eur"]
+        series_names = ["stock_market", "vix", "treasury_10y", "treasury_2y", "usd_eur"]
         
         for i, result in enumerate(results):
             if isinstance(result, dict) and result:
