@@ -1,0 +1,12 @@
+{
+  "value": {
+    "value": 4.4,
+    "date": "2017-05-01",
+    "series_id": "UNRATE",
+    "title": "Unemployment Rate",
+    "units": "Percent",
+    "frequency": "Monthly",
+    "last_updated": "2025-10-25T05:38:54.032543"
+  },
+  "cached_at": "2025-10-25T05:38:54.032933"
+}

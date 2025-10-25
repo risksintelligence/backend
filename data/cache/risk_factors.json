@@ -1,0 +1,61 @@
+{
+  "value": {
+    "risk_factors": [
+      {
+        "value": 4.4,
+        "date": "2017-05-01",
+        "series_id": "UNRATE",
+        "title": "Unemployment Rate",
+        "units": "Percent",
+        "frequency": "Monthly",
+        "last_updated": "2025-10-25T05:39:46.615726"
+      },
+      {
+        "value": 244.163,
+        "date": "2017-06-01",
+        "series_id": "CPIAUCSL",
+        "title": "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average",
+        "units": "Index 1982-1984=100",
+        "frequency": "Monthly",
+        "last_updated": "2025-10-25T05:39:46.617871"
+      },
+      {
+        "value": 1.04,
+        "date": "2017-06-01",
+        "series_id": "FEDFUNDS",
+        "title": "Federal Funds Effective Rate",
+        "units": "Percent",
+        "frequency": "Monthly",
+        "last_updated": "2025-10-25T05:39:46.626733"
+      },
+      {
+        "volatility_indicators": {
+          "vix": {
+            "value": 16.77,
+            "date": "2025-06-06",
+            "series_id": "VIXCLS",
+            "title": "CBOE Volatility Index: VIX",
+            "units": "Index",
+            "frequency": "Daily, Close",
+            "last_updated": "2025-10-25T05:39:46.690496"
+          },
+          "nasdaq": {
+            "value": 19591.24,
+            "date": "2025-06-09",
+            "series_id": "NASDAQCOM",
+            "title": "NASDAQ Composite Index",
+            "units": "Index Feb 5, 1971=100",
+            "frequency": "Daily, Close",
+            "last_updated": "2025-10-25T05:39:52.627338"
+          }
+        },
+        "source": "fred_volatility",
+        "last_updated": "2025-10-25T05:39:52.627385"
+      }
+    ],
+    "factor_count": 4,
+    "source": "fred_risk_factors",
+    "last_updated": "2025-10-25T05:39:52.627645"
+  },
+  "cached_at": "2025-10-25T05:39:52.627756"
+}

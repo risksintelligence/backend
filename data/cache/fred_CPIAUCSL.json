@@ -1,0 +1,12 @@
+{
+  "value": {
+    "value": 244.163,
+    "date": "2017-06-01",
+    "series_id": "CPIAUCSL",
+    "title": "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average",
+    "units": "Index 1982-1984=100",
+    "frequency": "Monthly",
+    "last_updated": "2025-10-25T05:39:01.173752"
+  },
+  "cached_at": "2025-10-25T05:39:01.174132"
+}

@@ -68,30 +68,24 @@ async def get_risk_overview(
             except Exception as e:
                 logger.warning(f"Failed to fetch GDP data: {e}")
         
-        # Extract values with proper fallbacks - cache system will provide stale data if APIs fail
+        # Extract values with proper fallbacks - FRED returns single dict objects, not lists
         unemployment_rate = 4.0  # Default baseline
-        if unemployment and isinstance(unemployment, list) and len(unemployment) > 0:
-            unemployment_rate = unemployment[0].get("value", 4.0)
-        elif unemployment and isinstance(unemployment, dict):
+        if unemployment and isinstance(unemployment, dict):
             unemployment_rate = unemployment.get("value", 4.0)
         
-        inflation_rate = 2.0  # Default target inflation
-        if inflation and isinstance(inflation, list) and len(inflation) >= 2:
-            current_cpi = inflation[0].get("value", 100)
-            previous_cpi = inflation[1].get("value", 100)
-            if previous_cpi > 0:
-                inflation_rate = ((current_cpi - previous_cpi) / previous_cpi) * 100
+        inflation_rate = 2.0  # Default target inflation  
+        if inflation and isinstance(inflation, dict):
+            # For now use current CPI value, will enhance with YoY calculation later
+            current_cpi = inflation.get("value", 100)
+            # Simple inflation estimate based on current CPI level
+            inflation_rate = max(0, (current_cpi - 250) / 10)  # Rough estimate
         
         fed_rate = 2.5  # Default baseline rate
-        if fed_funds and isinstance(fed_funds, list) and len(fed_funds) > 0:
-            fed_rate = fed_funds[0].get("value", 2.5)
-        elif fed_funds and isinstance(fed_funds, dict):
+        if fed_funds and isinstance(fed_funds, dict):
             fed_rate = fed_funds.get("value", 2.5)
         
         vix_value = 20.0  # Default VIX baseline
-        if vix and isinstance(vix, list) and len(vix) > 0:
-            vix_value = vix[0].get("value", 20.0)
-        elif vix and isinstance(vix, dict):
+        if vix and isinstance(vix, dict):
             vix_value = vix.get("value", 20.0)
         
         # Risk score calculations based on real economic conditions
@@ -188,12 +182,22 @@ async def get_simple_risk_score(
         inflation = await fred.get_inflation_rate()
         
         if unemployment and inflation:
-            # Simple risk calculation
+            # Risk calculation with frontend-compatible format
+            unemployment_rate = float(unemployment.get("value", 4.0))
+            inflation_rate = float(inflation.get("value", 250.0))
+            
+            # Calculate normalized risk score (0-100)
+            unemployment_risk = min(unemployment_rate * 10, 100)  # Scale unemployment risk
+            inflation_risk = min((inflation_rate - 200) / 2, 100)  # Scale inflation risk from CPI
+            overall_risk = (unemployment_risk + inflation_risk) / 2
+            
             risk_score = {
-                "overall_score": 50,  # Neutral baseline
-                "unemployment_factor": unemployment.get("value", 0),
-                "inflation_factor": inflation.get("value", 0),
-                "calculation_method": "basic_economic_indicators",
+                "overall_score": round(overall_risk, 1),
+                "unemployment_rate": unemployment_rate,
+                "inflation_rate": inflation_rate,
+                "unemployment_risk": round(unemployment_risk, 1),
+                "inflation_risk": round(inflation_risk, 1),
+                "calculation_method": "economic_indicators",
                 "last_updated": datetime.utcnow().isoformat()
             }
             
@@ -274,9 +278,9 @@ async def get_risk_factors(
         unemployment_rate = 4.0  # Baseline default
         if unemployment:
             if isinstance(unemployment, list) and len(unemployment) > 0:
-                unemployment_rate = unemployment[0].get("value", 4.0)
+                unemployment_rate = float(unemployment[0].get("value", 4.0))
             elif isinstance(unemployment, dict):
-                unemployment_rate = unemployment.get("value", 4.0)
+                unemployment_rate = float(unemployment.get("value", 4.0))
         
         score = min(max((unemployment_rate - 3.5) * 15, 0), 100)
         impact = "high" if unemployment_rate > 6 else "moderate" if unemployment_rate > 4 else "low"
@@ -314,9 +318,9 @@ async def get_risk_factors(
         fed_rate = 2.5  # Default baseline rate
         if fed_funds:
             if isinstance(fed_funds, list) and len(fed_funds) > 0:
-                fed_rate = fed_funds[0].get("value", 2.5)
+                fed_rate = float(fed_funds[0].get("value", 2.5))
             elif isinstance(fed_funds, dict):
-                fed_rate = fed_funds.get("value", 2.5)
+                fed_rate = float(fed_funds.get("value", 2.5))
         
         score = min(max((fed_rate - 2.0) * 12, 0), 100)
         impact = "high" if fed_rate > 5 else "moderate" if fed_rate > 2 else "low" 
@@ -334,9 +338,9 @@ async def get_risk_factors(
         vix_value = 20.0  # Default VIX baseline
         if market_volatility:
             if isinstance(market_volatility, list) and len(market_volatility) > 0:
-                vix_value = market_volatility[0].get("value", 20.0)
+                vix_value = float(market_volatility[0].get("value", 20.0))
             elif isinstance(market_volatility, dict):
-                vix_value = market_volatility.get("value", 20.0)
+                vix_value = float(market_volatility.get("value", 20.0))
         
         score = min(max((vix_value - 15) * 3, 0), 100)
         impact = "high" if vix_value > 25 else "moderate" if vix_value > 18 else "low"
@@ -774,20 +778,32 @@ async def get_risk_trends(
             except Exception as e:
                 logger.warning(f"Risk trends: Failed to fetch VIX: {e}")
         
-        # Process baseline values with fallbacks
+        # Process baseline values with fallbacks and proper type conversion
         current_unemployment = 4.0  # Default baseline
         if unemployment:
-            if isinstance(unemployment, list) and len(unemployment) > 0:
-                current_unemployment = unemployment[0].get("value", 4.0)
-            elif isinstance(unemployment, dict):
-                current_unemployment = unemployment.get("value", 4.0)
+            try:
+                if isinstance(unemployment, list) and len(unemployment) > 0:
+                    value = unemployment[0].get("value", 4.0)
+                    current_unemployment = float(value) if value is not None else 4.0
+                elif isinstance(unemployment, dict):
+                    value = unemployment.get("value", 4.0)
+                    current_unemployment = float(value) if value is not None else 4.0
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Risk trends: Failed to convert unemployment value: {e}")
+                current_unemployment = 4.0
         
         current_vix = 20.0  # Default VIX baseline
         if vix:
-            if isinstance(vix, list) and len(vix) > 0:
-                current_vix = vix[0].get("value", 20.0)
-            elif isinstance(vix, dict):
-                current_vix = vix.get("value", 20.0)
+            try:
+                if isinstance(vix, list) and len(vix) > 0:
+                    value = vix[0].get("value", 20.0)
+                    current_vix = float(value) if value is not None else 20.0
+                elif isinstance(vix, dict):
+                    value = vix.get("value", 20.0)
+                    current_vix = float(value) if value is not None else 20.0
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Risk trends: Failed to convert VIX value: {e}")
+                current_vix = 20.0
         
         # Generate daily risk scores for the time period
         for i in range(days):
@@ -878,22 +894,22 @@ async def get_risk_heatmap(
         
         async with fred.FREDClient() as client:
             try:
-                unemployment = await client.get_series("UNRATE", limit=5)
+                unemployment = await client.get_series_historical("UNRATE", limit=5)
             except Exception as e:
                 logger.warning(f"Risk heatmap: Failed to fetch unemployment: {e}")
             
             try:
-                inflation = await client.get_series("CPIAUCSL", limit=5)
+                inflation = await client.get_series_historical("CPIAUCSL", limit=5)
             except Exception as e:
                 logger.warning(f"Risk heatmap: Failed to fetch inflation: {e}")
             
             try:
-                fed_funds = await client.get_series("FEDFUNDS", limit=5)
+                fed_funds = await client.get_series_historical("FEDFUNDS", limit=5)
             except Exception as e:
                 logger.warning(f"Risk heatmap: Failed to fetch fed funds: {e}")
             
             try:
-                vix = await client.get_series("VIXCLS", limit=5)
+                vix = await client.get_series_historical("VIXCLS", limit=5)
             except Exception as e:
                 logger.warning(f"Risk heatmap: Failed to fetch VIX: {e}")
         

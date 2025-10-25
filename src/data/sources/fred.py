@@ -133,6 +133,64 @@ class FREDClient:
         
         return None
     
+    async def get_series_historical(
+        self, 
+        series_id: str, 
+        limit: int = 10,
+        start_date: Optional[str] = None
+    ) -> Optional[List[Dict]]:
+        """Get multiple historical observations for a series."""
+        
+        # Default to recent data (last year) if no start date specified
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+        
+        params = {
+            "series_id": series_id,
+            "limit": limit,
+            "sort_order": "desc",  # Most recent first
+            "start_date": start_date
+        }
+        
+        data = await self._make_request("series/observations", params)
+        
+        if data and "observations" in data:
+            observations = data["observations"]
+            
+            # Get all non-null observations
+            valid_obs = []
+            for obs in reversed(observations):  # Most recent first
+                if obs.get("value") and obs["value"] != ".":
+                    try:
+                        valid_obs.append({
+                            "value": float(obs["value"]),
+                            "date": obs["date"],
+                            "series_id": series_id
+                        })
+                    except (ValueError, TypeError):
+                        continue
+            
+            if valid_obs:
+                # Get series metadata for first observation
+                series_info = await self.get_series_info(series_id)
+                if series_info:
+                    title = series_info.get("title", series_id)
+                    units = series_info.get("units", "")
+                    frequency = series_info.get("frequency", "")
+                    
+                    # Add metadata to all observations
+                    for obs in valid_obs:
+                        obs.update({
+                            "title": title,
+                            "units": units,
+                            "frequency": frequency,
+                            "last_updated": datetime.utcnow().isoformat()
+                        })
+                
+                return valid_obs[:limit]  # Return requested number of observations
+        
+        return None
+    
     async def get_series_info(self, series_id: str) -> Optional[Dict]:
         """Get metadata for a series."""
         
@@ -225,16 +283,16 @@ async def get_key_indicators() -> Dict[str, Any]:
     """Get all key economic indicators."""
     
     async with FREDClient() as client:
-        # Fetch multiple indicators concurrently
-        results = await asyncio.gather(
-            client.get_series("GDP"),
-            client.get_series("UNRATE"),
-            client.get_series("CPIAUCSL"),
-            client.get_series("FEDFUNDS"),
-            client.get_series("PAYEMS"),  # Non-farm payrolls
-            client.get_series("HOUST"),   # Housing starts
-            return_exceptions=True
-        )
+        # Fetch indicators sequentially to avoid rate limits
+        series_ids = ["GDP", "UNRATE", "CPIAUCSL", "FEDFUNDS", "PAYEMS", "HOUST"]
+        results = []
+        
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id)
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         indicators = {}
         series_names = ["gdp", "unemployment", "inflation", "fed_funds", "payrolls", "housing"]
@@ -254,15 +312,16 @@ async def get_key_indicators() -> Dict[str, Any]:
 async def get_market_overview() -> Dict[str, Any]:
     """Get comprehensive market overview from FRED data."""
     async with FREDClient() as client:
-        # Fetch key market indicators concurrently
-        results = await asyncio.gather(
-            client.get_series("WILL5000INDFC"),  # Wilshire 5000 (Stock Market Index)
-            client.get_series("VIXCLS"),         # VIX Volatility Index
-            client.get_series("DGS10"),          # 10-Year Treasury Rate
-            client.get_series("DGS2"),           # 2-Year Treasury Rate
-            client.get_series("DEXUSEU"),        # USD/EUR Exchange Rate
-            return_exceptions=True
-        )
+        # Fetch key market indicators sequentially to avoid rate limits
+        results = []
+        series_ids = ["WILL5000INDFC", "VIXCLS", "DGS10", "DGS2", "DEXUSEU"]
+        
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id)
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         indicators = {}
         series_names = ["stock_market", "vix", "treasury_10y", "treasury_2y", "usd_eur"]
@@ -282,7 +341,7 @@ async def get_market_overview() -> Dict[str, Any]:
 async def get_sp500_data() -> Optional[Dict]:
     """Get S&P 500 index data."""
     async with FREDClient() as client:
-        data = await client.get_series("SP500")
+        data = await client.get_series("WILL5000INDFC")
         if data:
             return {
                 "symbol": "SP500",
@@ -308,13 +367,16 @@ async def get_vix_data() -> Optional[Dict]:
 
 
 async def get_multiple_series(series_ids: List[str], limit: int = 100) -> Dict[str, Any]:
-    """Get multiple FRED series data concurrently."""
+    """Get multiple FRED series data sequentially to avoid rate limits."""
     async with FREDClient() as client:
-        # Fetch multiple series concurrently
-        results = await asyncio.gather(
-            *[client.get_series(series_id, limit=limit) for series_id in series_ids],
-            return_exceptions=True
-        )
+        # Fetch multiple series sequentially
+        results = []
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id, limit=limit)
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         series_data = {}
         for i, result in enumerate(results):
@@ -332,12 +394,15 @@ async def get_multiple_series(series_ids: List[str], limit: int = 100) -> Dict[s
 async def get_market_volatility_indicators() -> Optional[Dict]:
     """Get market volatility indicators from FRED."""
     async with FREDClient() as client:
-        results = await asyncio.gather(
-            client.get_series("VIXCLS"),    # VIX Volatility Index
-            client.get_series("WILL5000PR"), # Wilshire 5000 Price Index
-            client.get_series("NASDAQCOM"),  # NASDAQ Composite Index
-            return_exceptions=True
-        )
+        results = []
+        series_ids = ["VIXCLS", "WILL5000PR", "NASDAQCOM"]
+        
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id)
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         indicators = {}
         series_names = ["vix", "wilshire_5000", "nasdaq"]
@@ -358,12 +423,15 @@ async def get_market_volatility_indicators() -> Optional[Dict]:
 async def get_economic_uncertainty_data() -> Optional[Dict]:
     """Get economic uncertainty indicators from FRED."""
     async with FREDClient() as client:
-        results = await asyncio.gather(
-            client.get_series("USEPUINDXD"),  # Economic Policy Uncertainty Index
-            client.get_series("UNRATE"),      # Unemployment Rate
-            client.get_series("CPIAUCSL"),    # Consumer Price Index
-            return_exceptions=True
-        )
+        results = []
+        series_ids = ["USEPUINDXD", "UNRATE", "CPIAUCSL"]
+        
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id)
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         indicators = {}
         series_names = ["policy_uncertainty", "unemployment", "inflation"]
@@ -384,13 +452,15 @@ async def get_economic_uncertainty_data() -> Optional[Dict]:
 async def get_treasury_yields() -> Optional[Dict]:
     """Get Treasury yield data from FRED."""
     async with FREDClient() as client:
-        results = await asyncio.gather(
-            client.get_series("DGS3MO"),   # 3-Month Treasury Rate
-            client.get_series("DGS2"),     # 2-Year Treasury Rate
-            client.get_series("DGS10"),    # 10-Year Treasury Rate
-            client.get_series("DGS30"),    # 30-Year Treasury Rate
-            return_exceptions=True
-        )
+        results = []
+        series_ids = ["DGS3MO", "DGS2", "DGS10", "DGS30"]
+        
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id)
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         yields = {}
         series_names = ["3_month", "2_year", "10_year", "30_year"]
@@ -411,13 +481,15 @@ async def get_treasury_yields() -> Optional[Dict]:
 async def get_economic_stability_indicators() -> Optional[Dict]:
     """Get economic stability indicators from FRED."""
     async with FREDClient() as client:
-        results = await asyncio.gather(
-            client.get_series("GDP"),         # Gross Domestic Product
-            client.get_series("PAYEMS"),      # Non-farm Payrolls
-            client.get_series("INDPRO"),      # Industrial Production Index
-            client.get_series("HOUST"),       # Housing Starts
-            return_exceptions=True
-        )
+        results = []
+        series_ids = ["GDP", "PAYEMS", "INDPRO", "HOUST"]
+        
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id)
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         indicators = {}
         series_names = ["gdp", "employment", "production", "housing"]
@@ -438,12 +510,16 @@ async def get_economic_stability_indicators() -> Optional[Dict]:
 async def get_recent_indicators(limit: int = 100) -> Optional[Dict]:
     """Get recent economic indicators from FRED."""
     async with FREDClient() as client:
-        # Get recent data from key economic series
+        # Get recent data from key economic series sequentially
         series_ids = ["GDP", "UNRATE", "CPIAUCSL", "FEDFUNDS", "PAYEMS", "INDPRO"]
-        results = await asyncio.gather(
-            *[client.get_series(series_id, limit=min(limit//len(series_ids), 50)) for series_id in series_ids],
-            return_exceptions=True
-        )
+        results = []
+        
+        for series_id in series_ids:
+            try:
+                result = await client.get_series(series_id, limit=min(limit//len(series_ids), 50))
+                results.append(result)
+            except Exception as e:
+                results.append(e)
         
         indicators = {}
         for i, result in enumerate(results):

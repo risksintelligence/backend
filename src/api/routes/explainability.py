@@ -7,7 +7,7 @@ bias detection, and fairness analysis for transparent financial decisions.
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from typing import Dict, List, Optional, Any, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 import logging
 import numpy as np
@@ -30,6 +30,8 @@ shap_analyzer = ShapAnalyzer()
 
 class PredictionExplanationRequest(BaseModel):
     """Request model for individual prediction explanation."""
+    model_config = ConfigDict(protected_namespaces=())
+    
     model_id: str = Field(..., description="Model identifier")
     input_features: List[float] = Field(..., description="Input feature values")
     feature_names: Optional[List[str]] = Field(None, description="Feature names")
@@ -38,6 +40,8 @@ class PredictionExplanationRequest(BaseModel):
 
 class GlobalExplanationRequest(BaseModel):
     """Request model for global model explanation."""
+    model_config = ConfigDict(protected_namespaces=())
+    
     model_id: str = Field(..., description="Model identifier")
     historical_data: List[List[float]] = Field(..., description="Historical data for analysis")
     feature_names: List[str] = Field(..., description="Feature names")
@@ -46,6 +50,8 @@ class GlobalExplanationRequest(BaseModel):
 
 class BiasAnalysisRequest(BaseModel):
     """Request model for bias analysis."""
+    model_config = ConfigDict(protected_namespaces=())
+    
     model_id: str = Field(..., description="Model identifier")
     validation_data: List[List[float]] = Field(..., description="Validation dataset features")
     test_labels: List[float] = Field(..., description="True labels")
@@ -57,6 +63,8 @@ class BiasAnalysisRequest(BaseModel):
 
 class ModelRegistrationRequest(BaseModel):
     """Request model for registering a model with SHAP analyzer."""
+    model_config = ConfigDict(protected_namespaces=())
+    
     model_id: str = Field(..., description="Unique model identifier")
     model_type: str = Field("tree", description="Model type (tree, linear, kernel, deep)")
     feature_names: List[str] = Field(..., description="Feature names")
@@ -71,53 +79,7 @@ class ModelComparisonRequest(BaseModel):
     validation_data: List[List[float]] = Field(..., description="Validation data for comparison")
     sample_size: int = Field(1000, description="Sample size for comparison")
     
-    model_config = {"protected_namespaces": ()}
-
-
-class PredictionExplanationRequest(BaseModel):
-    """Request model for individual prediction explanation."""
-    model_id: str = Field(..., description="Model identifier")
-    input_features: List[float] = Field(..., description="Input feature values")
-    feature_names: Optional[List[str]] = Field(None, description="Feature names")
-    prediction_id: Optional[str] = Field(None, description="Optional prediction identifier")
-
-
-class GlobalExplanationRequest(BaseModel):
-    """Request model for global model explanation."""
-    model_id: str = Field(..., description="Model identifier")
-    historical_data: List[List[float]] = Field(..., description="Historical data for analysis")
-    feature_names: List[str] = Field(..., description="Feature names")
-    sample_size: Optional[int] = Field(1000, description="Maximum samples to analyze")
-
-
-class BiasAnalysisRequest(BaseModel):
-    """Request model for bias analysis."""
-    model_id: str = Field(..., description="Model identifier")
-    validation_data: List[List[float]] = Field(..., description="Validation dataset features")
-    test_labels: List[float] = Field(..., description="True labels")
-    protected_attributes: Dict[str, List[Union[int, str]]] = Field(
-        ..., description="Protected attribute values"
-    )
-    analysis_id: Optional[str] = Field(None, description="Optional analysis identifier")
-
-
-class ModelRegistrationRequest(BaseModel):
-    """Request model for registering a model with SHAP analyzer."""
-    model_id: str = Field(..., description="Unique model identifier")
-    model_type: str = Field("tree", description="Model type (tree, linear, kernel, deep)")
-    feature_names: List[str] = Field(..., description="Feature names")
-    background_data: Optional[List[List[float]]] = Field(None, description="Background data for explainer")
-    
-    model_config = {"protected_namespaces": ()}
-
-
-class ModelComparisonRequest(BaseModel):
-    """Request model for comparing multiple models."""
-    model_ids: List[str] = Field(..., description="List of model identifiers")
-    validation_data: List[List[float]] = Field(..., description="Validation data for comparison")
-    sample_size: int = Field(1000, description="Sample size for comparison")
-    
-    model_config = {"protected_namespaces": ()}
+    model_config = ConfigDict(protected_namespaces=())
 
 
 @router.post("/register-model")

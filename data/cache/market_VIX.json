@@ -1,0 +1,17 @@
+{
+  "value": {
+    "symbol": "VIX",
+    "data": {
+      "value": 16.77,
+      "date": "2025-06-06",
+      "series_id": "VIXCLS",
+      "title": "CBOE Volatility Index: VIX",
+      "units": "Index",
+      "frequency": "Daily, Close",
+      "last_updated": "2025-10-25T05:39:15.302777"
+    },
+    "source": "fred",
+    "last_updated": "2025-10-25T05:39:15.302846"
+  },
+  "cached_at": "2025-10-25T05:39:15.303218"
+}
