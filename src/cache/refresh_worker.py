@@ -40,9 +40,13 @@ class BackgroundRefreshWorker:
         # No sample data - only real API data allowed
     
     async def start(self):
-        """Start background refresh workers."""
+        """Start background refresh workers and initialize with real data."""
         self.is_running = True
         self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+        
+        # IMMEDIATE: Populate cache with real data on startup
+        logger.info("Initializing cache with real FRED data...")
+        await self._initial_real_data_load()
         
         # Start multiple workers for parallel processing
         workers = [
@@ -51,7 +55,7 @@ class BackgroundRefreshWorker:
             asyncio.create_task(self._cache_warmer_loop())
         ]
         
-        logger.info("Background workers started")
+        logger.info("Background workers started with real data initialization")
         
         try:
             await asyncio.gather(*workers)
@@ -104,8 +108,8 @@ class BackgroundRefreshWorker:
                         f"Error: {e}. Serving cached data."
                     )
                 
-                # Rate limiting - don't hammer APIs
-                await asyncio.sleep(2)
+                # Rate limiting - conservative delay to prevent 429 errors
+                await asyncio.sleep(5)
             
             # Wait before next refresh cycle
             await asyncio.sleep(60)
@@ -170,7 +174,6 @@ class BackgroundRefreshWorker:
                     if risk_data:
                         return {
                             "risk_overview": risk_data,
-                            "overall_score": 50 + sum([len(d) for d in risk_data.values()]) * 5,  # Basic scoring
                             "source": "fred_risk_overview",
                             "last_updated": datetime.utcnow().isoformat()
                         }
@@ -287,3 +290,40 @@ class BackgroundRefreshWorker:
             
             # Warm up every hour
             await asyncio.sleep(3600)
+    
+    async def _initial_real_data_load(self):
+        """Load real data immediately on startup - no placeholders allowed."""
+        logger.info("Loading real data from FRED API on startup...")
+        
+        # Priority real data to load immediately
+        critical_data = [
+            {"source": "fred", "series": "GDP"},
+            {"source": "fred", "series": "UNRATE"}, 
+            {"source": "fred", "series": "CPIAUCSL"},
+            {"source": "fred", "series": "FEDFUNDS"},
+            {"source": "risk", "series": "overview"}
+        ]
+        
+        for data_config in critical_data:
+            try:
+                # Fetch real data
+                fresh_data = await self._fetch_from_api(
+                    data_config["source"],
+                    data_config["series"]
+                )
+                
+                if fresh_data:
+                    cache_key = f"{data_config['source']}:{data_config['series']}"
+                    await self.cache.set(cache_key, fresh_data, ttl_seconds=3600)
+                    logger.info(f"Loaded real data: {cache_key}")
+                else:
+                    logger.warning(f"Failed to load real data for {cache_key}")
+                    
+                # Rate limiting between startup requests
+                await asyncio.sleep(3)
+                
+            except Exception as e:
+                cache_key = f"{data_config['source']}:{data_config['series']}"
+                logger.error(f"Error loading real data for {cache_key}: {e}")
+        
+        logger.info("Initial real data load completed")

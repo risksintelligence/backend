@@ -346,13 +346,27 @@ async def get_dashboard_data(
                 "impact": factor.impact_level
             })
         
+        # Only return dashboard data if we have real risk data
+        if not current_risk:
+            return {
+                "status": "unavailable",
+                "message": "No real risk data available - system initializing",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
         dashboard_data = {
             "current_risk": {
-                "overall_score": current_risk.overall_score if current_risk else None,
-                "confidence": current_risk.confidence if current_risk else None,
-                "trend": current_risk.trend if current_risk else None,
-                "timestamp": current_risk.timestamp.isoformat() if current_risk else None
-            } if current_risk else None,
+                "overall_score": current_risk.overall_score,
+                "confidence": current_risk.confidence,
+                "trend": current_risk.trend,
+                "timestamp": current_risk.timestamp.isoformat(),
+                "components": {
+                    "economic": current_risk.economic_score,
+                    "market": current_risk.market_score,
+                    "geopolitical": current_risk.geopolitical_score,
+                    "technical": current_risk.technical_score
+                }
+            },
             "alert_summary": {
                 "total_active": sum(alert_counts.values()),
                 "by_severity": alert_counts

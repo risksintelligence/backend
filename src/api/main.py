@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 import asyncio
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.core.database import get_db, check_database_connection, get_database_info
+from src.core.database import get_db, check_database_connection, get_database_info, engine
+from src.data.models.risk_models import Base
 from src.core.cache import check_redis_connection, get_redis_info, BasicCacheManager
 from src.cache.cache_manager import IntelligentCacheManager
 from src.cache.refresh_worker import BackgroundRefreshWorker
@@ -21,28 +22,45 @@ refresh_worker = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Startup: Initialize cache, background workers, and real-time streaming.
+    Startup: Initialize database with real data, cache, background workers, and real-time streaming.
     Shutdown: Cleanup gracefully.
+    ABSOLUTE RULE: Only real API data allowed - no placeholders
     """
     global refresh_worker
     
     # Startup
-    logger.info("Starting RiskX Backend with Intelligent Caching and Real-Time Streaming")
+    logger.info("Starting RiskX Backend with REAL DATA ONLY")
     
-    # Initialize cache manager
+    # Step 1: Initialize database tables
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables initialized")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        # Continue anyway - let app handle gracefully
+    
+    # Step 2: Initialize cache manager
     cache_manager = get_cache_manager()
     
-    # Start background refresh workers
+    # Step 3: Start background refresh workers (they will populate with real data)
     refresh_worker = BackgroundRefreshWorker(cache_manager)
     
-    # Start workers in background
+    # Start workers in background - they will fetch real FRED data
     asyncio.create_task(refresh_worker.start())
     
-    # Initialize real-time streaming
-    from src.api.routes.websocket import initialize_real_time_streaming
-    await initialize_real_time_streaming(cache_manager)
+    # Step 4: Initialize real-time streaming
+    try:
+        from src.api.routes.websocket import initialize_real_time_streaming
+        await initialize_real_time_streaming(cache_manager)
+        logger.info("Real-time streaming initialized")
+    except ImportError:
+        logger.warning("WebSocket module not found - continuing without real-time streaming")
+    except Exception as e:
+        logger.error(f"Real-time streaming initialization failed: {e}")
     
-    logger.info("Intelligent caching system, background workers, and real-time streaming started")
+    logger.info("RiskX Backend started - background workers fetching real data from FRED API")
+    logger.info("ABSOLUTE RULE ENFORCED: Zero placeholder data allowed")
     
     yield  # Application runs
     
@@ -54,8 +72,13 @@ async def lifespan(app: FastAPI):
         await refresh_worker.cleanup()
     
     # Shutdown real-time streaming
-    from src.api.routes.websocket import shutdown_real_time_streaming
-    await shutdown_real_time_streaming()
+    try:
+        from src.api.routes.websocket import shutdown_real_time_streaming
+        await shutdown_real_time_streaming()
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.error(f"Shutdown error: {e}")
     
     logger.info("Cleanup complete")
 
@@ -192,11 +215,69 @@ async def cache_info():
     return await get_redis_info()
 
 
+@app.get("/api/v1/dashboard")
+async def get_main_dashboard():
+    """Get main dashboard data - delegating to analytics router."""
+    from src.api.routes.risk_analytics import get_dashboard_data
+    from src.core.dependencies import get_cache_manager, get_db
+    
+    # Get dependencies
+    cache_manager = get_cache_manager()
+    
+    # Call analytics dashboard function
+    try:
+        # Since this endpoint doesn't take db as parameter directly,
+        # we need to implement dashboard logic here or redirect
+        cache_key = "dashboard:main"
+        cached_data = await cache_manager.get(cache_key, max_age_seconds=300)
+        
+        if cached_data:
+            return {
+                "status": "success",
+                "data": cached_data,
+                "source": "cache",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        # If no cache, try to get data from the cache populated by background workers
+        risk_cache = await cache_manager.get("risk:overview", max_age_seconds=900)
+        
+        if risk_cache:
+            # Use only real cached risk data - no hardcoded values allowed
+            return {
+                "status": "success",
+                "data": risk_cache,
+                "source": "cache",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        # No fallback data allowed - must return unavailable if no real data
+        return {
+            "status": "unavailable",
+            "message": "Dashboard data not yet available - background workers populating cache",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Dashboard error: {e}")
+        # No fake data allowed - return error status only
+        return {
+            "status": "error",
+            "message": f"Dashboard data unavailable: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
 
 # Include intelligent caching API routes
 app.include_router(risk.router)
 app.include_router(economic.router)
 app.include_router(cache_management.router)
+
+# Include analytics routes
+from src.api.routes import risk_analytics, analytics
+app.include_router(risk_analytics.router)
+app.include_router(analytics.router)
 
 # Include working API routes only
 from src.api.routes import external_apis

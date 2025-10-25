@@ -18,7 +18,7 @@ class FREDClient:
     
     def __init__(self):
         self.session: Optional[aiohttp.ClientSession] = None
-        self.rate_limit_delay = 1.0  # 1 second between requests
+        self.rate_limit_delay = 2.0  # 2 seconds between requests for production rate limiting
         self.last_request_time = 0
         self.settings = get_settings()
     
