@@ -4,6 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.cache import redis_client
 from src.cache.cache_manager import IntelligentCacheManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Global cache manager instance
 _cache_manager: IntelligentCacheManager = None
@@ -26,12 +29,17 @@ def get_cache_manager() -> IntelligentCacheManager:
 async def get_cache_manager_with_db(
     db: AsyncSession = Depends(get_db),
     cache: IntelligentCacheManager = Depends(get_cache_manager)
-) -> IntelligentCacheManager:
+) -> AsyncGenerator[IntelligentCacheManager, None]:
     """Get cache manager with database session for full three-tier caching."""
     
     # Temporarily set DB session for this request
-    cache.db_session = db
     try:
+        cache.db_session = db
+        yield cache
+    except Exception as e:
+        logger.error(f"Cache manager with DB error: {e}")
+        # Still yield cache without DB session for Redis/File fallback
+        cache.db_session = None
         yield cache
     finally:
         cache.db_session = None

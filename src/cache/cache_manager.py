@@ -143,10 +143,14 @@ class IntelligentCacheManager:
             data = json.loads(cached)
             
             # Check age if max_age specified
-            if max_age_seconds:
-                cached_at = datetime.fromisoformat(data.get("cached_at"))
-                age = (datetime.utcnow() - cached_at).total_seconds()
-                if age > max_age_seconds:
+            if max_age_seconds and data.get("cached_at"):
+                try:
+                    cached_at = datetime.fromisoformat(data.get("cached_at"))
+                    age = (datetime.utcnow() - cached_at).total_seconds()
+                    if age > max_age_seconds:
+                        return None
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid cached_at timestamp for {cache_key}: {e}")
                     return None
             
             return data.get("value")
@@ -172,7 +176,7 @@ class IntelligentCacheManager:
             await self.redis_client.setex(
                 cache_key,
                 ttl_seconds,
-                json.dumps(cache_data, default=str)
+                json.dumps(cache_data, default=str, ensure_ascii=False)
             )
         except Exception as e:
             logger.error(f"Redis set error for {cache_key}: {e}")
@@ -281,10 +285,14 @@ class IntelligentCacheManager:
                 cache_data = json.loads(content)
             
             # Check age
-            if max_age_seconds:
-                cached_at = datetime.fromisoformat(cache_data.get("cached_at"))
-                age = (datetime.utcnow() - cached_at).total_seconds()
-                if age > max_age_seconds:
+            if max_age_seconds and cache_data.get("cached_at"):
+                try:
+                    cached_at = datetime.fromisoformat(cache_data.get("cached_at"))
+                    age = (datetime.utcnow() - cached_at).total_seconds()
+                    if age > max_age_seconds:
+                        return None
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid cached_at timestamp in file for {cache_key}: {e}")
                     return None
             
             return cache_data.get("value")
@@ -311,7 +319,7 @@ class IntelligentCacheManager:
             }
             
             async with aiofiles.open(file_path, 'w') as f:
-                await f.write(json.dumps(cache_data, default=str))
+                await f.write(json.dumps(cache_data, default=str, ensure_ascii=False, indent=2))
         
         except Exception as e:
             logger.error(f"File cache set error for {cache_key}: {e}")
