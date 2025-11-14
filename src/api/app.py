@@ -20,6 +20,13 @@ def load_router(module_path: str, attr: str = "router") -> Optional[object]:
         logger.warning("Skipping router %s due to missing dependency: %s", module_path, exc)
     except AttributeError:
         logger.warning("Router attribute '%s' missing in %s", attr, module_path)
+    except ConnectionError as exc:
+        logger.warning("Skipping router %s due to connection error: %s", module_path, exc)
+    except OSError as exc:
+        if "Connection refused" in str(exc):
+            logger.warning("Skipping router %s due to database connection refused: %s", module_path, exc)
+        else:
+            logger.error("Failed to load router %s: %s", module_path, exc, exc_info=True)
     except Exception as exc:
         logger.error("Failed to load router %s: %s", module_path, exc, exc_info=True)
     return None

@@ -46,18 +46,39 @@ class AlertRepository:
         parsed = urlparse(self._db_url)
         self._is_sqlite = parsed.scheme == "sqlite"
         self._sqlite_conn: sqlite3.Connection | None = None
-        if self._is_sqlite:
-            path = parsed.path or ":memory:"
-            if path in ("/:memory:", ":memory:"):
-                path = ":memory:"
-            elif not os.path.isabs(path):
-                path = os.path.join(os.getcwd(), path.lstrip("/"))
-            self._sqlite_conn = sqlite3.connect(path, check_same_thread=False)
-            self._sqlite_conn.row_factory = sqlite3.Row
-        self._ensure_tables()
+        self._initialized = False
+
+    def _ensure_initialized(self) -> None:
+        """Initialize database connection and tables lazily."""
+        if self._initialized:
+            return
+            
+        try:
+            if self._is_sqlite:
+                path = urlparse(self._db_url).path or ":memory:"
+                if path in ("/:memory:", ":memory:"):
+                    path = ":memory:"
+                elif not os.path.isabs(path):
+                    path = os.path.join(os.getcwd(), path.lstrip("/"))
+                self._sqlite_conn = sqlite3.connect(path, check_same_thread=False)
+                self._sqlite_conn.row_factory = sqlite3.Row
+            self._ensure_tables()
+            self._initialized = True
+        except Exception as exc:
+            logger.warning(f"Failed to initialize AlertRepository database: {exc}")
+            # Fall back to in-memory SQLite on any connection error
+            if not self._is_sqlite:
+                logger.warning("Falling back to in-memory SQLite due to connection failure")
+                self._db_url = "sqlite:///:memory:"
+                self._is_sqlite = True
+                self._sqlite_conn = sqlite3.connect(":memory:", check_same_thread=False)
+                self._sqlite_conn.row_factory = sqlite3.Row
+                self._ensure_tables()
+                self._initialized = True
 
     @contextmanager
     def _connection(self):
+        self._ensure_initialized()
         if self._is_sqlite:
             assert self._sqlite_conn is not None
             yield self._sqlite_conn
@@ -73,6 +94,7 @@ class AlertRepository:
                 conn.close()
 
     def _ensure_tables(self) -> None:
+        # Use existing schema table names: alert_subscriptions and alert_delivery_log
         if self._is_sqlite:
             subscription_sql = """
             CREATE TABLE IF NOT EXISTS alert_subscriptions (
@@ -85,16 +107,20 @@ class AlertRepository:
             )
             """
             events_sql = """
-            CREATE TABLE IF NOT EXISTS alert_events (
+            CREATE TABLE IF NOT EXISTS alert_delivery_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                subscription_id INTEGER NOT NULL,
+                subscription_id INTEGER,
                 payload TEXT NOT NULL,
                 channel TEXT NOT NULL,
                 address TEXT NOT NULL,
-                delivered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                delivery_status TEXT NOT NULL,
+                error_message TEXT,
+                delivered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
         else:
+            # Tables should already exist from schema.sql, but create if missing for resilience
             subscription_sql = """
             CREATE TABLE IF NOT EXISTS alert_subscriptions (
                 id BIGSERIAL PRIMARY KEY,
@@ -106,13 +132,16 @@ class AlertRepository:
             )
             """
             events_sql = """
-            CREATE TABLE IF NOT EXISTS alert_events (
+            CREATE TABLE IF NOT EXISTS alert_delivery_log (
                 id BIGSERIAL PRIMARY KEY,
-                subscription_id BIGINT NOT NULL REFERENCES alert_subscriptions(id),
-                payload JSONB NOT NULL,
+                subscription_id BIGINT,
                 channel TEXT NOT NULL,
                 address TEXT NOT NULL,
-                delivered_at TIMESTAMPTZ DEFAULT NOW()
+                payload JSONB NOT NULL,
+                delivery_status TEXT NOT NULL,
+                error_message TEXT,
+                delivered_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
             )
             """
         with self._connection() as conn:
@@ -179,21 +208,20 @@ class AlertRepository:
 
     def save_delivery(self, subscription_id: int, channel: str, address: str, payload: dict) -> DeliveryRecord:
         payload_json = json.dumps(payload)
+        delivered_at = datetime.utcnow()
         with self._connection() as conn:
             cursor = conn.cursor()
             if self._is_sqlite:
                 cursor.execute(
-                    "INSERT INTO alert_events (subscription_id, payload, channel, address) VALUES (?, ?, ?, ?)",
-                    (subscription_id, payload_json, channel, address),
+                    "INSERT INTO alert_delivery_log (subscription_id, payload, channel, address, delivery_status, delivered_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (subscription_id, payload_json, channel, address, "success", delivered_at.isoformat()),
                 )
                 conn.commit()
-                delivered_at = datetime.utcnow().isoformat()
             else:  # pragma: no cover
                 cursor.execute(
-                    "INSERT INTO alert_events (subscription_id, payload, channel, address) VALUES (%s, %s, %s, %s) RETURNING delivered_at",
-                    (subscription_id, payload_json, channel, address),
+                    "INSERT INTO alert_delivery_log (subscription_id, payload, channel, address, delivery_status, delivered_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (subscription_id, payload_json, channel, address, "success", delivered_at),
                 )
-                delivered_at = cursor.fetchone()[0]
                 conn.commit()
         return DeliveryRecord(
             subscription_id=subscription_id,
@@ -207,9 +235,9 @@ class AlertRepository:
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT subscription_id, payload, channel, address, delivered_at FROM alert_events ORDER BY delivered_at DESC LIMIT ?"
+                "SELECT subscription_id, payload, channel, address, delivered_at FROM alert_delivery_log ORDER BY delivered_at DESC LIMIT ?"
                 if self._is_sqlite
-                else "SELECT subscription_id, payload, channel, address, delivered_at FROM alert_events ORDER BY delivered_at DESC LIMIT %s",
+                else "SELECT subscription_id, payload, channel, address, delivered_at FROM alert_delivery_log ORDER BY delivered_at DESC LIMIT %s",
                 (limit,),
             )
             rows = cursor.fetchall()
