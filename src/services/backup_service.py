@@ -10,9 +10,9 @@ import boto3
 import redis.asyncio as redis
 from botocore.exceptions import ClientError
 
-from backend.src.core.config import get_settings
-from backend.src.core.database import get_database_pool
-from backend.src.core.logging import get_logger
+from src.core.config import get_settings
+from src.core.database import get_database_pool
+from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 settings = get_settings()

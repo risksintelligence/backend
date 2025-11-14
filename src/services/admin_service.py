@@ -4,10 +4,13 @@ from __future__ import annotations
 import asyncio
 import asyncpg
 import os
+import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import httpx
 import psutil
+
+logger = logging.getLogger(__name__)
 
 class AdminService:
     """Production admin service with real system data."""
@@ -267,10 +270,11 @@ class AdminService:
 
 def get_admin_service() -> AdminService:
     """Dependency injection for admin service."""
-    postgres_dsn = os.environ.get("RIS_POSTGRES_DSN")
+    fallback_dsn = "postgresql://ris_user:ris_password@ris-postgres:5432/ris_production"
+    postgres_dsn = os.environ.get("RIS_POSTGRES_DSN") or fallback_dsn
     render_api_key = os.environ.get("RENDER_API_KEY")
-    
-    if not postgres_dsn:
-        raise RuntimeError("RIS_POSTGRES_DSN environment variable not set")
-    
+
+    if postgres_dsn == fallback_dsn:
+        logger.warning("AdminService using fallback DSN; set RIS_POSTGRES_DSN in production.")
+
     return AdminService(postgres_dsn, render_api_key)

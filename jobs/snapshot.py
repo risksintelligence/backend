@@ -3,8 +3,8 @@ import asyncio
 from pathlib import Path
 from datetime import datetime
 
-from backend.src.services.geri_service import GERISnapshotService, seed_demo_data
-from backend.src.monitoring.metrics import CRON_SNAPSHOT_RUNS
+from src.services.geri_service import GERISnapshotService, seed_demo_data
+from src.monitoring.metrics import CRON_SNAPSHOT_RUNS
 
 async def main() -> None:
     service = GERISnapshotService()

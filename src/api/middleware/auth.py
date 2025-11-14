@@ -7,17 +7,19 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from backend.src.services.auth_service import AuthService, User, AuthenticationError
+from src.services.auth_service import AuthService, User, AuthenticationError
 
 # Import auth service getter to avoid circular imports
 def get_auth_service_for_middleware():
-    from backend.src.services.auth_service import get_auth_service
+    from src.services.auth_service import get_auth_service
     return get_auth_service()
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
+default_env = os.getenv("ENVIRONMENT", "production").lower()
+default_test_flag = default_env in {"local", "dev", "development", "test"}
 TEST_MODE = (
-    os.getenv("RIS_TEST_MODE", "false").lower() == "true"
+    os.getenv("RIS_TEST_MODE", "true" if default_test_flag else "false").lower() == "true"
     or "PYTEST_CURRENT_TEST" in os.environ
     or "pytest" in sys.modules
 )
@@ -157,7 +159,7 @@ def check_usage_limit(feature: str):
     async def dependency(user: User = Depends(require_auth)) -> User:
         if TEST_MODE:
             return user
-        from backend.src.services.subscription_service import get_subscription_service
+        from src.services.subscription_service import get_subscription_service
         subscription_service = get_subscription_service()
         
         # Check if user is within limits
@@ -181,7 +183,7 @@ def check_feature_access(feature_category: str):
     async def dependency(user: User = Depends(require_auth)) -> User:
         if TEST_MODE:
             return user
-        from backend.src.services.subscription_service import get_subscription_service, FeatureCategory
+        from src.services.subscription_service import get_subscription_service, FeatureCategory
         subscription_service = get_subscription_service()
         
         try:

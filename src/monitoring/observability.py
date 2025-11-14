@@ -9,10 +9,10 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
-from backend.src.monitoring.metrics import *
+from src.monitoring.metrics import *
 
 # Import backup metrics
-from backend.src.monitoring.backup_metrics import (
+from src.monitoring.backup_metrics import (
     BACKUP_SUCCESS_TOTAL,
     BACKUP_ERROR_TOTAL, 
     BACKUP_DURATION_SECONDS,
@@ -131,7 +131,7 @@ class ObservabilityService:
     async def collect_all_metrics(self) -> HealthMetrics:
         """Collect comprehensive system metrics."""
         try:
-            from backend.src.services.admin_service import get_admin_service
+            from src.services.admin_service import get_admin_service
             admin_service = get_admin_service()
             
             # Get system health and data quality

@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
 
-from backend.src.services.subscription_service import get_subscription_service, SubscriptionService, FeatureCategory
-from backend.src.services.auth_service import User
-from backend.src.api.middleware.auth import require_auth
+from src.services.subscription_service import get_subscription_service, SubscriptionService, FeatureCategory
+from src.services.auth_service import User
+from src.api.middleware.auth import require_auth
 
 router = APIRouter(prefix="/api/v1/subscription", tags=["subscription"])
 
@@ -138,7 +138,7 @@ async def list_subscription_tiers(
     subscription_service: SubscriptionService = Depends(get_subscription_service)
 ):
     """List all available subscription tiers and their features."""
-    from backend.src.services.subscription_service import SubscriptionTier
+    from src.services.subscription_service import SubscriptionTier
     
     tiers = {}
     for tier in SubscriptionTier:

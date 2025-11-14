@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel
 from typing import List, Optional
 
-from backend.src.services.auth_service import get_auth_service, AuthService, User, AuthenticationError
-from backend.src.api.middleware.auth import require_auth, require_admin
+from src.services.auth_service import get_auth_service, AuthService, User, AuthenticationError
+from src.api.middleware.auth import require_auth, require_admin
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 

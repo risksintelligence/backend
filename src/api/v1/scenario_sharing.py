@@ -4,16 +4,16 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from backend.src.services.scenario_sharing_service import (
+from src.services.scenario_sharing_service import (
     get_scenario_sharing_service,
     ScenarioSharingService,
     PermissionLevel,
     SharingError
 )
-from backend.src.services.auth_service import User
-from backend.src.api.middleware.auth import require_auth, limit_scenarios
-from backend.src.services.subscription_service import get_subscription_service, FeatureCategory
-from backend.src.services.scenario_collaboration_service import (
+from src.services.auth_service import User
+from src.api.middleware.auth import require_auth, limit_scenarios
+from src.services.subscription_service import get_subscription_service, FeatureCategory
+from src.services.scenario_collaboration_service import (
     get_scenario_collaboration_service,
     ScenarioCollaborationService,
     ActivityType

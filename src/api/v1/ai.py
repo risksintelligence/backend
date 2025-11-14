@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.src.ml.inference.service import MLInferenceService
+from src.ml.inference.service import MLInferenceService
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 service = MLInferenceService()

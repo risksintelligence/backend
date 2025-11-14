@@ -2,9 +2,9 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from backend.src.services.scenario_service import AlertService, ScenarioService, get_alert_service, get_scenario_service
-from backend.src.api.middleware.auth import require_auth, limit_scenarios, limit_exports
-from backend.src.services.auth_service import User
+from src.services.scenario_service import AlertService, ScenarioService, get_alert_service, get_scenario_service
+from src.api.middleware.auth import require_auth, limit_scenarios, limit_exports
+from src.services.auth_service import User
 
 router = APIRouter(prefix="/api/v1", tags=["scenario"])
 

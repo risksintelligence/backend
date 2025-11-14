@@ -6,9 +6,9 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from backend.src.services.scenario_service import get_alert_service, AlertService
-from backend.src.services.alert_triggers import AlertType, AlertSeverity
-from backend.src.jobs.alert_monitoring import run_alert_monitoring
+from src.services.scenario_service import get_alert_service, AlertService
+from src.services.alert_triggers import AlertType, AlertSeverity
+from src.jobs.alert_monitoring import run_alert_monitoring
 
 router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"])
 

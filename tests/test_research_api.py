@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import FastAPI
 
-from backend.src.api.v1.research import router as research_router
-from backend.src.services.research_service import ResearchService, get_research_service
+from src.api.v1.research import router as research_router
+from src.services.research_service import ResearchService, get_research_service
 
 
 def test_research_history_and_methodology_endpoints():

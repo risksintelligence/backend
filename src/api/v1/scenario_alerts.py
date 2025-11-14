@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
-from backend.src.services.alert_threshold_service import get_alert_threshold_service, AlertThresholdService
-from backend.src.services.auth_service import User
-from backend.src.api.middleware.auth import require_auth, require_premium
+from src.services.alert_threshold_service import get_alert_threshold_service, AlertThresholdService
+from src.services.auth_service import User
+from src.api.middleware.auth import require_auth, require_premium
 
 router = APIRouter(prefix="/api/v1/scenario", tags=["scenario-alerts"])
 
@@ -177,7 +177,7 @@ async def simulate_scenario_with_alerts(
 ):
     """Run scenario simulation and check against alert thresholds."""
     # Import scenario service here to avoid circular import
-    from backend.src.services.scenario_service import get_scenario_service
+    from src.services.scenario_service import get_scenario_service
     scenario_service = get_scenario_service()
     
     shocks: List[dict] = request.get("shocks", [])

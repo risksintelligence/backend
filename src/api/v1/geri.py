@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.src.core.cache_layers import DictCacheLayer
-from backend.src.core.cache_service import CacheHit, IntelligentCache, LoadResult, build_default_cache
-from backend.src.core.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
-from backend.src.core.locks import InMemoryLockManager
-from backend.src.services.geri_service import GERISnapshotService, seed_demo_data
-from backend.src.services.research_service import get_research_service
-from backend.src.services.transparency_service import get_transparency_service
+from src.core.cache_layers import DictCacheLayer
+from src.core.cache_service import CacheHit, IntelligentCache, LoadResult, build_default_cache
+from src.core.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+from src.core.locks import InMemoryLockManager
+from src.services.geri_service import GERISnapshotService, seed_demo_data
+from src.services.research_service import get_research_service
+from src.services.transparency_service import get_transparency_service
 from time import perf_counter
 
 router = APIRouter(prefix="/api/v1/analytics/geri", tags=["geri"])

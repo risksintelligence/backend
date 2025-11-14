@@ -13,11 +13,11 @@ from typing import Dict, Any, List
 # Add backend to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.src.services.model_registry_service import get_model_registry_service, ModelDriftMetrics
-from backend.src.core.database import get_database_pool
-from backend.src.core.logging import get_logger
-from backend.src.monitoring.observability import get_observability_service
-from backend.src.services.alert_delivery_service import get_alert_delivery_service
+from src.services.model_registry_service import get_model_registry_service, ModelDriftMetrics
+from src.core.database import get_database_pool
+from src.core.logging import get_logger
+from src.monitoring.observability import get_observability_service
+from src.services.alert_delivery_service import get_alert_delivery_service
 
 logger = get_logger(__name__)
 

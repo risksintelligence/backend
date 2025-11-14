@@ -4,13 +4,13 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from fastapi import FastAPI
 
-from backend.src.analytics.normalization import NormalizationParams
-from backend.src.api.v1 import geri as geri_router
-from backend.src.core.cache_layers import DictCacheLayer
-from backend.src.core.cache_service import build_default_cache
-from backend.src.core.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
-from backend.src.core.locks import InMemoryLockManager
-from backend.src.services.geri_service import GERISnapshotService, IndicatorRecord
+from src.analytics.normalization import NormalizationParams
+from src.api.v1 import geri as geri_router
+from src.core.cache_layers import DictCacheLayer
+from src.core.cache_service import build_default_cache
+from src.core.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+from src.core.locks import InMemoryLockManager
+from src.services.geri_service import GERISnapshotService, IndicatorRecord
 
 
 async def _build_cache():

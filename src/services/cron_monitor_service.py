@@ -9,10 +9,10 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 import json
 
-from backend.src.core.database import get_database_pool
-from backend.src.core.logging import get_logger
-from backend.src.monitoring.observability import get_observability_service
-from backend.src.monitoring.metrics import (
+from src.core.database import get_database_pool
+from src.core.logging import get_logger
+from src.monitoring.observability import get_observability_service
+from src.monitoring.metrics import (
     CRON_JOB_LAST_RUN_TIMESTAMP,
     CRON_JOB_LAST_SUCCESS_TIMESTAMP,
     CRON_JOB_LAST_FAILURE_TIMESTAMP,
@@ -21,7 +21,7 @@ from backend.src.monitoring.metrics import (
     CRON_JOB_FAILURES_TOTAL,
     CRON_JOB_EXPECTED_INTERVAL_SECONDS,
 )
-from backend.src.services.alert_delivery_service import get_alert_delivery_service
+from src.services.alert_delivery_service import get_alert_delivery_service
 
 logger = get_logger(__name__)
 

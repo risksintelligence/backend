@@ -7,10 +7,10 @@ import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 
-from backend.src.services.admin_service import get_admin_service
-from backend.src.services.alert_triggers import AlertTriggerService, AlertEvent
-from backend.src.services.scenario_service import get_alert_service
-from backend.src.ml.inference.service import MLInferenceService
+from src.services.admin_service import get_admin_service
+from src.services.alert_triggers import AlertTriggerService, AlertEvent
+from src.services.scenario_service import get_alert_service
+from src.ml.inference.service import MLInferenceService
 
 logger = logging.getLogger(__name__)
 

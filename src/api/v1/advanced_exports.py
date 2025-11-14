@@ -6,16 +6,16 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from backend.src.services.advanced_export_service import (
+from src.services.advanced_export_service import (
     get_advanced_export_service,
     AdvancedExportService,
     ExportRequest,
     ExportFormat,
     ExportScope
 )
-from backend.src.services.auth_service import User
-from backend.src.api.middleware.auth import require_auth, limit_exports, optional_auth
-from backend.src.services.subscription_service import get_subscription_service, FeatureCategory
+from src.services.auth_service import User
+from src.api.middleware.auth import require_auth, limit_exports, optional_auth
+from src.services.subscription_service import get_subscription_service, FeatureCategory
 
 router = APIRouter(prefix="/api/v1/exports", tags=["advanced_exports"])
 

@@ -10,7 +10,7 @@ from enum import Enum
 import asyncpg
 import os
 
-from backend.src.services.scenario_sharing_service import get_scenario_sharing_service, PermissionLevel, SharingError
+from src.services.scenario_sharing_service import get_scenario_sharing_service, PermissionLevel, SharingError
 
 logger = logging.getLogger(__name__)
 

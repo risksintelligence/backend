@@ -1,7 +1,6 @@
 import importlib
 import logging
 import os
-import sys
 from typing import Optional
 
 from fastapi import FastAPI
@@ -9,40 +8,36 @@ from fastapi.middleware.cors import CORSMiddleware
 
 logger = logging.getLogger(__name__)
 
-# Ensure local execution resolves `backend.*` imports
-BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if BACKEND_ROOT not in sys.path:
-    sys.path.insert(0, BACKEND_ROOT)
-
-
 def load_router(module_path: str, attr: str = "router") -> Optional[object]:
     try:
         module = importlib.import_module(module_path)
         return getattr(module, attr)
-    except ModuleNotFoundError:
-        logger.warning("Router module missing: %s", module_path)
+    except ModuleNotFoundError as exc:
+        logger.warning("Skipping router %s due to missing dependency: %s", module_path, exc)
     except AttributeError:
         logger.warning("Router attribute '%s' missing in %s", attr, module_path)
+    except Exception as exc:
+        logger.error("Failed to load router %s: %s", module_path, exc, exc_info=True)
     return None
 
 
 router_modules = [
-    "backend.src.api.v1.geri",
-    "backend.src.api.v1.ai",
-    "backend.src.api.v1.transparency",
-    "backend.src.api.v1.research",
-    "backend.src.api.v1.scenario",
-    "backend.src.api.v1.scenario_alerts",
-    "backend.src.api.v1.subscription",
-    "backend.src.api.v1.admin",
-    "backend.src.api.v1.alerts",
-    "backend.src.api.v1.monitoring",
-    "backend.src.api.v1.auth",
-    "backend.src.api.v1.backup",
-    "backend.src.api.v1.ml_admin",
-    "backend.src.api.v1.scenario_sharing",
-    "backend.src.api.v1.cron_admin",
-    "backend.src.api.v1.advanced_exports",
+    "src.api.v1.geri",
+    "src.api.v1.ai",
+    "src.api.v1.transparency",
+    "src.api.v1.research",
+    "src.api.v1.scenario",
+    "src.api.v1.scenario_alerts",
+    "src.api.v1.subscription",
+    "src.api.v1.admin",
+    "src.api.v1.alerts",
+    "src.api.v1.monitoring",
+    "src.api.v1.auth",
+    "src.api.v1.backup",
+    "src.api.v1.ml_admin",
+    "src.api.v1.scenario_sharing",
+    "src.api.v1.cron_admin",
+    "src.api.v1.advanced_exports",
 ]
 
 app = FastAPI(title="RiskSX Intelligence System API")

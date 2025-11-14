@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 def test_scenario_sharing_core():
     """Test that scenario sharing core functionality works."""
-    from backend.src.services.scenario_sharing_service import (
+    from src.services.scenario_sharing_service import (
         ScenarioSharingService, 
         PermissionLevel,
         SavedScenario,
@@ -22,7 +22,7 @@ def test_scenario_sharing_core():
 
 def test_collaboration_core():
     """Test that collaboration core functionality works."""
-    from backend.src.services.scenario_collaboration_service import (
+    from src.services.scenario_collaboration_service import (
         ScenarioCollaborationService,
         ActivityType,
         ScenarioComment
@@ -39,7 +39,7 @@ def test_collaboration_core():
 
 def test_advanced_exports_core():
     """Test that advanced exports core functionality works."""
-    from backend.src.services.advanced_export_service import (
+    from src.services.advanced_export_service import (
         AdvancedExportService,
         ExportFormat,
         ExportScope,
@@ -78,7 +78,7 @@ def test_advanced_exports_core():
 
 def test_auth_service_core():
     """Test that auth service core functionality works."""
-    from backend.src.services.auth_service import (
+    from src.services.auth_service import (
         AuthService,
         User,
         AuthenticationError
@@ -90,7 +90,7 @@ def test_auth_service_core():
 
 def test_subscription_service_core():
     """Test that subscription service core functionality works."""
-    from backend.src.services.subscription_service import (
+    from src.services.subscription_service import (
         SubscriptionService,
         FeatureCategory,
         SubscriptionTier
@@ -108,7 +108,7 @@ def test_subscription_service_core():
 
 def test_alerts_delivery_enhanced():
     """Test that enhanced alerts delivery works.""" 
-    from backend.src.services.alerts_delivery import (
+    from src.services.alerts_delivery import (
         AlertDeliveryService,
         DeliveredAlert
     )
@@ -120,7 +120,7 @@ def test_alerts_delivery_enhanced():
 
 def test_middleware_components():
     """Test that auth middleware components can be imported."""
-    from backend.src.api.middleware.auth import (
+    from src.api.middleware.auth import (
         AuthenticationRequired,
         OptionalAuth,
         check_subscription_tier,

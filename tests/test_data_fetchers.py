@@ -4,8 +4,8 @@ from datetime import datetime
 import httpx
 import pytest
 
-from backend.src.data.fetchers.fred_client import FredClient
-from backend.src.data.fetchers.yahoo_client import YahooFinanceClient
+from src.data.fetchers.fred_client import FredClient
+from src.data.fetchers.yahoo_client import YahooFinanceClient
 
 
 @pytest.mark.asyncio

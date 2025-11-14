@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple
 
-from backend.src.analytics.geri import IndicatorSnapshot, compute_geri, normalize_snapshot
-from backend.src.analytics.normalization import NormalizationParams
-from backend.src.data.series_registry import SERIES_REGISTRY
+from src.analytics.geri import IndicatorSnapshot, compute_geri, normalize_snapshot
+from src.analytics.normalization import NormalizationParams
+from src.data.series_registry import SERIES_REGISTRY
 
 
 @dataclass

@@ -7,7 +7,7 @@ from datetime import datetime
 def test_scenario_sharing_service_imports():
     """Test that scenario sharing service can be imported."""
     try:
-        from backend.src.services.scenario_sharing_service import (
+        from src.services.scenario_sharing_service import (
             ScenarioSharingService, 
             PermissionLevel,
             SavedScenario
@@ -19,7 +19,7 @@ def test_scenario_sharing_service_imports():
 def test_scenario_collaboration_service_imports():
     """Test that scenario collaboration service can be imported."""
     try:
-        from backend.src.services.scenario_collaboration_service import (
+        from src.services.scenario_collaboration_service import (
             ScenarioCollaborationService,
             ActivityType,
             ScenarioComment
@@ -31,7 +31,7 @@ def test_scenario_collaboration_service_imports():
 def test_advanced_export_service_imports():
     """Test that advanced export service can be imported."""
     try:
-        from backend.src.services.advanced_export_service import (
+        from src.services.advanced_export_service import (
             AdvancedExportService,
             ExportFormat,
             ExportScope,
@@ -44,7 +44,7 @@ def test_advanced_export_service_imports():
 def test_scenario_sharing_api_imports():
     """Test that scenario sharing API can be imported."""
     try:
-        from backend.src.api.v1.scenario_sharing import router
+        from src.api.v1.scenario_sharing import router
         assert router is not None
     except ImportError as e:
         pytest.fail(f"Failed to import scenario sharing API: {e}")
@@ -52,14 +52,14 @@ def test_scenario_sharing_api_imports():
 def test_advanced_exports_api_imports():
     """Test that advanced exports API can be imported."""
     try:
-        from backend.src.api.v1.advanced_exports import router
+        from src.api.v1.advanced_exports import router
         assert router is not None
     except ImportError as e:
         pytest.fail(f"Failed to import advanced exports API: {e}")
 
 def test_permission_levels():
     """Test permission level enum values."""
-    from backend.src.services.scenario_sharing_service import PermissionLevel
+    from src.services.scenario_sharing_service import PermissionLevel
     
     assert PermissionLevel.VIEW.value == "view"
     assert PermissionLevel.EDIT.value == "edit"  
@@ -67,7 +67,7 @@ def test_permission_levels():
 
 def test_export_formats():
     """Test export format enum values."""
-    from backend.src.services.advanced_export_service import ExportFormat, ExportScope
+    from src.services.advanced_export_service import ExportFormat, ExportScope
     
     assert ExportFormat.CSV.value == "csv"
     assert ExportFormat.JSON.value == "json"
@@ -80,7 +80,7 @@ def test_export_formats():
 
 def test_activity_types():
     """Test activity type enum values."""
-    from backend.src.services.scenario_collaboration_service import ActivityType
+    from src.services.scenario_collaboration_service import ActivityType
     
     assert ActivityType.CREATED.value == "created"
     assert ActivityType.UPDATED.value == "updated"
@@ -91,7 +91,7 @@ def test_activity_types():
 @pytest.mark.asyncio
 async def test_scenario_sharing_service_initialization():
     """Test that ScenarioSharingService can be initialized with mock DSN."""
-    from backend.src.services.scenario_sharing_service import ScenarioSharingService
+    from src.services.scenario_sharing_service import ScenarioSharingService
     
     # Test initialization with explicit DSN
     service = ScenarioSharingService(postgres_dsn="postgresql://test:test@localhost/test")
@@ -100,7 +100,7 @@ async def test_scenario_sharing_service_initialization():
 @pytest.mark.asyncio  
 async def test_export_request_creation():
     """Test that ExportRequest can be created with valid parameters."""
-    from backend.src.services.advanced_export_service import ExportRequest, ExportFormat, ExportScope
+    from src.services.advanced_export_service import ExportRequest, ExportFormat, ExportScope
     
     request = ExportRequest(
         user_id=1,
@@ -150,7 +150,7 @@ def test_schema_includes_new_tables():
 def test_auth_middleware_imports():
     """Test that auth middleware can be imported."""
     try:
-        from backend.src.api.middleware.auth import (
+        from src.api.middleware.auth import (
             require_auth,
             require_admin,
             limit_scenarios,
@@ -164,7 +164,7 @@ def test_auth_middleware_imports():
 def test_auth_service_imports():
     """Test that auth service can be imported.""" 
     try:
-        from backend.src.services.auth_service import (
+        from src.services.auth_service import (
             AuthService,
             User,
             AuthenticationError,
@@ -177,7 +177,7 @@ def test_auth_service_imports():
 def test_subscription_service_imports():
     """Test that subscription service can be imported."""
     try:
-        from backend.src.services.subscription_service import (
+        from src.services.subscription_service import (
             SubscriptionService,
             FeatureCategory,
             SubscriptionTier,
@@ -190,7 +190,7 @@ def test_subscription_service_imports():
 def test_alerts_delivery_service_imports():
     """Test that alerts delivery service can be imported."""
     try:
-        from backend.src.services.alerts_delivery import (
+        from src.services.alerts_delivery import (
             AlertDeliveryService,
             DeliveredAlert
         )

@@ -3,14 +3,14 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backend.src.core.cache_layers import CacheEntry, DictCacheLayer
-from backend.src.core.cache_service import (
+from src.core.cache_layers import CacheEntry, DictCacheLayer
+from src.core.cache_service import (
     CacheTier,
     IntelligentCache,
     LoadResult,
 )
-from backend.src.core.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerOpen
-from backend.src.core.locks import InMemoryLockManager
+from src.core.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerOpen
+from src.core.locks import InMemoryLockManager
 
 
 def _entry(value: str, age_seconds: int = 0, soft: int = 60, hard: int = 3600) -> CacheEntry:

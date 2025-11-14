@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
-from backend.src.services.model_registry_service import get_model_registry_service, ModelRegistryService
-from backend.src.services.auth_service import User
-from backend.src.api.middleware.auth import require_admin, require_deployment_control
-from backend.src.core.logging import get_logger
+from src.services.model_registry_service import get_model_registry_service, ModelRegistryService
+from src.services.auth_service import User
+from src.api.middleware.auth import require_admin, require_deployment_control
+from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/admin/ml", tags=["ml_admin"])
@@ -34,7 +34,7 @@ async def list_models(
 ):
     """List all registered ML models."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         
         pool = await get_database_pool()
         async with pool.acquire() as conn:
@@ -94,7 +94,7 @@ async def get_model_details(
 ):
     """Get detailed information about a specific model."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         
         pool = await get_database_pool()
         async with pool.acquire() as conn:
@@ -172,7 +172,7 @@ async def promote_model(
         
         if success:
             # Log the promotion action
-            from backend.src.services.admin_service import get_admin_service
+            from src.services.admin_service import get_admin_service
             admin_service = get_admin_service()
             
             await admin_service.log_admin_action(
@@ -207,7 +207,7 @@ async def get_drift_summary(
 ):
     """Get summary of model drift metrics."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         from datetime import timedelta
         
         since_date = datetime.now(timezone.utc) - timedelta(days=days)
@@ -282,7 +282,7 @@ async def trigger_drift_check(
         logger.info(f"Manual drift check triggered by {current_user.username}")
         
         async def run_drift_check():
-            from backend.src.jobs.model_monitoring import ModelMonitoringJob
+            from src.jobs.model_monitoring import ModelMonitoringJob
             
             monitoring_job = ModelMonitoringJob()
             results = await monitoring_job.run_monitoring_cycle()
@@ -327,7 +327,7 @@ async def trigger_retraining(
         background_tasks.add_task(run_retraining)
         
         # Log the retraining request
-        from backend.src.services.admin_service import get_admin_service
+        from src.services.admin_service import get_admin_service
         admin_service = get_admin_service()
         
         await admin_service.log_admin_action(
@@ -361,7 +361,7 @@ async def get_model_performance(
 ):
     """Get model performance metrics over time."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         from datetime import timedelta
         
         since_date = datetime.now(timezone.utc) - timedelta(days=days)
@@ -426,7 +426,7 @@ async def cleanup_old_models(
         deleted_count = await model_registry.cleanup_old_models(keep_versions)
         
         # Log the cleanup action
-        from backend.src.services.admin_service import get_admin_service
+        from src.services.admin_service import get_admin_service
         admin_service = get_admin_service()
         
         await admin_service.log_admin_action(

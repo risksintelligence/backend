@@ -3,7 +3,7 @@ import asyncio
 import httpx
 from fastapi import FastAPI
 
-from backend.src.api.v1.ai import router as ai_router
+from src.api.v1.ai import router as ai_router
 
 
 def create_app() -> FastAPI:

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
-from backend.src.services.auth_service import User
+from src.services.auth_service import User
 
 @dataclass
 class FeatureFlag:

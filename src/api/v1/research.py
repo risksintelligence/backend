@@ -3,8 +3,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.src.services.research_service import ResearchService, get_research_service
-from backend.src.services.peer_review_service import PeerReviewService
+from src.services.research_service import ResearchService, get_research_service
+from src.services.peer_review_service import PeerReviewService
 from functools import lru_cache
 
 

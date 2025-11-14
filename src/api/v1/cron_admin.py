@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
 
-from backend.src.services.cron_monitor_service import get_cron_monitor_service, CronMonitorService
-from backend.src.services.auth_service import User
-from backend.src.api.middleware.auth import require_admin, require_deployment_control
-from backend.src.core.logging import get_logger
+from src.services.cron_monitor_service import get_cron_monitor_service, CronMonitorService
+from src.services.auth_service import User
+from src.api.middleware.auth import require_admin, require_deployment_control
+from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/admin/cron", tags=["cron_admin"])
@@ -136,7 +136,7 @@ async def get_job_executions(
 ):
     """Get recent execution history for a specific cron job."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         
         since_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
@@ -204,7 +204,7 @@ async def get_recent_executions(
 ):
     """Get recent cron job executions across all jobs."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         
         since_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
@@ -259,7 +259,7 @@ async def get_execution_details(
 ):
     """Get detailed information about a specific execution."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         
         pool = await get_database_pool()
         async with pool.acquire() as conn:
@@ -301,7 +301,7 @@ async def cleanup_old_executions(
 ):
     """Clean up old cron execution records."""
     try:
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         

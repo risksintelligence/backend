@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List
 
-from backend.src.monitoring.metrics import PEER_REVIEWS_TOTAL
+from src.monitoring.metrics import PEER_REVIEWS_TOTAL
 
 
 @dataclass

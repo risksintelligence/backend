@@ -5,7 +5,7 @@ from fastapi import APIRouter, Response
 from fastapi.responses import PlainTextResponse
 from typing import Dict, Any
 
-from backend.src.monitoring.observability import get_observability_service, get_prometheus_metrics
+from src.monitoring.observability import get_observability_service, get_prometheus_metrics
 
 router = APIRouter(prefix="/api/v1/monitoring", tags=["monitoring"])
 
@@ -76,7 +76,7 @@ async def metrics_summary():
 async def alert_monitoring_status():
     """Get status of alert monitoring system."""
     try:
-        from backend.src.services.scenario_service import get_alert_service
+        from src.services.scenario_service import get_alert_service
         alert_service = get_alert_service()
         
         subscriptions = alert_service.list_subscriptions()
@@ -109,7 +109,7 @@ async def alert_monitoring_status():
 @router.get("/jobs/status")  
 async def background_jobs_status():
     """Get status of background jobs and cron tasks."""
-    from backend.src.services.admin_service import get_admin_service
+    from src.services.admin_service import get_admin_service
     
     try:
         admin_service = get_admin_service()

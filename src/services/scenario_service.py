@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List
 
-from backend.src.analytics.geri import IndicatorResult
-from backend.src.services.geri_service import GERISnapshotService, seed_demo_data
-from backend.src.ml.inference.service import MLInferenceService
-from backend.src.services.alerts_delivery import AlertDeliveryService
-from backend.src.services.alert_repository import AlertRepository
-from backend.src.monitoring.metrics import SCENARIO_RUNS_TOTAL, ALERT_DELIVERIES_TOTAL
+from src.analytics.geri import IndicatorResult
+from src.services.geri_service import GERISnapshotService, seed_demo_data
+from src.ml.inference.service import MLInferenceService
+from src.services.alerts_delivery import AlertDeliveryService
+from src.services.alert_repository import AlertRepository
+from src.monitoring.metrics import SCENARIO_RUNS_TOTAL, ALERT_DELIVERIES_TOTAL
 
 
 @dataclass

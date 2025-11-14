@@ -8,9 +8,9 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-from backend.src.ml.training.regime_training import RegimeArtifact
-from backend.src.ml.training.forecast_training import ForecastArtifact
-from backend.src.ml.training.anomaly_training import AnomalyArtifact
+from src.ml.training.regime_training import RegimeArtifact
+from src.ml.training.forecast_training import ForecastArtifact
+from src.ml.training.anomaly_training import AnomalyArtifact
 
 
 class MLInferenceService:

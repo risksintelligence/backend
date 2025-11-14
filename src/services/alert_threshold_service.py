@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
-from backend.src.services.auth_service import User
-from backend.src.services.alerts_delivery import AlertDeliveryService
+from src.services.auth_service import User
+from src.services.alerts_delivery import AlertDeliveryService
 
 @dataclass
 class AlertThreshold:

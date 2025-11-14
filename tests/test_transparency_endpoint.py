@@ -3,8 +3,8 @@ import asyncio
 import httpx
 from fastapi import FastAPI
 
-from backend.src.api.v1.transparency import router as transparency_router
-from backend.src.services.transparency_service import TransparencyService, get_transparency_service
+from src.api.v1.transparency import router as transparency_router
+from src.services.transparency_service import TransparencyService, get_transparency_service
 
 
 def test_transparency_endpoint_returns_expected_payload():

@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from backend.src.services.backup_service import get_backup_service, BackupService
-from backend.src.services.auth_service import User
-from backend.src.api.middleware.auth import require_admin, require_deployment_control
-from backend.src.core.logging import get_logger
+from src.services.backup_service import get_backup_service, BackupService
+from src.services.auth_service import User
+from src.api.middleware.auth import require_admin, require_deployment_control
+from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["backup"])
@@ -34,7 +34,7 @@ async def get_backup_status(
     """Get current backup system status and recent backup history."""
     try:
         # Get recent backup logs from admin actions
-        from backend.src.core.database import get_database_pool
+        from src.core.database import get_database_pool
         
         pool = await get_database_pool()
         async with pool.acquire() as conn:
@@ -103,7 +103,7 @@ async def create_backup(
             backup_result = await backup_service.create_postgres_backup(compress=request.compress)
             
             if request.upload_to_s3:
-                from backend.src.core.config import get_settings
+                from src.core.config import get_settings
                 settings = get_settings()
                 if settings.BACKUP_S3_BUCKET:
                     upload_result = await backup_service.upload_to_s3(
@@ -122,7 +122,7 @@ async def create_backup(
             backup_result = await backup_service.create_redis_backup()
             
             if request.upload_to_s3:
-                from backend.src.core.config import get_settings
+                from src.core.config import get_settings
                 settings = get_settings()
                 if settings.BACKUP_S3_BUCKET:
                     upload_result = await backup_service.upload_to_s3(

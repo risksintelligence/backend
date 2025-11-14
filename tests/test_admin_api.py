@@ -2,7 +2,7 @@ import httpx
 import asyncio
 from fastapi import FastAPI
 
-from backend.src.api.v1.admin import router as admin_router
+from src.api.v1.admin import router as admin_router
 
 def test_admin_alerts_endpoint():
     app = FastAPI()

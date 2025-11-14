@@ -9,7 +9,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 
-from backend.src.services.auth_service import User
+from src.services.auth_service import User
 
 class SubscriptionTier(Enum):
     FREE = "free"

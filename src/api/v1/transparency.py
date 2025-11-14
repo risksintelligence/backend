@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from backend.src.services.transparency_service import TransparencyService, get_transparency_service
+from src.services.transparency_service import TransparencyService, get_transparency_service
 
 router = APIRouter(prefix="/api/v1/transparency", tags=["transparency"])
 

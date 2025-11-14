@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
-from backend.src.services.admin_service import get_admin_service, AdminService
-from backend.src.services.scenario_service import get_alert_service
-from backend.src.services.research_service import get_research_service
-from backend.src.services.scenario_service import get_scenario_service
-from backend.src.services.feature_flag_service import get_feature_flag_service, FeatureFlagService
-from backend.src.services.auth_service import get_auth_service, AuthService, User
-from backend.src.services.deployment_service import get_deployment_service, DeploymentService
-from backend.src.api.middleware.auth import require_admin, require_deployment_control
+from src.services.admin_service import get_admin_service, AdminService
+from src.services.scenario_service import get_alert_service
+from src.services.research_service import get_research_service
+from src.services.scenario_service import get_scenario_service
+from src.services.feature_flag_service import get_feature_flag_service, FeatureFlagService
+from src.services.auth_service import get_auth_service, AuthService, User
+from src.services.deployment_service import get_deployment_service, DeploymentService
+from src.api.middleware.auth import require_admin, require_deployment_control
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 

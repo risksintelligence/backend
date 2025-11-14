@@ -1,10 +1,10 @@
-from backend.src.analytics.geri import (
+from src.analytics.geri import (
     IndicatorSnapshot,
     compute_geri,
     determine_risk_band,
     normalize_snapshot,
 )
-from backend.src.analytics.normalization import NormalizationParams
+from src.analytics.normalization import NormalizationParams
 import pytest
 
 
