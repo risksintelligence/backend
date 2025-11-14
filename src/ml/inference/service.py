@@ -1,12 +1,30 @@
 """Inference service orchestrating ML predictions."""
 from __future__ import annotations
 
-import asyncpg
-import joblib
-import numpy as np
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
+
+try:  # optional dependency in slim deployments
+    import asyncpg  # type: ignore
+except ImportError:  # pragma: no cover - environment without Postgres client
+    asyncpg = None  # type: ignore[misc]
+
+try:  # numpy is heavy; allow stub fallback if wheel missing
+    import numpy as np
+except ImportError:  # pragma: no cover - fallback to stub predictions
+    np = None  # type: ignore[misc]
+
+if TYPE_CHECKING:
+    import numpy as _np
+    NDArray = _np.ndarray
+else:  # pragma: no cover - runtime fallback when numpy missing
+    NDArray = object  # type: ignore[assignment]
+
+try:  # allow running even if joblib unavailable (no trained artifacts)
+    import joblib  # type: ignore
+except ImportError:  # pragma: no cover - fallback to stub predictions
+    joblib = None  # type: ignore[misc]
 
 from src.ml.training.regime_training import RegimeArtifact
 from src.ml.training.forecast_training import ForecastArtifact
@@ -21,7 +39,12 @@ class MLInferenceService:
         self._anomaly_artifact: AnomalyArtifact | None = None
 
     async def _load_artifacts(self) -> None:
-        if self._regime_artifact is not None or not self._dsn:
+        if (
+            self._regime_artifact is not None
+            or not self._dsn
+            or asyncpg is None
+            or joblib is None
+        ):
             return
         conn = await asyncpg.connect(self._dsn)
         try:
@@ -43,7 +66,7 @@ class MLInferenceService:
     async def predict_current_regime(self) -> Dict[str, object]:
         if self._regime_artifact is None:
             await self._load_artifacts()
-        if self._regime_artifact is None or not self._dsn:
+        if self._regime_artifact is None or not self._dsn or np is None:
             return {"regime": "Calm", "probabilities": {}, "adaptive_weights": {}, "confidence": 0.5, "model_version": "stub"}
         features = await self._latest_regime_features()
         if features is None:
@@ -65,7 +88,7 @@ class MLInferenceService:
         artifact = self._forecast_artifact
         # placeholder inference until feature extraction wired
         features = await self._latest_forecast_features()
-        if artifact and features is not None:
+        if artifact and features is not None and np is not None:
             delta = float(artifact.regression_model.predict(np.array([features]))[0])
             prob = float(artifact.classification_model.predict_proba(np.array([features]))[0][1])
             return {
@@ -86,7 +109,7 @@ class MLInferenceService:
     async def detect_anomalies(self, window_hours: int) -> Dict[str, object]:
         if self._anomaly_artifact is None:
             await self._load_artifacts()
-        if self._anomaly_artifact is None or not self._dsn:
+        if self._anomaly_artifact is None or not self._dsn or np is None:
             return {"anomalies": [], "window_hours": window_hours, "total_detected": 0}
         feature = await self._latest_anomaly_features()
         if feature is None:
@@ -98,8 +121,8 @@ class MLInferenceService:
             "total_detected": 1 if score < 0 else 0,
         }
 
-    async def _latest_regime_features(self) -> Optional[np.ndarray]:
-        if not self._dsn:
+    async def _latest_regime_features(self) -> Optional[NDArray]:
+        if not self._dsn or asyncpg is None or np is None:
             return None
         conn = await asyncpg.connect(self._dsn)
         try:
@@ -125,8 +148,8 @@ class MLInferenceService:
         except (TypeError, ValueError):
             return None
 
-    async def _latest_forecast_features(self) -> Optional[np.ndarray]:
-        if not self._dsn:
+    async def _latest_forecast_features(self) -> Optional[NDArray]:
+        if not self._dsn or asyncpg is None or np is None:
             return None
         conn = await asyncpg.connect(self._dsn)
         try:
@@ -154,8 +177,8 @@ class MLInferenceService:
         except (TypeError, ValueError):
             return None
 
-    async def _latest_anomaly_features(self) -> Optional[np.ndarray]:
-        if not self._dsn:
+    async def _latest_anomaly_features(self) -> Optional[NDArray]:
+        if not self._dsn or asyncpg is None or np is None:
             return None
         conn = await asyncpg.connect(self._dsn)
         try:
