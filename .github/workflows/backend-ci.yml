@@ -1,0 +1,64 @@
+name: Backend CI/CD
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'database/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run tests
+        run: |
+          pytest
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      RIS_POSTGRES_DSN: ${{ secrets.RIS_POSTGRES_DSN }}
+      RIS_REDIS_URL: ${{ secrets.RIS_REDIS_URL }}
+      ALERT_DB_URL: ${{ secrets.ALERT_DB_URL }}
+      ALERT_SMTP_HOST: ${{ secrets.ALERT_SMTP_HOST }}
+      ALERT_SMTP_PORT: ${{ secrets.ALERT_SMTP_PORT }}
+      ALERT_SMTP_USERNAME: ${{ secrets.ALERT_SMTP_USERNAME }}
+      ALERT_SMTP_PASSWORD: ${{ secrets.ALERT_SMTP_PASSWORD }}
+      ALERT_SMTP_FROM: ${{ secrets.ALERT_SMTP_FROM }}
+      ALERT_WEBHOOK_TOKEN: ${{ secrets.ALERT_WEBHOOK_TOKEN }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_BACKEND_SERVICE_ID: ${{ secrets.RENDER_BACKEND_SERVICE_ID }}
+      BASE_URL: ${{ secrets.HEALTH_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Train ML models
+        run: |
+          bash scripts/train-models.sh
+      - name: Trigger Render deploy
+        run: |
+          bash scripts/deploy.sh
+      - name: Run health checks
+        run: |
+          bash infra/health_check.sh
