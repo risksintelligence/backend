@@ -3,15 +3,19 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import traceback
 
 logger = logging.getLogger(__name__)
 
 def load_router(module_path: str, attr: str = "router") -> Optional[object]:
     try:
         module = importlib.import_module(module_path)
-        return getattr(module, attr)
+        router = getattr(module, attr)
+        logger.info(f"Successfully loaded router: {module_path}")
+        return router
     except ModuleNotFoundError as exc:
         logger.warning("Skipping router %s due to missing dependency: %s", module_path, exc)
     except AttributeError:
@@ -42,6 +46,32 @@ router_modules = [
 
 app = FastAPI(title="RiskSX Intelligence System API")
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for better error responses."""
+    logger.error(f"Unhandled exception on {request.url}: {exc}", exc_info=True)
+    
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail}
+        )
+    
+    # Don't expose internal errors in production
+    if os.getenv("ENVIRONMENT", "production").lower() in ["production", "prod"]:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"}
+        )
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": f"Internal server error: {str(exc)}",
+                "traceback": traceback.format_exc()
+            }
+        )
+
 raw_origins = os.getenv("RIS_ALLOWED_ORIGINS", "*")
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
@@ -71,10 +101,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Set environment variables for test mode if not set
+env = os.getenv("ENVIRONMENT", "development").lower()
+if env in ["local", "dev", "development"]:
+    os.environ.setdefault("RIS_TEST_MODE", "true")
+
+logger.info(f"Starting RIS API in {env} environment")
+logger.info(f"Test mode: {os.getenv('RIS_TEST_MODE', 'false')}")
+
+loaded_routers = 0
 for module in router_modules:
     router = load_router(module)
     if router:
         app.include_router(router)
+        loaded_routers += 1
+
+logger.info(f"Loaded {loaded_routers}/{len(router_modules)} router modules")
 
 
 @app.get("/healthz")
