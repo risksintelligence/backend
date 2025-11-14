@@ -51,11 +51,12 @@ class ScenarioCollaborationService:
     """Production collaboration service for scenarios with comments and activity tracking."""
 
     def __init__(self, postgres_dsn: Optional[str] = None):
-        self.postgres_dsn = postgres_dsn or os.getenv("RIS_POSTGRES_DSN")
-        if not self.postgres_dsn:
-            raise ValueError("RIS_POSTGRES_DSN environment variable is required")
-        
-        self.sharing_service = get_scenario_sharing_service()
+        fallback_dsn = "postgresql://placeholder:placeholder@localhost/placeholder"
+        self.postgres_dsn = postgres_dsn or os.getenv("RIS_POSTGRES_DSN") or fallback_dsn
+        if self.postgres_dsn == fallback_dsn:
+            logger.warning("ScenarioCollaborationService initialized with placeholder DSN. Set RIS_POSTGRES_DSN for real persistence.")
+
+        self.sharing_service = get_scenario_sharing_service(postgres_dsn=self.postgres_dsn)
 
     async def add_comment(
         self,

@@ -65,9 +65,10 @@ class ScenarioSharingService:
     """Production scenario sharing service with comprehensive collaboration features."""
 
     def __init__(self, postgres_dsn: Optional[str] = None):
-        self.postgres_dsn = postgres_dsn or os.getenv("RIS_POSTGRES_DSN")
-        if not self.postgres_dsn:
-            raise ValueError("RIS_POSTGRES_DSN environment variable is required")
+        fallback_dsn = "postgresql://placeholder:placeholder@localhost/placeholder"
+        self.postgres_dsn = postgres_dsn or os.getenv("RIS_POSTGRES_DSN") or fallback_dsn
+        if self.postgres_dsn == fallback_dsn:
+            logger.warning("ScenarioSharingService initialized with placeholder DSN. Set RIS_POSTGRES_DSN for real persistence.")
 
     async def save_scenario(
         self,
@@ -463,9 +464,9 @@ class ScenarioSharingService:
 _SCENARIO_SHARING_SERVICE: ScenarioSharingService | None = None
 
 
-def get_scenario_sharing_service() -> ScenarioSharingService:
+def get_scenario_sharing_service(postgres_dsn: Optional[str] = None) -> ScenarioSharingService:
     """Get or create the scenario sharing service singleton."""
     global _SCENARIO_SHARING_SERVICE
     if _SCENARIO_SHARING_SERVICE is None:
-        _SCENARIO_SHARING_SERVICE = ScenarioSharingService()
+        _SCENARIO_SHARING_SERVICE = ScenarioSharingService(postgres_dsn=postgres_dsn)
     return _SCENARIO_SHARING_SERVICE

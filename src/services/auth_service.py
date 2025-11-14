@@ -7,9 +7,12 @@ import bcrypt
 import jwt
 import asyncpg
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class User:
@@ -296,8 +299,8 @@ def get_auth_service() -> AuthService:
     """Dependency injection for auth service."""
     global _auth_service
     if _auth_service is None:
-        postgres_dsn = os.environ.get("RIS_POSTGRES_DSN")
-        if not postgres_dsn:
-            raise RuntimeError("RIS_POSTGRES_DSN environment variable not set")
+        postgres_dsn = os.environ.get("RIS_POSTGRES_DSN") or "postgresql://placeholder:placeholder@localhost/placeholder"
+        if postgres_dsn.endswith("/placeholder"):
+            logger.warning("AuthService initialized with placeholder DSN. Set RIS_POSTGRES_DSN for persistence.")
         _auth_service = AuthService(postgres_dsn)
     return _auth_service

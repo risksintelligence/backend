@@ -9,7 +9,6 @@ psycopg2-binary==2.9.9
 
 # Caching & async
 redis==5.0.1
-aioredis==2.0.1
 aiohttp==3.9.1
 httpx==0.25.2
 

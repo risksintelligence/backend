@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import logging
 from urllib.parse import urlparse
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -30,12 +31,17 @@ class DeliveryRecord:
     delivered_at: str
 
 
+logger = logging.getLogger(__name__)
+
+
 class AlertRepository:
     def __init__(self, db_url: str | None = None) -> None:
         # Default to Postgres DSN for production, fallback to SQLite only if necessary (tests)
-        self._db_url = db_url or os.getenv("ALERT_DB_URL") or os.getenv("RIS_POSTGRES_DSN")
-        if not self._db_url:
-            raise RuntimeError("ALERT_DB_URL or RIS_POSTGRES_DSN must be set for alert persistence")
+        default_sqlite = "sqlite:///:memory:"
+        self._db_url = db_url or os.getenv("ALERT_DB_URL") or os.getenv("RIS_POSTGRES_DSN") or default_sqlite
+
+        if self._db_url == default_sqlite:
+            logger.warning("AlertRepository falling back to in-memory SQLite. Set ALERT_DB_URL or RIS_POSTGRES_DSN for persistence.")
 
         parsed = urlparse(self._db_url)
         self._is_sqlite = parsed.scheme == "sqlite"

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncpg
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
@@ -372,8 +373,9 @@ def get_subscription_service() -> SubscriptionService:
     """Dependency injection for subscription service."""
     global _subscription_service
     if _subscription_service is None:
-        postgres_dsn = os.environ.get("RIS_POSTGRES_DSN")
-        if not postgres_dsn:
-            raise RuntimeError("RIS_POSTGRES_DSN environment variable not set")
+        postgres_dsn = os.environ.get("RIS_POSTGRES_DSN") or "postgresql://placeholder:placeholder@localhost/placeholder"
+        if postgres_dsn.endswith("/placeholder"):
+            logger = logging.getLogger(__name__)
+            logger.warning("SubscriptionService initialized with placeholder DSN. Set RIS_POSTGRES_DSN for persistence.")
         _subscription_service = SubscriptionService(postgres_dsn)
     return _subscription_service

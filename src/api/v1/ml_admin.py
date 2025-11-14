@@ -272,8 +272,8 @@ async def get_drift_summary(
 
 @router.post("/drift/check")
 async def trigger_drift_check(
-    model_type: Optional[str] = None,
     background_tasks: BackgroundTasks,
+    model_type: Optional[str] = None,
     model_registry: ModelRegistryService = Depends(get_model_registry_service),
     current_user: User = Depends(require_deployment_control)
 ):
