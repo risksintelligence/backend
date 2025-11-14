@@ -44,14 +44,30 @@ app = FastAPI(title="RiskSX Intelligence System API")
 
 raw_origins = os.getenv("RIS_ALLOWED_ORIGINS", "*")
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+# Add production domains if not already included
+production_domains = [
+    "https://frontend-1-wvu7.onrender.com",
+    "https://app.risksx.io",
+    "http://localhost:3000",
+    "http://localhost:3001"
+]
+
+for domain in production_domains:
+    if domain not in allowed_origins and "*" not in allowed_origins:
+        allowed_origins.append(domain)
+
 wildcard = len(allowed_origins) == 1 and allowed_origins[0] == "*"
 allow_credentials = not wildcard
 origins_param = ["*"] if wildcard else allowed_origins
+
+logger.info(f"CORS origins configured: {origins_param}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins_param,
     allow_credentials=allow_credentials,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
 
