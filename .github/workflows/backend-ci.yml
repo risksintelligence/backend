@@ -33,16 +33,16 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      RIS_POSTGRES_DSN: ${{ secrets.RIS_POSTGRES_DSN }}
-      RIS_REDIS_URL: ${{ secrets.RIS_REDIS_URL }}
-      ALERT_DB_URL: ${{ secrets.ALERT_DB_URL }}
-      ALERT_SMTP_HOST: ${{ secrets.ALERT_SMTP_HOST }}
-      ALERT_SMTP_PORT: ${{ secrets.ALERT_SMTP_PORT }}
-      ALERT_SMTP_USERNAME: ${{ secrets.ALERT_SMTP_USERNAME }}
-      ALERT_SMTP_PASSWORD: ${{ secrets.ALERT_SMTP_PASSWORD }}
-      ALERT_SMTP_FROM: ${{ secrets.ALERT_SMTP_FROM }}
-      ALERT_WEBHOOK_TOKEN: ${{ secrets.ALERT_WEBHOOK_TOKEN }}
-      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RIS_POSTGRES_DSN: postgresql://omoshola@localhost:5432/ris_database
+      RIS_REDIS_URL: redis://localhost:6379
+      ALERT_DB_URL: postgresql://omoshola@localhost:5432/ris_database
+      ALERT_SMTP_HOST: smtp.sendpulse.com
+      ALERT_SMTP_PORT: 587
+      ALERT_SMTP_USERNAME: your_sendpulse_username
+      ALERT_SMTP_PASSWORD: your_sendpulse_password
+      ALERT_SMTP_FROM: alerts@risksx.org
+      ALERT_WEBHOOK_TOKEN: your_webhook_bearer_token
+      RENDER_API_KEY: rnd_fC2WMrcAALB2FUpwcGWwsw6ubW7e
       RENDER_BACKEND_SERVICE_ID: ${{ secrets.RENDER_BACKEND_SERVICE_ID }}
       BASE_URL: ${{ secrets.HEALTH_BASE_URL }}
     steps:
