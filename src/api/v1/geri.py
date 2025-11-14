@@ -30,12 +30,22 @@ def get_geri_service() -> GERISnapshotService:
 async def get_cache() -> IntelligentCache:
     global _GLOBAL_CACHE
     if _GLOBAL_CACHE is None:
-        memory = DictCacheLayer()
-        redis = DictCacheLayer()
-        postgres = DictCacheLayer()
-        file_cache = DictCacheLayer()
-        breaker = CircuitBreaker(CircuitBreakerConfig(failure_threshold=3, reset_timeout=60))
-        _GLOBAL_CACHE = await build_default_cache(memory, redis, postgres, file_cache, InMemoryLockManager(), breaker)
+        try:
+            memory = DictCacheLayer()
+            redis = DictCacheLayer()
+            postgres = DictCacheLayer()
+            file_cache = DictCacheLayer()
+            breaker = CircuitBreaker(CircuitBreakerConfig(failure_threshold=3, reset_timeout=60))
+            _GLOBAL_CACHE = await build_default_cache(memory, redis, postgres, file_cache, InMemoryLockManager(), breaker)
+        except Exception as e:
+            # Fall back to memory-only cache if there are connection issues
+            from src.core.logging import get_logger
+            logger = get_logger(__name__)
+            logger.warning(f"Failed to initialize full cache, falling back to memory-only: {e}")
+            memory = DictCacheLayer()
+            breaker = CircuitBreaker(CircuitBreakerConfig(failure_threshold=3, reset_timeout=60))
+            from src.core.cache_service import IntelligentCache, CacheTier
+            _GLOBAL_CACHE = IntelligentCache([CacheTier("memory", memory, True)], InMemoryLockManager(), breaker)
     return _GLOBAL_CACHE
 
 
