@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 logger = logging.getLogger(__name__)
@@ -64,3 +64,17 @@ for module in router_modules:
 @app.get("/healthz")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return {
+        "service": "RIS Intelligence API",
+        "docs": "/docs",
+        "status": "healthy",
+    }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
