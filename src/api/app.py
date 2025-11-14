@@ -101,6 +101,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Detect Render production environment  
+if os.getenv("RENDER"):
+    os.environ["ENVIRONMENT"] = "production"
+    os.environ["RIS_TEST_MODE"] = "false"
+
 # Set environment variables for test mode if not set
 env = os.getenv("ENVIRONMENT", "development").lower()
 if env in ["local", "dev", "development"]:
