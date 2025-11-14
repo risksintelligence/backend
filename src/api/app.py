@@ -161,6 +161,29 @@ async def router_status():
         "test_mode": os.getenv("RIS_TEST_MODE", "false")
     }
 
+@app.get("/debug/database")
+async def database_status():
+    try:
+        from src.core.database import get_database_pool
+        pool = await get_database_pool()
+        async with pool.acquire() as conn:
+            result = await conn.fetchval("SELECT 1")
+            return {"database": "connected", "test_query": result}
+    except Exception as e:
+        return {"database": "error", "error": str(e)}
+
+@app.get("/debug/environment")
+async def environment_status():
+    return {
+        "postgres_dsn_set": bool(os.getenv("RIS_POSTGRES_DSN")),
+        "redis_url_set": bool(os.getenv("RIS_REDIS_URL")),
+        "database_url_set": bool(os.getenv("DATABASE_URL")),
+        "redis_url_render_set": bool(os.getenv("REDIS_URL")),
+        "render_env_set": bool(os.getenv("RENDER")),
+        "environment": env,
+        "test_mode": os.getenv("RIS_TEST_MODE", "false")
+    }
+
 
 @app.get("/healthz")
 async def health_check():
