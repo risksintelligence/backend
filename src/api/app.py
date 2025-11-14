@@ -106,17 +106,55 @@ env = os.getenv("ENVIRONMENT", "development").lower()
 if env in ["local", "dev", "development"]:
     os.environ.setdefault("RIS_TEST_MODE", "true")
 
+# Ensure production has proper environment variable fallbacks
+postgres_dsn = os.getenv("RIS_POSTGRES_DSN") or os.getenv("DATABASE_URL")
+redis_url = os.getenv("RIS_REDIS_URL") or os.getenv("REDIS_URL")
+
+if postgres_dsn and not os.getenv("RIS_POSTGRES_DSN"):
+    os.environ["RIS_POSTGRES_DSN"] = postgres_dsn
+    logger.info("Using DATABASE_URL for RIS_POSTGRES_DSN")
+
+if redis_url and not os.getenv("RIS_REDIS_URL"):
+    os.environ["RIS_REDIS_URL"] = redis_url  
+    logger.info("Using REDIS_URL for RIS_REDIS_URL")
+
+# Set API key defaults if not provided
+os.environ.setdefault("RIS_FRED_API_KEY", "demo-key")
+os.environ.setdefault("RIS_EIA_API_KEY", "demo-key")
+
 logger.info(f"Starting RIS API in {env} environment")
 logger.info(f"Test mode: {os.getenv('RIS_TEST_MODE', 'false')}")
+logger.info(f"Database URL: {os.getenv('RIS_POSTGRES_DSN', 'not set')[:50]}...")
 
 loaded_routers = 0
+failed_routers = []
+
 for module in router_modules:
     router = load_router(module)
     if router:
-        app.include_router(router)
-        loaded_routers += 1
+        try:
+            app.include_router(router)
+            loaded_routers += 1
+        except Exception as e:
+            logger.error(f"Failed to include router {module}: {e}")
+            failed_routers.append(module)
+    else:
+        failed_routers.append(module)
 
 logger.info(f"Loaded {loaded_routers}/{len(router_modules)} router modules")
+if failed_routers:
+    logger.warning(f"Failed to load routers: {', '.join(failed_routers)}")
+    
+# Add router loading status endpoint
+@app.get("/debug/routers")
+async def router_status():
+    return {
+        "loaded_routers": loaded_routers,
+        "total_routers": len(router_modules),
+        "failed_routers": failed_routers,
+        "environment": env,
+        "test_mode": os.getenv("RIS_TEST_MODE", "false")
+    }
 
 
 @app.get("/healthz")
