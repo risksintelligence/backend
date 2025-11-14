@@ -15,10 +15,10 @@ services:
         value: "1"
       - key: RIS_POSTGRES_DSN
         fromDatabase:
-          name: risksx-db
+          name: dpg-d4bs1tc9c44c738cmsg0-a
           property: connectionString
       - key: RIS_REDIS_URL
         fromService:
           type: redis
-          name: risksx-redis
+          name: dpg-d4bs1tc9c44c738cmsg0-a
           property: connectionString
