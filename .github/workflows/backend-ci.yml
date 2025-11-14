@@ -16,6 +16,33 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+      RIS_TEST_MODE: true
+      RIS_POSTGRES_DSN: postgresql://postgres:postgres@localhost:5432/test_db
+      RIS_REDIS_URL: redis://localhost:6379/0
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -26,7 +53,7 @@ jobs:
           pip install -r requirements.txt
       - name: Run tests
         run: |
-          pytest
+          pytest -v
 
   deploy:
     needs: test

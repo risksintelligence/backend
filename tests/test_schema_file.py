@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-SCHEMA_PATH = Path("backend/database/schema.sql")
+SCHEMA_PATH = Path("database/schema.sql")
 
 
 @pytest.mark.parametrize(
