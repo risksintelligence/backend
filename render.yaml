@@ -3,9 +3,16 @@ services:
     name: risksx-backend
     env: python
     plan: starter
-    buildCommand: pip install -r requirements.txt
+    pythonVersion: "3.11"
+    buildCommand: ./build.sh
     startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: PIP_ONLY_BINARY
+        value: ":all:"
+      - key: PIP_PREFER_BINARY
+        value: "1"
       - key: RIS_POSTGRES_DSN
         fromDatabase:
           name: risksx-db
