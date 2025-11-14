@@ -1,4 +1,4 @@
-# RIS Backend Dependencies
+# RIS Backend Dependencies - Minimal set for initial deployment
 # Core web framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
@@ -13,13 +13,13 @@ aioredis==2.0.1
 aiohttp==3.9.1
 httpx==0.25.2
 
-# ML & Data Science - Use pre-compiled wheels to avoid Cython issues
-scikit-learn>=1.3.0,<1.4.0
-xgboost==2.0.2
-numpy>=1.24.0,<1.26.0
-pandas>=2.1.0,<2.2.0
-joblib==1.3.2
-shap>=0.43.0,<0.44.0
+# Basic data handling (no ML for now)
+# scikit-learn - TEMPORARILY REMOVED TO FIX DEPLOYMENT
+# xgboost - TEMPORARILY REMOVED TO FIX DEPLOYMENT  
+# numpy - TEMPORARILY REMOVED TO FIX DEPLOYMENT
+pandas==2.1.4
+# joblib - TEMPORARILY REMOVED TO FIX DEPLOYMENT
+# shap - TEMPORARILY REMOVED TO FIX DEPLOYMENT
 
 # System monitoring
 psutil==5.9.6
@@ -43,9 +43,6 @@ pytest-asyncio==0.21.1
 
 # Email functionality
 email-validator==2.1.0
-
-# Alternative Redis client (if aioredis fails)
-# redis==5.0.1  # Already included above
 
 # Deployment and admin features
 python-multipart==0.0.6
