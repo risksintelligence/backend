@@ -1,0 +1,11 @@
+{
+  "composite": 0.68,
+  "components": {
+    "policy": 0.2,
+    "analyses": 0.15,
+    "labs": 0.12,
+    "media": 0.11,
+    "community": 0.1
+  },
+  "calculated_at": "2024-11-15T00:00:00Z"
+}

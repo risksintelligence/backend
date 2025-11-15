@@ -24,3 +24,8 @@ jobs:
           uvicorn app.main:app --host 0.0.0.0 --port 10000 &
           sleep 5
           curl -f http://localhost:10000/health
+      - name: Deploy to Render
+        if: github.ref == 'refs/heads/main'
+        run: |
+          curl -X POST "https://api.render.com/deploy/srv-d4cf5c2dbo4c73d7mpf0?key=uN268HGLaIA"
+          curl -X POST "https://api.render.com/deploy/srv-d4cf6bvdiees7392vpr0?key=46YDqgHKP6A"

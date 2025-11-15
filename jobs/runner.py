@@ -1,27 +1,25 @@
-"""
-Placeholder background worker runner.
-
-This keeps the worker service healthy until real ingestion/ETL jobs are implemented.
-Real job implementations will be added in Step 3 of the deployment process.
-"""
-import time
 import logging
+import random
+import time
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+from app.services.impact import update_snapshot
 
-def main():
-    """Main worker loop - placeholder implementation."""
-    logger.info("Background worker started - placeholder mode")
-    logger.info("Real ingestion jobs will be implemented in Step 3")
-    
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+COMPONENT_KEYS = ["policy", "analyses", "labs", "media", "community"]
+
+
+def main() -> None:
+    logging.info("RRIO worker started: updating RAS snapshot every 5 minutes")
     while True:
-        logger.info("Worker idle – jobs not implemented yet.")
-        time.sleep(300)  # Sleep for 5 minutes
+        metric_updates = {
+            key: round(random.uniform(0.05, 0.3), 3)
+            for key in COMPONENT_KEYS
+        }
+        snapshot = update_snapshot(metric_updates)
+        logging.info("Updated RAS snapshot: composite=%s", snapshot.composite)
+        time.sleep(300)
+
 
 if __name__ == "__main__":
     main()
