@@ -17,7 +17,7 @@ from src.services.model_registry_service import get_model_registry_service, Mode
 from src.core.database import get_database_pool
 from src.core.logging import get_logger
 from src.monitoring.observability import get_observability_service
-from src.services.alert_delivery_service import get_alert_delivery_service
+from src.services.alerts_delivery import get_alert_delivery_service
 
 logger = get_logger(__name__)
 

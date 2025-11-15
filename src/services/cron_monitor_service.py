@@ -21,7 +21,7 @@ from src.monitoring.metrics import (
     CRON_JOB_FAILURES_TOTAL,
     CRON_JOB_EXPECTED_INTERVAL_SECONDS,
 )
-from src.services.alert_delivery_service import get_alert_delivery_service
+from src.services.alerts_delivery import get_alert_delivery_service
 
 logger = get_logger(__name__)
 

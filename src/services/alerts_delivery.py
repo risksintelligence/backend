@@ -277,3 +277,8 @@ Do not reply to this email.
 
     def history(self) -> List[DeliveredAlert]:
         return self._events[-50:]
+
+
+def get_alert_delivery_service() -> AlertDeliveryService:
+    """Get alert delivery service instance."""
+    return AlertDeliveryService()
