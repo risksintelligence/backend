@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ -z "${RENDER_BACKEND_SERVICE_ID:-}" || -z "${RENDER_API_KEY:-}" ]]; then
-  echo "RENDER_BACKEND_SERVICE_ID and RENDER_API_KEY must be set"
-  exit 1
-fi
+# Backend service configuration
+RENDER_BACKEND_SERVICE_ID="srv-d4bb6vkhg0os73eqpngg"
+DEPLOY_HOOK_KEY="FgzIcf6BY3I"
 
-curl -X POST "https://api.render.com/v1/services/$RENDER_BACKEND_SERVICE_ID/deploys" \
-  -H "Authorization: Bearer $RENDER_API_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
+echo "Triggering backend deployment..."
+curl -X POST "https://api.render.com/deploy/${RENDER_BACKEND_SERVICE_ID}?key=${DEPLOY_HOOK_KEY}" \
+  -H 'Content-Type: application/json'
+
+echo ""
+echo "Backend deployment triggered successfully!"
+echo "Check status at: https://dashboard.render.com/web/${RENDER_BACKEND_SERVICE_ID}"
