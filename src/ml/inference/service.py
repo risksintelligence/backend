@@ -4,6 +4,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Dict, Optional, TYPE_CHECKING
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:  # optional dependency in slim deployments
     import asyncpg  # type: ignore
@@ -46,7 +49,9 @@ class MLInferenceService:
             or joblib is None
         ):
             return
-        conn = await asyncpg.connect(self._dsn)
+        conn = await self._connect()
+        if conn is None:
+            return
         try:
             async def latest(model_name: str) -> str:
                 row = await conn.fetchrow(
@@ -124,7 +129,9 @@ class MLInferenceService:
     async def _latest_regime_features(self) -> Optional[NDArray]:
         if not self._dsn or asyncpg is None or np is None:
             return None
-        conn = await asyncpg.connect(self._dsn)
+        conn = await self._connect()
+        if conn is None:
+            return None
         try:
             row = await conn.fetchrow(
                 "SELECT inputs FROM computed_indices ORDER BY ts_utc DESC LIMIT 1"
@@ -151,7 +158,9 @@ class MLInferenceService:
     async def _latest_forecast_features(self) -> Optional[NDArray]:
         if not self._dsn or asyncpg is None or np is None:
             return None
-        conn = await asyncpg.connect(self._dsn)
+        conn = await self._connect()
+        if conn is None:
+            return None
         try:
             rows = await conn.fetch(
                 "SELECT value, inputs FROM computed_indices ORDER BY ts_utc DESC LIMIT 200"
@@ -180,7 +189,9 @@ class MLInferenceService:
     async def _latest_anomaly_features(self) -> Optional[NDArray]:
         if not self._dsn or asyncpg is None or np is None:
             return None
-        conn = await asyncpg.connect(self._dsn)
+        conn = await self._connect()
+        if conn is None:
+            return None
         try:
             row = await conn.fetchrow(
                 "SELECT inputs FROM computed_indices ORDER BY ts_utc DESC LIMIT 1"
@@ -201,4 +212,13 @@ class MLInferenceService:
                 float(inputs.get('UNEMPLOYMENT', 0)),
             ])
         except (TypeError, ValueError):
+            return None
+
+    async def _connect(self):
+        if not self._dsn or asyncpg is None:
+            return None
+        try:
+            return await asyncpg.connect(self._dsn)
+        except Exception as exc:  # pragma: no cover - network issues
+            logger.warning("Unable to connect to Postgres for ML inference: %s", exc)
             return None

@@ -10,7 +10,9 @@ artifacts/
 models/
 *.joblib
 *.pkl
-data/
+/data/
+*.csv
+*.json
 
 # Python
 __pycache__/
