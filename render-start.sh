@@ -4,8 +4,7 @@ set -e
 echo "=== RIS Backend Start Script ==="
 echo "Starting FastAPI application..."
 
-# Change to backend directory and set PYTHONPATH  
-cd backend
+# Set PYTHONPATH to current directory (already in backend on Render)
 export PYTHONPATH=$(pwd)
 
 # Start the application with correct port from environment
