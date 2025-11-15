@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Backend service configuration
-RENDER_BACKEND_SERVICE_ID="srv-d4bb6vkhg0os73eqpngg"
-DEPLOY_HOOK_KEY="FgzIcf6BY3I"
+# Copy this file to deploy.sh and fill in your actual values
+RENDER_BACKEND_SERVICE_ID="YOUR_SERVICE_ID_HERE"
+DEPLOY_HOOK_KEY="YOUR_DEPLOY_HOOK_KEY_HERE"
 
 echo "Triggering backend deployment..."
 curl -X POST "https://api.render.com/deploy/${RENDER_BACKEND_SERVICE_ID}?key=${DEPLOY_HOOK_KEY}" \
