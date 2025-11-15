@@ -51,7 +51,7 @@ router_modules = [
     "src.api.v1.advanced_exports",
 ]
 
-app = FastAPI(title="RiskSX Intelligence System API")
+app = FastAPI(title="RiskSX Intelligence System API", version="1.0.1")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
