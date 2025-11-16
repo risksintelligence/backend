@@ -2,6 +2,7 @@ import os
 import json
 import time
 import hashlib
+import logging
 from pathlib import Path
 from typing import Any, Optional, Dict, Tuple
 from datetime import datetime, timedelta
@@ -16,17 +17,15 @@ class RedisCache:
             raise RuntimeError("Redis URL missing; set RIS_REDIS_URL environment variable")
         try:
             # Production Redis configuration with connection pooling
-            self.client = redis.from_url(
+            pool = redis.ConnectionPool.from_url(
                 url,
-                # Connection pooling settings
-                connection_pool_kwargs={
-                    "max_connections": 20,
-                    "retry_on_timeout": True,
-                    "socket_keepalive": True,
-                    "socket_keepalive_options": {},
-                    "health_check_interval": 30,
-                }
+                max_connections=20,
+                retry_on_timeout=True,
+                socket_keepalive=True,
+                socket_keepalive_options={},
+                health_check_interval=30,
             )
+            self.client = redis.Redis(connection_pool=pool)
             self.client.ping()  # Test connection
             self.available = True
         except Exception as e:
