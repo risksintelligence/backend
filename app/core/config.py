@@ -9,10 +9,10 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Environment
-    environment: str = Field("production", env="RIS_ENV")
+    environment: str = Field(..., env="RIS_ENV")
     
     # Database
-    postgres_dsn: str = Field("sqlite:///./test.db", env="RIS_POSTGRES_DSN")
+    postgres_dsn: str = Field(..., env="RIS_POSTGRES_DSN")
     
     # Redis
     redis_url: str = Field(default_factory=lambda: os.getenv("RIS_REDIS_URL"), env="RIS_REDIS_URL")

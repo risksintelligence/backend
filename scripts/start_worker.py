@@ -29,7 +29,7 @@ from app.core.config import get_settings
 from app.services.ingestion import ingest_local_series
 from app.services.training import train_all_models
 from app.services.transparency import add_transparency_log
-from app.db import SessionLocal
+from app.db import SessionLocal, Base, engine
 
 # Configure logging
 logging.basicConfig(
@@ -67,6 +67,16 @@ class RRIOWorker:
         except Exception as e:
             logger.error(f"Database connection failed: {e}")
             return False
+    
+    def ensure_database(self) -> None:
+        """Ensure database tables exist before starting worker."""
+        try:
+            logger.info("Ensuring database tables exist...")
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables verified/created successfully")
+        except Exception as exc:
+            logger.error(f"Database initialization failed: {exc}")
+            raise
     
     def run_ingestion_worker(self):
         """Run data ingestion worker."""
@@ -178,6 +188,9 @@ class RRIOWorker:
         """Main worker run loop."""
         logger.info(f"Starting RRIO worker in {self.worker_role} mode")
         logger.info(f"Database URL: {getattr(self.settings, 'database_url', 'Not configured')[:20]}...")
+        
+        # Ensure database tables exist
+        self.ensure_database()
         
         # Check database connection
         if not self.check_database_connection():
