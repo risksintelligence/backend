@@ -20,7 +20,7 @@ from app.api import monitoring as monitoring_router
 from app.api import analytics as analytics_router
 from app.api import community as community_router
 from app.api import communication as communication_router
-from app.db import SessionLocal
+from app.db import SessionLocal, Base, engine
 from app.models import ObservationModel
 from app.core.config import get_settings
 from app.core.security import require_analytics_rate_limit, require_ai_rate_limit, require_system_rate_limit
@@ -68,6 +68,15 @@ if settings.is_production:
         TrustedHostMiddleware,
         allowed_hosts=allowed_hosts
     )
+
+
+@app.on_event("startup")
+def ensure_database() -> None:
+    """Ensure database tables exist before serving requests."""
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        print(f"Database initialization failed: {exc}")
 
 
 @app.on_event("startup")
