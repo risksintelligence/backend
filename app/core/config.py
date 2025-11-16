@@ -3,53 +3,47 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field, validator
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     # Environment
-    environment: str = Field(default_factory=lambda: os.getenv("RIS_ENV", "production"), env="RIS_ENV")
+    environment: str = Field(..., alias="ris_env")
     
     # Database
-    postgres_dsn: str = Field(default_factory=lambda: os.getenv("RIS_POSTGRES_DSN"), env="RIS_POSTGRES_DSN")
+    postgres_dsn: str = Field(..., alias="ris_postgres_dsn")
     
     # Redis
-    redis_url: str = Field(default_factory=lambda: os.getenv("RIS_REDIS_URL"), env="RIS_REDIS_URL")
-    
-    @validator('postgres_dsn', 'redis_url')
-    def validate_required_fields(cls, v, field):
-        if not v:
-            raise ValueError(f'{field.name} is required and must be set via environment variable')
-        return v
+    redis_url: str = Field(..., alias="ris_redis_url")
     
     # Paths
     data_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[2] / "data")
     models_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[2] / "models")
     
     # Cache
-    cache_ttl_seconds: int = Field(900, env="RIS_CACHE_TTL")
+    cache_ttl_seconds: int = Field(900, alias="ris_cache_ttl")
     
     # Data Provider API Keys
-    fred_api_key: Optional[str] = Field(None, env="RIS_FRED_API_KEY")
-    eia_api_key: Optional[str] = Field(None, env="RIS_EIA_API_KEY")
-    census_api_key: Optional[str] = Field(None, env="RIS_CENSUS_API_KEY")
-    bea_api_key: Optional[str] = Field(None, env="RIS_BEA_API_KEY")
-    bls_api_key: Optional[str] = Field(None, env="RIS_BLS_API_KEY")
-    alpha_vantage_api_key: Optional[str] = Field(None, env="RIS_ALPHA_VANTAGE_API_KEY")
+    fred_api_key: Optional[str] = Field(None, alias="ris_fred_api_key")
+    eia_api_key: Optional[str] = Field(None, alias="ris_eia_api_key")
+    census_api_key: Optional[str] = Field(None, alias="ris_census_api_key")
+    bea_api_key: Optional[str] = Field(None, alias="ris_bea_api_key")
+    bls_api_key: Optional[str] = Field(None, alias="ris_bls_api_key")
+    alpha_vantage_api_key: Optional[str] = Field(None, alias="ris_alpha_vantage_api_key")
     
     # Security
-    reviewer_api_key: Optional[str] = Field(None, env="RIS_REVIEWER_API_KEY")
-    allowed_origins: str = Field("https://frontend-9t5o.onrender.com,https://backend-9t5o.onrender.com", env="RIS_ALLOWED_ORIGINS")
-    jwt_secret: Optional[str] = Field(None, env="RIS_JWT_SECRET")
+    reviewer_api_key: Optional[str] = Field(None, alias="ris_reviewer_api_key")
+    allowed_origins: str = Field("https://frontend-9t5o.onrender.com,https://backend-9t5o.onrender.com", alias="ris_allowed_origins")
+    jwt_secret: Optional[str] = Field(None, alias="ris_jwt_secret")
     
     # Auth (for future use)
-    auth_issuer: Optional[str] = Field(None, env="RIS_AUTH_ISSUER")
-    auth_audience: Optional[str] = Field(None, env="RIS_AUTH_AUDIENCE")
-    auth_jwks: Optional[str] = Field(None, env="RIS_AUTH_JWKS")
+    auth_issuer: Optional[str] = Field(None, alias="ris_auth_issuer")
+    auth_audience: Optional[str] = Field(None, alias="ris_auth_audience")
+    auth_jwks: Optional[str] = Field(None, alias="ris_auth_jwks")
     
     # Worker settings
-    worker_role: str = Field("ingestion", env="WORKER_ROLE")
+    worker_role: str = Field("ingestion", env="worker_role")
     
     @property 
     def database_url(self) -> str:
@@ -87,7 +81,8 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
-        "extra": "ignore"
+        "extra": "ignore",
+        "case_sensitive": False
     }
 
 
