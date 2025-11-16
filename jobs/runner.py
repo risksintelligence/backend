@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 
 def check_dependencies():
-    """Check required dependencies and log status. Don't fail hard in production."""
+    """Check required dependencies and exit gracefully if they're not yet installed."""
     required_packages = ['pydantic', 'fastapi', 'sqlalchemy', 'redis']
     missing = []
 
@@ -30,14 +30,17 @@ def check_dependencies():
 
     if missing:
         missing_list = ', '.join(missing)
-        print(f"⚠️  Some packages may not be importable: {missing_list}")
         print("ℹ️  This may be normal during Render's import phase")
-        # Don't exit - let the actual imports fail naturally if they're truly missing
-    else:
-        print("✅ All required packages available")
+        print(f"⚠️  Some packages may not be importable: {missing_list}")
+        print("   Exiting worker startup until dependencies are installed (pip install -r requirements.txt).")
+        return False
 
-# Check dependencies (but don't fail)
-check_dependencies()
+    print("✅ All required packages available")
+    return True
+
+# Abort early if dependencies aren't ready (Render will retry after build)
+if not check_dependencies():
+    sys.exit(0)
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))

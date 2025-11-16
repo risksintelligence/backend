@@ -63,11 +63,15 @@ app = FastAPI(
 )
 
 # Security middleware
+allowed_origins = [origin.strip() for origin in settings.allowed_origins.split(",")]
+if settings.is_development:
+    allowed_origins.extend(["http://localhost:3000", "http://127.0.0.1:3000"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins.split(","),
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With", "Accept"],
 )
 
@@ -107,17 +111,17 @@ if settings.is_production:
 
 
 @app.on_event("startup")
-def ensure_database() -> None:
-    """Ensure database tables exist before serving requests."""
+async def startup_event():
+    """Initialize database and load data cache on startup."""
+    # Ensure database tables exist
     try:
         Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully")
     except Exception as exc:
-        print(f"Database initialization failed: {exc}")
-
-
-@app.on_event("startup")
-async def load_data_cache() -> None:
-    """Load initial data cache with timeout protection."""
+        logger.error(f"Database initialization failed: {exc}")
+        # Continue startup even if DB init fails, as tables may already exist
+    
+    # Load initial data cache with timeout protection
     try:
         # Try to load from cache first, then ingest if needed
         from app.core.unified_cache import UnifiedCache
@@ -132,21 +136,21 @@ async def load_data_cache() -> None:
                 cached_count += 1
         
         if cached_count > 0:
-            print(f"Using {cached_count} cached series for startup")
+            logger.info(f"Using {cached_count} cached series for startup")
             app.state.observations = {}  # Will load from cache on demand
         else:
-            print("No cache found, attempting initial ingestion with timeout...")
+            logger.info("No cache found, attempting initial ingestion with timeout...")
             app.state.observations = await asyncio.wait_for(
                 asyncio.to_thread(ingest_local_series),
                 timeout=30  # 30 second timeout for startup
             )
-            print(f"Initial ingestion completed: {len(app.state.observations)} series")
+            logger.info(f"Initial ingestion completed: {len(app.state.observations)} series")
             
     except asyncio.TimeoutError:
-        print("Startup ingestion timed out, will load from cache on demand")
+        logger.warning("Startup ingestion timed out, will load from cache on demand")
         app.state.observations = {}
     except Exception as e:
-        print(f"Startup ingestion failed: {e}, will load from cache on demand")
+        logger.error(f"Startup ingestion failed: {e}, will load from cache on demand")
         app.state.observations = {}
 
 
@@ -187,7 +191,12 @@ def _get_observations() -> dict:
 @app.get("/health")
 def health_check() -> Dict[str, str]:
     """Basic health check endpoint."""
-    return {"status": "ok", "checked_at": datetime.utcnow().isoformat() + "Z"}
+    return {
+        "status": "ok", 
+        "checked_at": datetime.utcnow().isoformat() + "Z",
+        "version": "0.4.0",
+        "environment": settings.environment
+    }
 
 @app.get("/health/detailed")
 async def detailed_health_check():

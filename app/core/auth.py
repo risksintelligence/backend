@@ -22,13 +22,28 @@ def verify_token(token: str) -> Optional[dict]:
     """Verify JWT token and return payload."""
     try:
         jwt_config = get_jwt_settings()
-        payload = jwt.decode(
-            token,
-            jwt_config['secret'],
-            algorithms=[jwt_config['algorithm']],
-            issuer=jwt_config['issuer'],
-            audience=jwt_config['audience']
-        )
+        
+        # Check if JWT secret is configured
+        if not jwt_config['secret']:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="JWT secret not configured"
+            )
+        
+        # Decode with optional issuer/audience validation
+        decode_kwargs = {
+            'token': token,
+            'key': jwt_config['secret'],
+            'algorithms': [jwt_config['algorithm']]
+        }
+        
+        # Only add issuer/audience if they are configured
+        if jwt_config['issuer']:
+            decode_kwargs['issuer'] = jwt_config['issuer']
+        if jwt_config['audience']:
+            decode_kwargs['audience'] = jwt_config['audience']
+            
+        payload = jwt.decode(**decode_kwargs)
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(

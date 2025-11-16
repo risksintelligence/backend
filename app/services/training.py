@@ -12,6 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, mean_squared_error
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.db import SessionLocal
 from app.models import ObservationModel, ModelMetadataModel
@@ -196,49 +197,61 @@ def save_model(model: Any, filename: str) -> None:
 
 
 def save_model_metadata(model_name: str, model_type: str, metrics: Dict[str, Any]) -> None:
-    """Save or update model metadata in database."""
+    """Upsert model metadata safely (handles concurrent workers)."""
+    db: Session | None = None
     try:
-        db: Session = SessionLocal()
+        db = SessionLocal()
         now = datetime.utcnow()
-        training_start = now - timedelta(days=5*365)  # 5 year training window
-        
-        # Check if model already exists
-        existing = db.query(ModelMetadataModel).filter(
+        training_start = now - timedelta(days=5 * 365)
+
+        metadata = db.query(ModelMetadataModel).filter(
             ModelMetadataModel.model_name == model_name
         ).first()
-        
-        if existing:
-            # Update existing model metadata
-            existing.version = "1.0"
-            existing.trained_at = now
-            existing.training_window_start = training_start
-            existing.training_window_end = now
-            existing.performance_metrics = {"model_type": model_type, **metrics}
-            existing.is_active = True
-            existing.file_path = f"models/{model_name}.pkl"
-            logger.info(f"Updated existing model metadata for {model_name}")
-        else:
-            # Create new model metadata
+
+        if metadata is None:
             metadata = ModelMetadataModel(
                 model_name=model_name,
-                version="1.0",
-                trained_at=now,
-                training_window_start=training_start,
-                training_window_end=now,
-                performance_metrics={"model_type": model_type, **metrics},
-                is_active=True,
-                file_path=f"models/{model_name}.pkl",
-                created_at=now
+                created_at=now,
             )
             db.add(metadata)
-            logger.info(f"Created new model metadata for {model_name}")
-        
+
+        metadata.version = "1.0"
+        metadata.trained_at = now
+        metadata.training_window_start = training_start
+        metadata.training_window_end = now
+        metadata.performance_metrics = {"model_type": model_type, **metrics}
+        metadata.is_active = True
+        metadata.file_path = f"models/{model_name}.pkl"
+
         db.commit()
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to save model metadata: {e}")
+        logger.info(f"Saved model metadata for {model_name}")
+    except IntegrityError:
         if db:
             db.rollback()
+            now = datetime.utcnow()
+            training_start = now - timedelta(days=5 * 365)
+            db.query(ModelMetadataModel).filter(
+                ModelMetadataModel.model_name == model_name
+            ).update(
+                {
+                    ModelMetadataModel.version: "1.0",
+                    ModelMetadataModel.trained_at: now,
+                    ModelMetadataModel.training_window_start: training_start,
+                    ModelMetadataModel.training_window_end: now,
+                    ModelMetadataModel.performance_metrics: {"model_type": model_type, **metrics},
+                    ModelMetadataModel.is_active: True,
+                    ModelMetadataModel.file_path: f"models/{model_name}.pkl",
+                },
+                synchronize_session=False,
+            )
+            db.commit()
+            logger.info(f"Upserted model metadata after conflict for {model_name}")
+    except Exception as e:
+        if db:
+            db.rollback()
+        logger.error(f"Failed to save model metadata: {e}")
+    finally:
+        if db:
             db.close()
 
 
