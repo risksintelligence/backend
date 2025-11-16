@@ -1,47 +1,36 @@
 #!/usr/bin/env python3
 """
-Simple Background Worker Runner for Render
+Render Background Worker Runner - Build-Safe Mode
 
-This module provides a simplified entry point for background workers that 
-handles Render deployment timing issues gracefully.
+This runner exits immediately during Render's build phase to avoid dependency issues.
+Workers will be started via web service cron jobs after deployment completes.
 """
 
+import os
 import sys
 import time
-import subprocess
-from pathlib import Path
 
 print("🚀 Starting RRIO background worker...")
 
-# Check if critical dependencies are available
-def check_dependencies():
-    try:
-        import pydantic
-        import fastapi
-        import sqlalchemy
-        return True
-    except ImportError as e:
-        print(f"⚠️ Missing dependencies: {e}")
-        return False
+# Check if we're in Render's build environment
+is_render_build = (
+    os.getenv('RENDER_SERVICE_TYPE') == 'background_worker' or
+    os.getenv('RENDER') == 'true' or
+    not os.path.exists('/app')  # App directory not ready yet
+)
 
-# Wait for dependencies to be available (Render build completion)
-max_wait = 300  # 5 minutes
-wait_interval = 15
-elapsed = 0
-
-while elapsed < max_wait:
-    if check_dependencies():
-        print("✅ Dependencies available")
-        break
-    print(f"⏳ Waiting for dependencies... ({elapsed}s/{max_wait}s)")
-    time.sleep(wait_interval)
-    elapsed += wait_interval
-else:
-    print("❌ Dependencies not available after 5 minutes")
-    print("🔄 Exiting for Render to retry...")
+if is_render_build:
+    print("🏗️ Detected Render build environment")
+    print("⏭️ Skipping worker startup to avoid dependency conflicts")
+    print("📅 Workers will be started via scheduled tasks after deployment")
+    print("✨ Exiting successfully")
     sys.exit(0)
 
+# Only proceed if not in build environment (local development)
+print("🔧 Local development mode - proceeding with worker startup")
+
 # Add scripts directory to path
+from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 try:
@@ -49,9 +38,7 @@ try:
     print("✅ Worker module imported successfully")
 except ImportError as e:
     print(f"❌ Worker startup failed: {e}")
-    # Don't exit with error - let Render handle the retry
-    print("🔄 Exiting for Render to retry...")
-    sys.exit(0)
+    sys.exit(1)
 
 def main() -> None:
     """Main entry point for background worker jobs."""

@@ -35,24 +35,82 @@ from app.core.security import require_analytics_rate_limit, require_ai_rate_limi
 from app.core.auth import require_observatory_read, require_ai_read, optional_auth
 from sqlalchemy import desc
 
-async def background_training_task():
-    """Background task to train models after deployment completes."""
+async def background_worker_tasks():
+    """Background tasks to handle ingestion and training after deployment."""
     try:
         # Wait for the web service to fully start
         await asyncio.sleep(60)  # 1 minute delay
-        logger.info("Starting background model training after deployment")
+        logger.info("Starting background worker tasks after deployment")
         
-        # Run training in background thread
+        # Start ingestion task
+        ingestion_task = asyncio.create_task(background_ingestion_loop())
+        
+        # Start training task
+        training_task = asyncio.create_task(background_training_task())
+        
+        # Let them run concurrently
+        await asyncio.gather(ingestion_task, training_task, return_exceptions=True)
+        
+    except Exception as e:
+        logger.error(f"Background worker tasks failed: {e}")
+
+async def background_ingestion_loop():
+    """Continuous ingestion loop."""
+    while True:
+        try:
+            logger.info("Running background data ingestion")
+            
+            # Run ingestion in background thread
+            observations = await asyncio.to_thread(ingest_local_series)
+            total_obs = sum(len(series_data) for series_data in observations.values())
+            logger.info(f"Background ingestion: {total_obs} observations across {len(observations)} series")
+            
+            # Log transparency event
+            from app.services.transparency import add_transparency_log
+            add_transparency_log(
+                event_type="data_update",
+                description=f"Background data ingestion: {total_obs} observations",
+                metadata={"series_count": len(observations), "observation_count": total_obs}
+            )
+            
+            # Wait 1 hour before next ingestion
+            await asyncio.sleep(3600)
+            
+        except Exception as e:
+            logger.error(f"Background ingestion failed: {e}")
+            # Retry after 10 minutes on error
+            await asyncio.sleep(600)
+
+async def background_training_task():
+    """Periodic model training task."""
+    try:
+        # Initial training after startup
+        logger.info("Starting initial background model training")
         await asyncio.to_thread(train_all_models)
-        logger.info("Background model training completed successfully")
+        logger.info("Initial background model training completed")
         
         # Log transparency event
         from app.services.transparency import add_transparency_log
         add_transparency_log(
             event_type="model_retrain",
-            description="Background model training completed after deployment",
+            description="Initial background model training completed",
             metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
         )
+        
+        # Continue with daily retraining
+        while True:
+            await asyncio.sleep(86400)  # 24 hours
+            
+            logger.info("Starting scheduled model retraining")
+            await asyncio.to_thread(train_all_models)
+            logger.info("Scheduled model retraining completed")
+            
+            add_transparency_log(
+                event_type="model_retrain",
+                description="Scheduled model retraining completed",
+                metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
+            )
+            
     except Exception as e:
         logger.error(f"Background training failed: {e}")
 
@@ -143,9 +201,9 @@ async def startup_event():
         logger.error(f"Database initialization failed: {exc}")
         # Continue startup even if DB init fails, as tables may already exist
     
-    # Schedule background training for deployment mode
+    # Schedule background worker tasks for Render web service
     if os.getenv('RENDER_SERVICE_TYPE') == 'web':
-        asyncio.create_task(background_training_task())
+        asyncio.create_task(background_worker_tasks())
     
     # Load initial data cache with timeout protection
     try:
