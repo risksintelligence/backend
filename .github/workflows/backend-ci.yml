@@ -51,7 +51,8 @@ jobs:
           
       - name: Set up test environment
         run: |
-          echo "RIS_POSTGRES_DSN=postgresql://postgres:test_password@localhost:5432/test_rrio" > .env
+          echo "RIS_ENV=production" > .env
+          echo "RIS_POSTGRES_DSN=postgresql://postgres:test_password@localhost:5432/test_rrio" >> .env
           echo "RIS_REDIS_URL=redis://localhost:6379/0" >> .env
           echo "RIS_FRED_API_KEY=test_key" >> .env
           
