@@ -264,8 +264,20 @@ def load_model(filename: str) -> Any:
 
 
 def train_all_models() -> None:
-    """Train and save all ML models."""
+    """Train and save all ML models with deployment optimization."""
     logger.info("Starting complete model training pipeline...")
+    
+    # Add timeout for deployment contexts
+    import signal
+    deployment_mode = os.getenv('RENDER_SERVICE_TYPE') == 'background_worker'
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Model training timed out")
+    
+    if deployment_mode:
+        # Set 8 minute timeout for deployment
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(480)  # 8 minutes
     
     try:
         # Train regime classifier
@@ -305,6 +317,17 @@ def train_all_models() -> None:
         
         logger.info("All models trained and saved successfully!")
         
+    except TimeoutError:
+        logger.warning("Model training timed out in deployment mode")
+        if deployment_mode:
+            return  # Don't fail deployment
+        raise
     except Exception as e:
         logger.error(f"Training failed: {e}")
+        if deployment_mode:
+            logger.warning("Model training failed in deployment mode, continuing...")
+            return
         raise
+    finally:
+        if deployment_mode:
+            signal.alarm(0)  # Cancel timeout

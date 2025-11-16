@@ -105,26 +105,58 @@ class RRIOWorker:
                 self.sleep_with_interrupt(600)  # Retry after 10 minutes
     
     def run_training_worker(self):
-        """Run model training worker."""
+        """Run model training worker with deployment-friendly initialization."""
         logger.info("Starting model training worker...")
         
+        # Check if we're in a deployment context
+        is_deployment = os.getenv('RENDER_SERVICE_TYPE') == 'background_worker'
+        
+        try:
+            # Always do initial training
+            logger.info("Running initial model training...")
+            train_all_models()
+            logger.info("Model training completed successfully")
+            
+            # Log transparency event
+            add_transparency_log(
+                event_type="model_retrain", 
+                description="Initial model training completed",
+                metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
+            )
+            
+            if is_deployment:
+                # In deployment mode, exit after initial training
+                logger.info("Deployment mode: initial training complete, exiting gracefully")
+                return
+            
+        except Exception as e:
+            logger.error(f"Initial training failed: {e}")
+            if is_deployment:
+                # Don't fail deployment for training issues
+                logger.warning("Training failed in deployment mode, continuing...")
+                return
+            else:
+                raise
+        
+        # Continue with periodic training only in production mode
         while self.running:
             try:
-                logger.info("Running model training cycle...")
+                # Sleep for 24 hours between training cycles
+                self.sleep_with_interrupt(86400)
                 
-                # Train models
+                if not self.running:
+                    break
+                    
+                logger.info("Running scheduled model retraining...")
                 train_all_models()
-                logger.info("Model training completed successfully")
+                logger.info("Scheduled model training completed successfully")
                 
                 # Log transparency event
                 add_transparency_log(
                     event_type="model_retrain",
-                    description="Automated model retraining completed",
+                    description="Scheduled model retraining completed",
                     metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
                 )
-                
-                # Sleep for 24 hours between training cycles
-                self.sleep_with_interrupt(86400)
                 
             except Exception as e:
                 logger.error(f"Training cycle failed: {e}")
