@@ -112,11 +112,10 @@ class RRIOWorker:
         is_deployment = os.getenv('RENDER_SERVICE_TYPE') == 'background_worker'
         
         if is_deployment:
-            # In deployment mode, skip immediate training to avoid timeout
-            logger.info("Deployment mode: skipping immediate training to avoid timeout")
-            logger.info("Training will start after deployment completes")
-            # Brief delay then schedule training
-            self.sleep_with_interrupt(30)
+            # In deployment mode, exit immediately to avoid timeout
+            logger.info("Deployment mode: exiting immediately to avoid pre-deploy timeout")
+            logger.info("Training will be triggered by first API request after deployment")
+            return
         else:
             # In local/production mode, do immediate training
             try:

@@ -22,6 +22,7 @@ from app.ml.regime import classify_regime
 from app.ml.forecast import forecast_delta
 from app.ml.anomaly import detect_anomalies
 from app.services.transparency import get_data_freshness, get_update_log
+from app.services.training import train_all_models
 from app.api import submissions as submissions_router
 from app.api import monitoring as monitoring_router
 from app.api import analytics as analytics_router
@@ -33,6 +34,27 @@ from app.core.config import get_settings
 from app.core.security import require_analytics_rate_limit, require_ai_rate_limit, require_system_rate_limit
 from app.core.auth import require_observatory_read, require_ai_read, optional_auth
 from sqlalchemy import desc
+
+async def background_training_task():
+    """Background task to train models after deployment completes."""
+    try:
+        # Wait for the web service to fully start
+        await asyncio.sleep(60)  # 1 minute delay
+        logger.info("Starting background model training after deployment")
+        
+        # Run training in background thread
+        await asyncio.to_thread(train_all_models)
+        logger.info("Background model training completed successfully")
+        
+        # Log transparency event
+        from app.services.transparency import add_transparency_log
+        add_transparency_log(
+            event_type="model_retrain",
+            description="Background model training completed after deployment",
+            metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
+        )
+    except Exception as e:
+        logger.error(f"Background training failed: {e}")
 
 def with_timeout(seconds: int):
     """Decorator to add timeout to operations."""
@@ -120,6 +142,10 @@ async def startup_event():
     except Exception as exc:
         logger.error(f"Database initialization failed: {exc}")
         # Continue startup even if DB init fails, as tables may already exist
+    
+    # Schedule background training for deployment mode
+    if os.getenv('RENDER_SERVICE_TYPE') == 'web':
+        asyncio.create_task(background_training_task())
     
     # Load initial data cache with timeout protection
     try:
