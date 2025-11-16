@@ -1,1 +1,1 @@
-{"data": {"timestamp": "2025-10-01T00:00:00", "value": "1.68"}, "metadata": {"cached_at": "2025-11-16T06:31:55.151037", "source": "fred", "source_url": "https://api.fred.com/BAA10YM", "checksum": "8eb1db5a42f4c60f", "derivation_flag": "raw", "soft_ttl": 3600, "hard_ttl": 14400}}
+{"data": {"timestamp": "2025-10-01T00:00:00", "value": "1.68"}, "metadata": {"cached_at": "2025-11-16T14:18:17.790900", "source": "fred", "source_url": "https://api.fred.com/BAA10YM", "checksum": "8eb1db5a42f4c60f", "derivation_flag": "raw", "soft_ttl": 3600, "hard_ttl": 14400}}
