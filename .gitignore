@@ -45,13 +45,20 @@ env/
 secrets.env
 *.env
 
+# Cache directories
+cache/
+l3_cache/
+
+# Data directories (contain potentially sensitive API data)
+data/
+
 # Database
 *.db
 *.sqlite
 *.sqlite3
 
-# ML Models (comment out if you want to commit trained models)
-# models/*.pkl
+# ML Models
+models/*.pkl
 
 # Logs
 *.log

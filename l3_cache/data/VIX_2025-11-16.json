@@ -1,1 +1,0 @@
-{"data": {"timestamp": "2025-11-13T00:00:00", "value": "20.0"}, "metadata": {"cached_at": "2025-11-16T01:57:17.805642", "source": "fred", "source_url": "https://api.fred.com/VIXCLS", "checksum": "50945d14c01de5fa", "derivation_flag": "raw", "soft_ttl": 900, "hard_ttl": 3600}}
