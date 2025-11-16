@@ -1,12 +1,19 @@
 import os
+import logging
 from datetime import datetime
 from typing import Dict
 import asyncio
 from functools import wraps
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+
+# Setup logging first
+from app.core.logging_config import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 from app.services.ingestion import ingest_local_series
 from app.services.geri import compute_griscore, compute_geri_score
@@ -49,7 +56,10 @@ settings = get_settings()
 app = FastAPI(
     title="RRIO GRII API", 
     version="0.4.0",
-    description="RiskSX Resilience Intelligence Observatory - Global Economic Resilience Index"
+    description="RiskSX Resilience Intelligence Observatory - Global Economic Resilience Index",
+    # Production optimizations
+    docs_url="/docs" if not settings.is_production else None,
+    redoc_url="/redoc" if not settings.is_production else None,
 )
 
 # Security middleware
@@ -58,8 +68,34 @@ app.add_middleware(
     allow_origins=settings.allowed_origins.split(","),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "Accept"],
 )
+
+# Response compression middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Request size and timeout middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add security headers and request limits."""
+    # Check request size (16MB limit)
+    if hasattr(request, 'headers') and 'content-length' in request.headers:
+        content_length = int(request.headers['content-length'])
+        if content_length > 16_000_000:  # 16MB
+            raise HTTPException(status_code=413, detail="Request too large")
+    
+    response = await call_next(request)
+    
+    # Add security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    if settings.is_production:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    return response
 
 # Trusted host middleware for production
 if settings.is_production:
@@ -150,7 +186,52 @@ def _get_observations() -> dict:
 
 @app.get("/health")
 def health_check() -> Dict[str, str]:
+    """Basic health check endpoint."""
     return {"status": "ok", "checked_at": datetime.utcnow().isoformat() + "Z"}
+
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """Detailed health check with dependencies."""
+    from sqlalchemy import text
+    health_status = {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    checks = {}
+    
+    # Check database connection
+    try:
+        from app.db import engine
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        checks["database"] = {"status": "healthy"}
+    except Exception as e:
+        checks["database"] = {"status": "unhealthy", "error": str(e)}
+        health_status["status"] = "unhealthy"
+    
+    # Check Redis connection
+    try:
+        from app.core.cache import RedisCache
+        cache = RedisCache("health")
+        if cache.available:
+            cache.client.ping()
+            checks["redis"] = {"status": "healthy"}
+        else:
+            checks["redis"] = {"status": "unavailable"}
+    except Exception as e:
+        checks["redis"] = {"status": "unhealthy", "error": str(e)}
+        health_status["status"] = "unhealthy"
+    
+    # Check data freshness
+    try:
+        from app.services.geri import compute_geri_score
+        geri_data = compute_geri_score()
+        if geri_data:
+            checks["data"] = {"status": "healthy", "last_update": geri_data.get("last_updated")}
+        else:
+            checks["data"] = {"status": "stale"}
+    except Exception as e:
+        checks["data"] = {"status": "unhealthy", "error": str(e)}
+    
+    health_status["checks"] = checks
+    return health_status
 
 
 @app.get("/api/v1/analytics/geri")

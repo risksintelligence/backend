@@ -15,10 +15,22 @@ class RedisCache:
         if not url:
             raise RuntimeError("Redis URL missing; set RIS_REDIS_URL environment variable")
         try:
-            self.client = redis.from_url(url)
+            # Production Redis configuration with connection pooling
+            self.client = redis.from_url(
+                url,
+                # Connection pooling settings
+                connection_pool_kwargs={
+                    "max_connections": 20,
+                    "retry_on_timeout": True,
+                    "socket_keepalive": True,
+                    "socket_keepalive_options": {},
+                    "health_check_interval": 30,
+                }
+            )
             self.client.ping()  # Test connection
             self.available = True
-        except Exception:
+        except Exception as e:
+            logging.getLogger(__name__).error(f"Redis connection failed: {e}")
             self.client = None
             self.available = False
         self.namespace = namespace

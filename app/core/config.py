@@ -3,19 +3,25 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     # Environment
-    environment: str = Field(..., env="RIS_ENV")
+    environment: str = Field(default_factory=lambda: os.getenv("RIS_ENV", "production"), env="RIS_ENV")
     
     # Database
-    postgres_dsn: str = Field(..., env="RIS_POSTGRES_DSN")
+    postgres_dsn: str = Field(default_factory=lambda: os.getenv("RIS_POSTGRES_DSN"), env="RIS_POSTGRES_DSN")
     
     # Redis
-    redis_url: str = Field(..., env="RIS_REDIS_URL")
+    redis_url: str = Field(default_factory=lambda: os.getenv("RIS_REDIS_URL"), env="RIS_REDIS_URL")
+    
+    @validator('postgres_dsn', 'redis_url')
+    def validate_required_fields(cls, v, field):
+        if not v:
+            raise ValueError(f'{field.name} is required and must be set via environment variable')
+        return v
     
     # Paths
     data_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[2] / "data")
@@ -59,6 +65,24 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development environment."""
         return self.environment in ("development", "dev", "local")
+    
+    def validate_production_config(self) -> None:
+        """Validate that all required production settings are configured."""
+        if self.is_production:
+            required_fields = {
+                "postgres_dsn": self.postgres_dsn,
+                "redis_url": self.redis_url,
+                "fred_api_key": self.fred_api_key,
+                "reviewer_api_key": self.reviewer_api_key,
+                "jwt_secret": self.jwt_secret,
+            }
+            
+            missing_fields = [field for field, value in required_fields.items() if not value]
+            
+            if missing_fields:
+                raise RuntimeError(
+                    f"Production environment missing required configuration: {', '.join(missing_fields)}"
+                )
 
     model_config = {
         "env_file": ".env",
@@ -69,4 +93,6 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    settings.validate_production_config()
+    return settings

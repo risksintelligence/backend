@@ -25,3 +25,6 @@ redis==5.0.1
 # Additional data providers
 requests==2.31.0
 python-dateutil==2.8.2
+
+# Production logging
+python-json-logger==2.0.7
