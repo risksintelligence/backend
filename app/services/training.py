@@ -196,29 +196,50 @@ def save_model(model: Any, filename: str) -> None:
 
 
 def save_model_metadata(model_name: str, model_type: str, metrics: Dict[str, Any]) -> None:
-    """Save model metadata to database."""
+    """Save or update model metadata in database."""
     try:
         db: Session = SessionLocal()
         now = datetime.utcnow()
         training_start = now - timedelta(days=5*365)  # 5 year training window
         
-        metadata = ModelMetadataModel(
-            model_name=model_name,
-            version="1.0",
-            trained_at=now,
-            training_window_start=training_start,
-            training_window_end=now,
-            performance_metrics={"model_type": model_type, **metrics},
-            is_active=True,
-            file_path=f"models/{model_name}.pkl",
-            created_at=now
-        )
-        db.add(metadata)
+        # Check if model already exists
+        existing = db.query(ModelMetadataModel).filter(
+            ModelMetadataModel.model_name == model_name
+        ).first()
+        
+        if existing:
+            # Update existing model metadata
+            existing.version = "1.0"
+            existing.trained_at = now
+            existing.training_window_start = training_start
+            existing.training_window_end = now
+            existing.performance_metrics = {"model_type": model_type, **metrics}
+            existing.is_active = True
+            existing.file_path = f"models/{model_name}.pkl"
+            logger.info(f"Updated existing model metadata for {model_name}")
+        else:
+            # Create new model metadata
+            metadata = ModelMetadataModel(
+                model_name=model_name,
+                version="1.0",
+                trained_at=now,
+                training_window_start=training_start,
+                training_window_end=now,
+                performance_metrics={"model_type": model_type, **metrics},
+                is_active=True,
+                file_path=f"models/{model_name}.pkl",
+                created_at=now
+            )
+            db.add(metadata)
+            logger.info(f"Created new model metadata for {model_name}")
+        
         db.commit()
         db.close()
-        logger.info(f"Model metadata saved for {model_name}")
     except Exception as e:
         logger.error(f"Failed to save model metadata: {e}")
+        if db:
+            db.rollback()
+            db.close()
 
 
 def load_model(filename: str) -> Any:

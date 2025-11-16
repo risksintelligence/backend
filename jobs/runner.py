@@ -17,6 +17,33 @@ import sys
 import os
 from pathlib import Path
 
+def check_dependencies():
+    """Check that required dependencies are installed."""
+    required_packages = ['pydantic', 'fastapi', 'sqlalchemy', 'redis']
+    missing_packages = []
+    
+    for package in required_packages:
+        try:
+            __import__(package)
+        except ImportError:
+            missing_packages.append(package)
+    
+    if missing_packages:
+        print(f"❌ Missing required packages: {', '.join(missing_packages)}")
+        print("🔧 Installing missing packages...")
+        
+        import subprocess
+        for package in missing_packages:
+            try:
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+                print(f"✅ Installed {package}")
+            except subprocess.CalledProcessError as e:
+                print(f"❌ Failed to install {package}: {e}")
+                sys.exit(1)
+
+# Check dependencies before importing worker code
+check_dependencies()
+
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
