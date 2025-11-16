@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 
 def check_dependencies():
-    """Check required dependencies and exit gracefully if they're not yet installed."""
+    """Check required dependencies and log status. Don't fail hard in production."""
     required_packages = ['pydantic', 'fastapi', 'sqlalchemy', 'redis']
     missing = []
 
@@ -30,22 +30,38 @@ def check_dependencies():
 
     if missing:
         missing_list = ', '.join(missing)
-        print("ℹ️  This may be normal during Render's import phase")
+        print("ℹ️  This may be normal during Render's build phase")
         print(f"⚠️  Some packages may not be importable: {missing_list}")
-        print("   Exiting worker startup until dependencies are installed (pip install -r requirements.txt).")
+        print("   Worker will attempt to continue - imports will fail if truly missing")
         return False
 
     print("✅ All required packages available")
     return True
 
-# Abort early if dependencies aren't ready (Render will retry after build)
-if not check_dependencies():
-    sys.exit(0)
+# Log dependency status but continue (let actual imports fail if needed)
+check_dependencies()
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from start_worker import main as run_production_worker
+# Try to import worker with retry logic for Render build delays
+import time
+max_retries = 3
+retry_delay = 5
+
+for attempt in range(max_retries):
+    try:
+        from start_worker import main as run_production_worker
+        break
+    except ImportError as e:
+        if attempt < max_retries - 1:
+            print(f"Import failed (attempt {attempt + 1}): {e}")
+            print(f"Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+        else:
+            print(f"Final import attempt failed: {e}")
+            print("Worker startup failed - dependencies not available")
+            sys.exit(1)
 
 def main() -> None:
     """Main entry point for background worker jobs."""
