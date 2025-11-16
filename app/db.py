@@ -38,10 +38,8 @@ def create_production_engine():
             # Connection timeout settings
             connect_args={
                 "connect_timeout": 10,      # Connection timeout (PostgreSQL)
-                "command_timeout": 30,      # Query timeout (PostgreSQL)
-                "server_settings": {
-                    "application_name": "rrio_backend",
-                }
+                "options": "-c statement_timeout=30000",  # Query timeout in ms
+                "application_name": "rrio_backend",
             } if settings.database_url.startswith("postgresql") else {}
         )
 
