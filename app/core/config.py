@@ -3,11 +3,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-try:
-    from pydantic_settings import BaseSettings
-except ImportError:
-    from pydantic import BaseSettings
 from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -62,9 +59,10 @@ class Settings(BaseSettings):
         """Check if running in development environment."""
         return self.environment in ("development", "dev", "local")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8"
+    }
 
 
 @lru_cache()
