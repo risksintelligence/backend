@@ -44,24 +44,43 @@ check_dependencies()
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-# Try to import worker with retry logic for Render build delays
+# Wait for build to complete on Render
 import time
-max_retries = 3
-retry_delay = 5
+import subprocess
 
-for attempt in range(max_retries):
-    try:
-        from start_worker import main as run_production_worker
-        break
-    except ImportError as e:
-        if attempt < max_retries - 1:
-            print(f"Import failed (attempt {attempt + 1}): {e}")
-            print(f"Retrying in {retry_delay} seconds...")
-            time.sleep(retry_delay)
-        else:
-            print(f"Final import attempt failed: {e}")
-            print("Worker startup failed - dependencies not available")
-            sys.exit(1)
+def wait_for_dependencies():
+    """Wait for dependencies to be available, with exponential backoff."""
+    max_wait_time = 300  # 5 minutes max
+    wait_time = 10  # Start with 10 seconds
+    total_waited = 0
+    
+    while total_waited < max_wait_time:
+        try:
+            # Try to import a key dependency
+            import pydantic
+            print("✅ Dependencies are ready")
+            return True
+        except ImportError:
+            print(f"⏳ Waiting {wait_time}s for build to complete... ({total_waited}s/{max_wait_time}s)")
+            time.sleep(wait_time)
+            total_waited += wait_time
+            wait_time = min(wait_time * 1.5, 60)  # Exponential backoff, max 60s
+    
+    print(f"❌ Timeout waiting for dependencies after {max_wait_time}s")
+    return False
+
+# Wait for dependencies to be ready
+if not wait_for_dependencies():
+    print("Exiting - dependencies not available after waiting")
+    sys.exit(1)
+
+# Now try to import the worker
+try:
+    from start_worker import main as run_production_worker
+    print("✅ Worker module imported successfully")
+except ImportError as e:
+    print(f"❌ Failed to import worker: {e}")
+    sys.exit(1)
 
 def main() -> None:
     """Main entry point for background worker jobs."""
