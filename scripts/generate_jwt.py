@@ -48,7 +48,9 @@ def generate_token(scopes: list = None, roles: list = None, expires_in_hours: in
         payload['roles'] = roles
     
     # Get JWT secret
-    jwt_secret = os.getenv('RIS_JWT_SECRET', 'development-secret')
+    jwt_secret = os.getenv('RIS_JWT_SECRET')
+    if not jwt_secret:
+        raise RuntimeError("JWT secret missing; set RIS_JWT_SECRET environment variable")
     
     # Generate token
     token = jwt.encode(payload, jwt_secret, algorithm='HS256')
@@ -102,7 +104,7 @@ def main():
             print(f"  {key}: {value}")
     print()
     print("Usage:")
-    print(f"  curl -H 'Authorization: Bearer {token}' http://localhost:8000/api/v1/analytics/geri")
+    print(f"  curl -H 'Authorization: Bearer {token}' https://backend-9t5o.onrender.com/api/v1/analytics/geri")
     print()
     print("Test in browser console:")
     print(f"  localStorage.setItem('rrio_token', '{token}');")

@@ -9,13 +9,13 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Environment
-    environment: str = Field("local", env="RIS_ENV")
+    environment: str = Field("production", env="RIS_ENV")
     
     # Database
     postgres_dsn: str = Field("sqlite:///./test.db", env="RIS_POSTGRES_DSN")
     
     # Redis
-    redis_url: str = Field("redis://localhost:6379/0", env="RIS_REDIS_URL")
+    redis_url: str = Field(default_factory=lambda: os.getenv("RIS_REDIS_URL"), env="RIS_REDIS_URL")
     
     # Paths
     data_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[2] / "data")
@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     
     # Security
     reviewer_api_key: Optional[str] = Field(None, env="RIS_REVIEWER_API_KEY")
-    allowed_origins: str = Field("http://localhost:3000", env="RIS_ALLOWED_ORIGINS")
+    allowed_origins: str = Field("https://frontend-9t5o.onrender.com,https://backend-9t5o.onrender.com", env="RIS_ALLOWED_ORIGINS")
+    jwt_secret: Optional[str] = Field(None, env="RIS_JWT_SECRET")
     
     # Auth (for future use)
     auth_issuer: Optional[str] = Field(None, env="RIS_AUTH_ISSUER")

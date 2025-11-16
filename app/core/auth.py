@@ -12,7 +12,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 def get_jwt_settings():
     """Get JWT configuration from settings."""
     return {
-        'secret': os.getenv('RIS_JWT_SECRET', 'development-secret'),
+        'secret': os.getenv('RIS_JWT_SECRET'),
         'algorithm': 'HS256',
         'issuer': settings.auth_issuer,
         'audience': settings.auth_audience

@@ -11,7 +11,9 @@ class RedisCache:
     """L1 Redis cache with TTL management and stale-while-revalidate support."""
     
     def __init__(self, namespace: str) -> None:
-        url = os.getenv('RIS_REDIS_URL', 'redis://localhost:6379/0')
+        url = os.getenv('RIS_REDIS_URL')
+        if not url:
+            raise RuntimeError("Redis URL missing; set RIS_REDIS_URL environment variable")
         try:
             self.client = redis.from_url(url)
             self.client.ping()  # Test connection

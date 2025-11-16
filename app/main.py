@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from typing import Dict
 import asyncio
@@ -62,9 +63,10 @@ app.add_middleware(
 
 # Trusted host middleware for production
 if settings.is_production:
+    allowed_hosts = os.getenv('RIS_ALLOWED_HOSTS', '*.rrio.dev,*.risksx.com').split(',')
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["*.rrio.dev", "*.risksx.com", "localhost"]
+        allowed_hosts=allowed_hosts
     )
 
 

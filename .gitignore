@@ -42,6 +42,8 @@ env/
 .env.development.local
 .env.test.local
 .env.production.local
+secrets.env
+*.env
 
 # Database
 *.db
@@ -54,6 +56,7 @@ env/
 # Logs
 *.log
 logs/
+background_refresh.log
 
 # OS
 .DS_Store

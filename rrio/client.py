@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import httpx
 
-BASE_URL = os.getenv("RRIO_API_BASE", "http://localhost:10000/api/v1")
+BASE_URL = os.getenv("RRIO_API_BASE", "https://backend-9t5o.onrender.com/api/v1")
 API_KEY = os.getenv("RRIO_API_KEY")
 
 

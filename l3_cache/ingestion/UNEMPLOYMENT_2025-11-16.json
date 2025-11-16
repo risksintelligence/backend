@@ -1,1 +1,1 @@
-{"data": {"timestamp": "2025-08-01T00:00:00", "value": "4.3"}, "metadata": {"cached_at": "2025-11-16T02:45:15.895032", "source": "bls", "source_url": "https://api.bls.com/UNEMPLOYMENT", "checksum": "5c44336ea4194a38", "derivation_flag": "raw", "soft_ttl": 86400, "hard_ttl": 2592000}}
+{"data": {"timestamp": "2025-08-01T00:00:00", "value": "4.3"}, "metadata": {"cached_at": "2025-11-16T04:03:19.377828", "source": "bls", "source_url": "https://api.bls.com/UNEMPLOYMENT", "checksum": "5c44336ea4194a38", "derivation_flag": "raw", "soft_ttl": 86400, "hard_ttl": 2592000}}
