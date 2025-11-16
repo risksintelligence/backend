@@ -111,31 +111,27 @@ class RRIOWorker:
         # Check if we're in a deployment context
         is_deployment = os.getenv('RENDER_SERVICE_TYPE') == 'background_worker'
         
-        try:
-            # Always do initial training
-            logger.info("Running initial model training...")
-            train_all_models()
-            logger.info("Model training completed successfully")
-            
-            # Log transparency event
-            add_transparency_log(
-                event_type="model_retrain", 
-                description="Initial model training completed",
-                metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
-            )
-            
-            if is_deployment:
-                # In deployment mode, exit after initial training
-                logger.info("Deployment mode: initial training complete, exiting gracefully")
-                return
-            
-        except Exception as e:
-            logger.error(f"Initial training failed: {e}")
-            if is_deployment:
-                # Don't fail deployment for training issues
-                logger.warning("Training failed in deployment mode, continuing...")
-                return
-            else:
+        if is_deployment:
+            # In deployment mode, skip immediate training to avoid timeout
+            logger.info("Deployment mode: skipping immediate training to avoid timeout")
+            logger.info("Training will start after deployment completes")
+            # Brief delay then schedule training
+            self.sleep_with_interrupt(30)
+        else:
+            # In local/production mode, do immediate training
+            try:
+                logger.info("Running initial model training...")
+                train_all_models()
+                logger.info("Model training completed successfully")
+                
+                # Log transparency event
+                add_transparency_log(
+                    event_type="model_retrain", 
+                    description="Initial model training completed",
+                    metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
+                )
+            except Exception as e:
+                logger.error(f"Initial training failed: {e}")
                 raise
         
         # Continue with periodic training only in production mode
