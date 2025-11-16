@@ -2,16 +2,19 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+import logging
 
 from app.core.cache import FileCache
 from app.core.config import get_settings
 from app.services.ingestion import ingest_local_series
 from app.db import SessionLocal
 from app.models import TransparencyLogModel, ObservationModel
+from sqlalchemy import desc
 
 settings = get_settings()
 cache = FileCache("freshness")
 TRANSPARENCY_FILE = settings.data_dir / "transparency.json"
+logger = logging.getLogger(__name__)
 
 DEFAULT_DATA = {
     "update_log": [
@@ -33,27 +36,80 @@ def _write_data(data: Dict[str, List[Dict[str, str]]]) -> None:
 
 
 def get_data_freshness() -> List[Dict[str, str]]:
+    """Return freshness rows using stored observations + TTL semantics."""
     cached = cache.get("freshness")
     if cached:
         return cached
-    observations = ingest_local_series()
-    freshness = []
-    for component, obs_list in observations.items():
-        if not obs_list:
-            continue
-        last = obs_list[-1]
-        status = 'fresh'
-        age_days = (datetime.utcnow() - last.observed_at).days
-        if age_days > 45:
-            status = 'stale'
-        elif age_days > 7:
-            status = 'warning'
-        freshness.append({
-            "component": component,
-            "status": status,
-            "last_updated": last.observed_at.date().isoformat(),
-        })
-    cache.set("freshness", freshness)
+    
+    freshness: List[Dict[str, str]] = []
+    now = datetime.utcnow()
+    
+    try:
+        db = SessionLocal()
+        try:
+            observations = db.query(ObservationModel).order_by(
+                ObservationModel.series_id,
+                desc(ObservationModel.observed_at)
+            ).all()
+        finally:
+            db.close()
+        
+        latest_by_series: Dict[str, ObservationModel] = {}
+        for obs in observations:
+            if obs.series_id not in latest_by_series:
+                latest_by_series[obs.series_id] = obs
+        
+        for series_id, obs in latest_by_series.items():
+            observed_at = obs.observed_at or now
+            fetched_at = obs.fetched_at or observed_at
+            age_seconds = (now - fetched_at).total_seconds()
+            soft_ttl = obs.soft_ttl or 3600
+            hard_ttl = obs.hard_ttl or (soft_ttl * 4)
+            
+            if age_seconds <= soft_ttl:
+                status = "fresh"
+            elif age_seconds <= hard_ttl:
+                status = "warning"
+            else:
+                status = "stale"
+            
+            freshness.append({
+                "component": series_id,
+                "status": status,
+                "last_updated": observed_at.isoformat(),
+                "age_hours": round(age_seconds / 3600, 2),
+                "soft_ttl": soft_ttl,
+                "hard_ttl": hard_ttl,
+                "source": obs.source,
+                "source_url": obs.source_url
+            })
+    except Exception as exc:
+        logger.warning(f"Failed to load database freshness, falling back to ingestion: {exc}")
+    
+    if not freshness:
+        observations = ingest_local_series()
+        for component, obs_list in observations.items():
+            if not obs_list:
+                continue
+            last = obs_list[-1]
+            age_hours = (now - last.observed_at).total_seconds() / 3600
+            status = "fresh"
+            if age_hours > 24 * 45:
+                status = "stale"
+            elif age_hours > 24 * 7:
+                status = "warning"
+            freshness.append({
+                "component": component,
+                "status": status,
+                "last_updated": last.observed_at.isoformat(),
+                "age_hours": round(age_hours, 2),
+                "soft_ttl": 24 * 3600,
+                "hard_ttl": 24 * 3600 * 4,
+                "source": "ingestion_pipeline",
+                "source_url": None
+            })
+    
+    cache.set("freshness", freshness, ttl=300)
     return freshness
 
 

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 from app.services.ingestion import ingest_local_series
 from app.services.geri import compute_griscore, compute_geri_score
-from app.services.impact import load_snapshot
+from app.services.impact import load_snapshot, get_snapshot_history
 from app.ml.regime import classify_regime
 from app.ml.forecast import forecast_delta
 from app.ml.anomaly import detect_anomalies
@@ -378,43 +378,6 @@ async def detailed_health_check():
     return health_status
 
 
-@app.get("/api/v1/analytics/geri")
-def current_griscore(
-    _rate_limit: bool = Depends(require_analytics_rate_limit),
-    _auth: dict = Depends(optional_auth)
-) -> Dict[str, object]:
-    """Get current GERI score with full v1 methodology."""
-    observations = _get_observations()
-    
-    # Get regime classification for potential weight override
-    regime_probs = classify_regime(observations)
-    regime_confidence = max(regime_probs.values()) if regime_probs else 0.0
-    
-    # Compute full GERI score
-    result = compute_geri_score(observations, regime_confidence=regime_confidence)
-    
-    # Add API-specific formatting
-    result["drivers"] = [
-        {"component": comp, "contribution": round(value, 3), "impact": round(value * 100, 1)}
-        for comp, value in result["contributions"].items()
-    ]
-    result["color"] = _band_color(result["band"])
-    result["band_color"] = _band_color(result["band"])
-    
-    # Add 24-hour change calculation
-    try:
-        # Get yesterday's score from cache or calculate approximate change
-        result["change_24h"] = round((result["score"] - 50.0) * 0.1, 2)  # Simplified for now
-    except:
-        result["change_24h"] = 0.0
-    
-    # Ensure confidence is numeric for frontend compatibility
-    if isinstance(result.get("confidence"), str):
-        confidence_map = {"high": 95, "medium": 75, "low": 45}
-        result["confidence"] = confidence_map.get(result["confidence"], 75)
-    
-    return result
-
 
 @app.get("/api/v1/ai/regime/current")
 def current_regime(
@@ -505,6 +468,17 @@ def ras_snapshot() -> Dict[str, object]:
     snapshot = load_snapshot()
     return snapshot.to_dict()
 
+@app.get("/api/v1/impact/ras/history")
+def ras_history(limit: int = 90) -> Dict[str, object]:
+    """Expose RAS composite history for RRIO analytics panels."""
+    limit = max(1, min(limit, 365))
+    history = get_snapshot_history(limit)
+    return {
+        "history": history,
+        "limit": limit,
+        "generated_at": datetime.utcnow().isoformat() + "Z"
+    }
+
 @app.get("/api/v1/transparency/data-freshness")
 def data_freshness() -> dict:
     return {"freshness": get_data_freshness()}
@@ -517,93 +491,13 @@ def update_log() -> dict:
 
 # Additional API endpoints per documentation
 
-@app.get("/api/v1/analytics/geri/history")
-def geri_history(limit: int = 50, offset: int = 0) -> Dict[str, object]:
-    """Get historical GERI snapshots with pagination."""
-    try:
-        # Validate pagination parameters
-        limit = min(max(1, limit), 1000)  # Between 1 and 1000
-        offset = max(0, offset)
-        
-        db = SessionLocal()
-        # Get observations with pagination for memory efficiency
-        recent_obs = db.query(ObservationModel).order_by(
-            desc(ObservationModel.observed_at)
-        ).offset(offset).limit(limit).all()
-        
-        # Get total count for pagination metadata
-        total_count = db.query(ObservationModel).count()
-        db.close()
-        
-        # Group by timestamp and compute historical scores
-        timestamps = {}
-        for obs in recent_obs:
-            ts_key = obs.observed_at.isoformat()
-            if ts_key not in timestamps:
-                timestamps[ts_key] = {}
-            timestamps[ts_key][obs.series_id] = obs.value
-        
-        # Generate historical series with memory-efficient processing
-        series = []
-        for timestamp, values in timestamps.items():
-            if len(values) >= 3:  # Need minimum data
-                # Simplified historical score calculation
-                score = 50 + sum(values.values()) / len(values) * 0.1
-                score = max(0, min(100, score))
-                series.append({
-                    "timestamp": timestamp,
-                    "score": round(score, 2)
-                })
-        
-        # Sort by timestamp for consistent ordering
-        series.sort(key=lambda x: x["timestamp"], reverse=True)
-        
-        return {
-            "series": series,
-            "pagination": {
-                "limit": limit,
-                "offset": offset,
-                "total": total_count,
-                "has_more": offset + limit < total_count
-            }
-        }
-        
-    except Exception as e:
-        return {"series": [], "error": str(e)}
-
-
-@app.get("/api/v1/analytics/components")
-def geri_components() -> Dict[str, object]:
-    """Get component-level values and z-scores."""
-    observations = _get_observations()
-    
-    components = []
-    for series_id, obs_list in observations.items():
-        if obs_list:
-            latest_obs = obs_list[-1]
-            # Simplified z-score calculation
-            values = [o.value for o in obs_list[-30:]]  # Last 30 values
-            if len(values) > 1:
-                mean_val = sum(values) / len(values)
-                std_val = (sum((v - mean_val) ** 2 for v in values) / len(values)) ** 0.5
-                z_score = (latest_obs.value - mean_val) / (std_val or 1.0)
-            else:
-                z_score = 0.0
-            
-            components.append({
-                "id": series_id,
-                "value": round(latest_obs.value, 2),
-                "z_score": round(z_score, 3),
-                "timestamp": latest_obs.observed_at.isoformat() + "Z"
-            })
-    
-    return {"components": components}
 
 
 @app.get("/api/v1/system/data-freshness")
 def system_data_freshness(_rate_limit: bool = Depends(require_system_rate_limit)) -> dict:
     """TTL status per component."""
-    return {"freshness": get_data_freshness()}
+    freshness = get_data_freshness()
+    return freshness
 
 
 @app.get("/api/v1/system/releases")
@@ -647,12 +541,3 @@ app.include_router(community_router.router)
 app.include_router(communication_router.router)
 
 
-def _band_color(band: str) -> str:
-    mapping = {
-        "minimal": "#00C853",
-        "low": "#64DD17",
-        "moderate": "#FFD600",
-        "high": "#FFAB00",
-        "critical": "#D50000",
-    }
-    return mapping.get(band, "#64DD17")

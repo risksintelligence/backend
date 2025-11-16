@@ -1,6 +1,6 @@
 import os
 from typing import Optional, List
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 
@@ -83,6 +83,36 @@ def require_scopes(required_scopes: List[str]):
 require_observatory_read = require_scopes(['observatory:read'])
 require_ai_read = require_scopes(['ai:read']) 
 require_contributor_submit = require_scopes(['contributor:submit'])
+
+def require_contributor_submit_or_reviewer(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
+):
+    """
+    Allow contributor submissions via JWT scope or reviewer API key header.
+    """
+    api_key = request.headers.get('X-RRIO-API-KEY')
+    if api_key and api_key == settings.reviewer_api_key:
+        return {
+            'auth_method': 'reviewer_api_key',
+            'scope': 'contributor:submit'
+        }
+    
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Contributor credentials required'
+        )
+    
+    payload = verify_token(credentials.credentials)
+    token_scopes = payload.get('scope', '').split()
+    if 'contributor:submit' not in token_scopes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Insufficient permissions. Required scope: contributor:submit'
+        )
+    
+    return payload
 
 # Legacy judge requirement for backward compatibility
 def require_judge(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):

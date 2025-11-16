@@ -2,10 +2,12 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 SNAPSHOT_FILE = DATA_DIR / "impact_snapshot.json"
+HISTORY_FILE = DATA_DIR / "impact_history.json"
+MAX_HISTORY_POINTS = 365
 
 DEFAULT_COMPONENTS = {
     "policy": 0.2,
@@ -42,11 +44,13 @@ def load_snapshot() -> RASSnapshot:
     DATA_DIR.mkdir(exist_ok=True)
     if SNAPSHOT_FILE.exists():
         payload = json.loads(SNAPSHOT_FILE.read_text())
-        return RASSnapshot(
+        snapshot = RASSnapshot(
             composite=payload["composite"],
             components=payload["components"],
             calculated_at=datetime.fromisoformat(payload["calculated_at"].replace("Z", "")),
         )
+        _ensure_history_seed(snapshot)
+        return snapshot
     snapshot = RASSnapshot(
         composite=_compute_composite(DEFAULT_COMPONENTS),
         components=DEFAULT_COMPONENTS,
@@ -58,6 +62,7 @@ def load_snapshot() -> RASSnapshot:
 def save_snapshot(snapshot: RASSnapshot) -> None:
     DATA_DIR.mkdir(exist_ok=True)
     SNAPSHOT_FILE.write_text(json.dumps(snapshot.to_dict(), indent=2))
+    _append_history(snapshot)
 
 def update_snapshot(metric_updates: Dict[str, float]) -> RASSnapshot:
     snapshot = load_snapshot()
@@ -69,3 +74,41 @@ def update_snapshot(metric_updates: Dict[str, float]) -> RASSnapshot:
     )
     save_snapshot(new_snapshot)
     return new_snapshot
+
+def get_snapshot_history(limit: int = 90) -> List[Dict[str, Any]]:
+    """Return chronological list of RAS snapshots for trend visualizations."""
+    DATA_DIR.mkdir(exist_ok=True)
+    if not HISTORY_FILE.exists():
+        snapshot = load_snapshot()
+        _append_history(snapshot)
+    
+    try:
+        history = json.loads(HISTORY_FILE.read_text())
+    except json.JSONDecodeError:
+        history = []
+    
+    history.sort(key=lambda entry: entry["calculated_at"])
+    return history[-max(1, min(limit, MAX_HISTORY_POINTS)):]
+
+
+def _append_history(snapshot: RASSnapshot) -> None:
+    """Persist snapshot into rolling history for charts."""
+    DATA_DIR.mkdir(exist_ok=True)
+    entry = snapshot.to_dict()
+    try:
+        history = json.loads(HISTORY_FILE.read_text()) if HISTORY_FILE.exists() else []
+    except json.JSONDecodeError:
+        history = []
+    
+    # Drop duplicate timestamps before appending
+    history = [point for point in history if point.get("calculated_at") != entry["calculated_at"]]
+    history.append(entry)
+    history.sort(key=lambda item: item["calculated_at"])
+    trimmed_history = history[-MAX_HISTORY_POINTS:]
+    HISTORY_FILE.write_text(json.dumps(trimmed_history, indent=2))
+
+
+def _ensure_history_seed(snapshot: RASSnapshot) -> None:
+    """Ensure a baseline history file exists for legacy installs."""
+    if not HISTORY_FILE.exists():
+        _append_history(snapshot)

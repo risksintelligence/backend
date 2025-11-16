@@ -13,6 +13,13 @@ def add_submission(payload: Dict[str, str]) -> Dict[str, str]:
     """Add new submission to PostgreSQL database."""
     db = SessionLocal()
     try:
+        # Prepare metadata for scenario submissions
+        metadata = {}
+        if payload.get('prompt_id'):
+            metadata['prompt_id'] = payload.get('prompt_id')
+        if payload.get('mission') == 'scenario':
+            metadata['submission_source'] = 'scenario_studio'
+            
         submission = SubmissionModel(
             title=payload.get('title', 'Untitled'),
             summary=payload.get('summary', ''),
@@ -21,7 +28,8 @@ def add_submission(payload: Dict[str, str]) -> Dict[str, str]:
             content_url=payload.get('link', ''),
             submission_type=payload.get('mission', 'analysis'),
             status='pending',
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            meta_data=metadata if metadata else None
         )
         
         db.add(submission)

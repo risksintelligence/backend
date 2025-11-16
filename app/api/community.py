@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import logging
 
-from app.core.auth import require_contributor_submit
+from app.core.auth import require_contributor_submit, require_contributor_submit_or_reviewer
 from app.services.submissions import get_submissions_summary
 from app.db import SessionLocal
 
@@ -299,18 +299,38 @@ def get_scenario_prompts() -> Dict[str, Any]:
 def submit_scenario_response(
     prompt_id: str,
     submission_data: Dict[str, Any],
-    _auth: dict = Depends(require_contributor_submit)
+    _auth: dict = Depends(require_contributor_submit_or_reviewer)
 ) -> Dict[str, Any]:
     """Submit a response to a scenario prompt."""
     try:
-        # Mock submission processing
-        submission_id = f"sub_{prompt_id}_{int(datetime.utcnow().timestamp())}"
+        from app.services.submissions import add_submission
+        
+        # Extract submission details
+        title = submission_data.get('title', 'Scenario Response')
+        description = submission_data.get('description', '')
+        author = submission_data.get('author', 'Anonymous')
+        author_email = submission_data.get('author_email', 'noreply@example.com')
+        
+        # Prepare submission payload
+        submission_payload = {
+            'title': f"Scenario Response: {title}",
+            'summary': description,
+            'author': author,
+            'author_email': author_email,
+            'link': '',  # No link for scenario responses
+            'mission': 'scenario',
+            'prompt_id': prompt_id
+        }
+        
+        # Add to database via submissions service
+        result = add_submission(submission_payload)
         
         return {
-            "submission_id": submission_id,
+            "submission_id": result.get("id"),
             "prompt_id": prompt_id,
+            "title": result.get("title"),
             "status": "submitted",
-            "submitted_at": datetime.utcnow().isoformat(),
+            "submitted_at": result.get("submitted_at"),
             "review_status": "pending",
             "estimated_review_time": "3-5 business days"
         }
