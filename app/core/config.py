@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     postgres_dsn: str = Field(..., env="RIS_POSTGRES_DSN")
     
     # Redis
-    redis_url: str = Field(default_factory=lambda: os.getenv("RIS_REDIS_URL"), env="RIS_REDIS_URL")
+    redis_url: str = Field(..., env="RIS_REDIS_URL")
     
     # Paths
     data_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[2] / "data")
