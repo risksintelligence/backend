@@ -13,6 +13,28 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
+    env:
+      RIS_ENV: production
+      RIS_POSTGRES_DSN: postgresql://postgres:test_password@localhost:5432/test_rrio
+      RIS_REDIS_URL: redis://localhost:6379/0
+      RIS_CACHE_TTL: 900
+      RIS_FRED_API_KEY: test_key
+      RIS_EIA_API_KEY: test_eia_key
+      RIS_CENSUS_API_KEY: test_census_key
+      RIS_BEA_API_KEY: test_bea_key
+      RIS_BLS_API_KEY: test_bls_key
+      RIS_ALPHA_VANTAGE_API_KEY: test_alpha_key
+      RIS_REVIEWER_API_KEY: test_reviewer_key
+      RIS_ALLOWED_ORIGINS: http://localhost:3000
+      RIS_ALLOWED_HOSTS: localhost,*.test.com
+      RIS_JWT_SECRET: test_jwt_secret_for_ci_only
+      RIS_AUTH_ISSUER: https://test.auth.com
+      RIS_AUTH_AUDIENCE: test-api
+      RIS_AUTH_JWKS: https://test.auth.com/.well-known/jwks.json
+      WORKER_ROLE: ingestion
+      RRIO_API_BASE: http://localhost:10000/api/v1
+      RRIO_API_KEY: test_rrio_key
+    
     services:
       postgres:
         image: postgres:15
@@ -49,28 +71,10 @@ jobs:
           pip install -r requirements.txt
           pip install python-dotenv psycopg2-binary
           
-      - name: Set up test environment
+      - name: Verify environment setup
         run: |
-          echo "RIS_ENV=production" > .env
-          echo "RIS_POSTGRES_DSN=postgresql://postgres:test_password@localhost:5432/test_rrio" >> .env
-          echo "RIS_REDIS_URL=redis://localhost:6379/0" >> .env
-          echo "RIS_CACHE_TTL=900" >> .env
-          echo "RIS_FRED_API_KEY=test_key" >> .env
-          echo "RIS_EIA_API_KEY=test_eia_key" >> .env
-          echo "RIS_CENSUS_API_KEY=test_census_key" >> .env
-          echo "RIS_BEA_API_KEY=test_bea_key" >> .env
-          echo "RIS_BLS_API_KEY=test_bls_key" >> .env
-          echo "RIS_ALPHA_VANTAGE_API_KEY=test_alpha_key" >> .env
-          echo "RIS_REVIEWER_API_KEY=test_reviewer_key" >> .env
-          echo "RIS_ALLOWED_ORIGINS=http://localhost:3000" >> .env
-          echo "RIS_ALLOWED_HOSTS=localhost,*.test.com" >> .env
-          echo "RIS_JWT_SECRET=test_jwt_secret_for_ci_only" >> .env
-          echo "RIS_AUTH_ISSUER=https://test.auth.com" >> .env
-          echo "RIS_AUTH_AUDIENCE=test-api" >> .env
-          echo "RIS_AUTH_JWKS=https://test.auth.com/.well-known/jwks.json" >> .env
-          echo "WORKER_ROLE=ingestion" >> .env
-          echo "RRIO_API_BASE=http://localhost:10000/api/v1" >> .env
-          echo "RRIO_API_KEY=test_rrio_key" >> .env
+          echo "Environment variables configured at job level"
+          python -c "import os; print(f'RIS_ENV: {os.getenv(\"RIS_ENV\")}'); print(f'RIS_REDIS_URL: {os.getenv(\"RIS_REDIS_URL\")}')"
           
       - name: Run database migrations
         run: |
