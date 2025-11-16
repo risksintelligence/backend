@@ -45,14 +45,39 @@ async def background_worker_tasks():
         # Start ingestion task
         ingestion_task = asyncio.create_task(background_ingestion_loop())
         
-        # Start training task
+        # Start training task  
         training_task = asyncio.create_task(background_training_task())
         
-        # Let them run concurrently
-        await asyncio.gather(ingestion_task, training_task, return_exceptions=True)
-        
+        # Let them run concurrently but catch all exceptions to prevent server shutdown
+        while True:
+            try:
+                done, pending = await asyncio.wait(
+                    [ingestion_task, training_task], 
+                    timeout=300,  # Check every 5 minutes
+                    return_when=asyncio.FIRST_EXCEPTION
+                )
+                
+                # If any task completed with exception, restart it
+                for task in done:
+                    try:
+                        await task  # This will raise the exception if there was one
+                    except Exception as e:
+                        logger.error(f"Background task failed, restarting: {e}")
+                        if task == ingestion_task:
+                            ingestion_task = asyncio.create_task(background_ingestion_loop())
+                        elif task == training_task:
+                            training_task = asyncio.create_task(background_training_task())
+                
+                # Brief pause before next check
+                await asyncio.sleep(10)
+                
+            except Exception as e:
+                logger.error(f"Background worker supervisor error: {e}")
+                await asyncio.sleep(30)  # Wait before retrying
+                
     except Exception as e:
-        logger.error(f"Background worker tasks failed: {e}")
+        logger.error(f"Background worker tasks supervisor failed: {e}")
+        # Don't re-raise - let the web server continue running
 
 async def background_ingestion_loop():
     """Continuous ingestion loop."""
@@ -84,35 +109,54 @@ async def background_ingestion_loop():
 async def background_training_task():
     """Periodic model training task."""
     try:
-        # Initial training after startup
+        # Initial training after startup with timeout protection
         logger.info("Starting initial background model training")
-        await asyncio.to_thread(train_all_models)
-        logger.info("Initial background model training completed")
         
-        # Log transparency event
-        from app.services.transparency import add_transparency_log
-        add_transparency_log(
-            event_type="model_retrain",
-            description="Initial background model training completed",
-            metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
-        )
+        try:
+            # Add timeout to prevent hanging
+            await asyncio.wait_for(
+                asyncio.to_thread(train_all_models), 
+                timeout=1800  # 30 minutes max
+            )
+            logger.info("Initial background model training completed")
+            
+            # Log transparency event
+            from app.services.transparency import add_transparency_log
+            add_transparency_log(
+                event_type="model_retrain",
+                description="Initial background model training completed",
+                metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Initial model training timed out, will retry on next cycle")
+        except Exception as e:
+            logger.error(f"Initial model training failed: {e}")
         
         # Continue with daily retraining
         while True:
             await asyncio.sleep(86400)  # 24 hours
             
-            logger.info("Starting scheduled model retraining")
-            await asyncio.to_thread(train_all_models)
-            logger.info("Scheduled model retraining completed")
-            
-            add_transparency_log(
-                event_type="model_retrain",
-                description="Scheduled model retraining completed",
-                metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
-            )
+            try:
+                logger.info("Starting scheduled model retraining")
+                await asyncio.wait_for(
+                    asyncio.to_thread(train_all_models),
+                    timeout=1800  # 30 minutes max
+                )
+                logger.info("Scheduled model retraining completed")
+                
+                add_transparency_log(
+                    event_type="model_retrain", 
+                    description="Scheduled model retraining completed",
+                    metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Scheduled model training timed out, will retry next cycle")
+            except Exception as e:
+                logger.error(f"Scheduled model training failed: {e}")
             
     except Exception as e:
-        logger.error(f"Background training failed: {e}")
+        logger.error(f"Background training task failed: {e}")
+        # Don't re-raise - let the task be restarted by supervisor
 
 def with_timeout(seconds: int):
     """Decorator to add timeout to operations."""
@@ -202,8 +246,15 @@ async def startup_event():
         # Continue startup even if DB init fails, as tables may already exist
     
     # Schedule background worker tasks for Render web service
-    if os.getenv('RENDER_SERVICE_TYPE') == 'web':
-        asyncio.create_task(background_worker_tasks())
+    # Can be disabled by setting DISABLE_BACKGROUND_WORKERS=true
+    if os.getenv('RENDER_SERVICE_TYPE') == 'web' and os.getenv('DISABLE_BACKGROUND_WORKERS', 'false').lower() != 'true':
+        try:
+            asyncio.create_task(background_worker_tasks())
+            logger.info("Background worker tasks scheduled")
+        except Exception as e:
+            logger.warning(f"Failed to start background tasks: {e} - web server will continue without background workers")
+    else:
+        logger.info("Background workers disabled or not in web service mode")
     
     # Load initial data cache with timeout protection
     try:

@@ -82,56 +82,51 @@ class RRIOWorker:
         """Run data ingestion worker."""
         logger.info("Starting data ingestion worker...")
         
-        while self.running:
-            try:
-                logger.info("Running data ingestion cycle...")
-                observations = ingest_local_series()
-                
-                total_obs = sum(len(series_data) for series_data in observations.values())
-                logger.info(f"Ingested {total_obs} observations across {len(observations)} series")
-                
-                # Log transparency event
-                add_transparency_log(
-                    event_type="data_update",
-                    description=f"Automated data ingestion completed: {total_obs} observations",
-                    metadata={"series_count": len(observations), "observation_count": total_obs}
-                )
-                
-                # Sleep for 1 hour between ingestion cycles
-                self.sleep_with_interrupt(3600)
-                
-            except Exception as e:
-                logger.error(f"Ingestion cycle failed: {e}")
-                self.sleep_with_interrupt(600)  # Retry after 10 minutes
+        # Run ingestion once and exit (for Render background worker)
+        try:
+            logger.info("Running data ingestion cycle...")
+            observations = ingest_local_series()
+            
+            total_obs = sum(len(series_data) for series_data in observations.values())
+            logger.info(f"Ingested {total_obs} observations across {len(observations)} series")
+            
+            # Log transparency event
+            add_transparency_log(
+                event_type="data_update",
+                description=f"Automated data ingestion completed: {total_obs} observations",
+                metadata={"series_count": len(observations), "observation_count": total_obs}
+            )
+            
+            logger.info("Ingestion completed successfully")
+            return
+            
+        except Exception as e:
+            logger.error(f"Ingestion failed: {e}")
+            raise
     
     def run_training_worker(self):
         """Run model training worker with deployment-friendly initialization."""
         logger.info("Starting model training worker...")
         
-        # Check if we're in a deployment context
-        is_deployment = os.getenv('RENDER_SERVICE_TYPE') == 'background_worker'
-        
-        if is_deployment:
-            # In deployment mode, exit immediately to avoid timeout
-            logger.info("Deployment mode: exiting immediately to avoid pre-deploy timeout")
-            logger.info("Training will be triggered by first API request after deployment")
+        # Run training once and exit (for Render background worker)
+        try:
+            logger.info("Running model training...")
+            train_all_models()
+            logger.info("Model training completed successfully")
+            
+            # Log transparency event
+            add_transparency_log(
+                event_type="model_retrain", 
+                description="Automated model training completed",
+                metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
+            )
+            
+            # Exit after successful training (Render will restart as needed)
             return
-        else:
-            # In local/production mode, do immediate training
-            try:
-                logger.info("Running initial model training...")
-                train_all_models()
-                logger.info("Model training completed successfully")
-                
-                # Log transparency event
-                add_transparency_log(
-                    event_type="model_retrain", 
-                    description="Initial model training completed",
-                    metadata={"models": ["regime_classifier", "forecast_model", "anomaly_detector"]}
-                )
-            except Exception as e:
-                logger.error(f"Initial training failed: {e}")
-                raise
+            
+        except Exception as e:
+            logger.error(f"Training failed: {e}")
+            raise
         
         # Continue with periodic training only in production mode
         while self.running:
