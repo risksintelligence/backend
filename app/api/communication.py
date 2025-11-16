@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import logging
 
-from app.core.auth import require_observatory_read
+from app.core.auth import require_observatory_read, optional_auth
 from app.services.geri import compute_geri_score
 from app.db import SessionLocal
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/api/v1/communication/newsletter-status")
 def get_newsletter_status(
-    _auth: dict = Depends(require_observatory_read)
+    _auth: dict = Depends(optional_auth)
 ) -> Dict[str, Any]:
     """Get current newsletter draft status and publishing schedule."""
     try:
@@ -147,7 +147,7 @@ def get_newsletter_status(
 @router.get("/api/v1/communication/publishing-calendar")
 def get_publishing_calendar(
     days: int = Query(30, ge=1, le=90),
-    _auth: dict = Depends(require_observatory_read)
+    _auth: dict = Depends(optional_auth)
 ) -> Dict[str, Any]:
     """Get upcoming publishing calendar and content schedule."""
     try:
