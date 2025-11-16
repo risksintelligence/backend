@@ -30,8 +30,16 @@ target_metadata = Base.metadata
 # ... etc.
 
 def get_url():
-    """Get database URL from environment variable."""
-    return os.getenv("RIS_POSTGRES_DSN", "sqlite:///./test.db")
+    """Get database URL from settings configuration."""
+    from app.core.config import get_settings
+    try:
+        settings = get_settings()
+        return settings.database_url
+    except Exception as e:
+        # Fallback for environments where full validation fails
+        import os
+        print(f"Warning: Settings validation failed ({e}), using fallback")
+        return os.getenv("RIS_POSTGRES_DSN", "sqlite:///./test.db")
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""

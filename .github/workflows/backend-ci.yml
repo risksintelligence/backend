@@ -54,7 +54,23 @@ jobs:
           echo "RIS_ENV=production" > .env
           echo "RIS_POSTGRES_DSN=postgresql://postgres:test_password@localhost:5432/test_rrio" >> .env
           echo "RIS_REDIS_URL=redis://localhost:6379/0" >> .env
+          echo "RIS_CACHE_TTL=900" >> .env
           echo "RIS_FRED_API_KEY=test_key" >> .env
+          echo "RIS_EIA_API_KEY=test_eia_key" >> .env
+          echo "RIS_CENSUS_API_KEY=test_census_key" >> .env
+          echo "RIS_BEA_API_KEY=test_bea_key" >> .env
+          echo "RIS_BLS_API_KEY=test_bls_key" >> .env
+          echo "RIS_ALPHA_VANTAGE_API_KEY=test_alpha_key" >> .env
+          echo "RIS_REVIEWER_API_KEY=test_reviewer_key" >> .env
+          echo "RIS_ALLOWED_ORIGINS=http://localhost:3000" >> .env
+          echo "RIS_ALLOWED_HOSTS=localhost,*.test.com" >> .env
+          echo "RIS_JWT_SECRET=test_jwt_secret_for_ci_only" >> .env
+          echo "RIS_AUTH_ISSUER=https://test.auth.com" >> .env
+          echo "RIS_AUTH_AUDIENCE=test-api" >> .env
+          echo "RIS_AUTH_JWKS=https://test.auth.com/.well-known/jwks.json" >> .env
+          echo "WORKER_ROLE=ingestion" >> .env
+          echo "RRIO_API_BASE=http://localhost:10000/api/v1" >> .env
+          echo "RRIO_API_KEY=test_rrio_key" >> .env
           
       - name: Run database migrations
         run: |
