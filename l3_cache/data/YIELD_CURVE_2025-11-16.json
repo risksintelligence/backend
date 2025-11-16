@@ -1,0 +1,1 @@
+{"data": {"timestamp": "2025-11-14T00:00:00", "value": "0.52"}, "metadata": {"cached_at": "2025-11-16T01:57:15.467012", "source": "fred", "source_url": "https://api.fred.com/T10Y2Y", "checksum": "7fa060ec83bf0000", "derivation_flag": "raw", "soft_ttl": 1800, "hard_ttl": 7200}}

@@ -14,10 +14,13 @@ from sklearn.metrics import classification_report, mean_squared_error
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import ObservationModel
+from app.models import ObservationModel, ModelMetadataModel
 
 WINDOW_YEARS = 5
-MODEL_DIR = "models"
+from app.core.config import get_settings
+
+settings = get_settings()
+MODEL_DIR = str(settings.models_dir)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -192,6 +195,32 @@ def save_model(model: Any, filename: str) -> None:
     logger.info(f"Model saved to {filepath}")
 
 
+def save_model_metadata(model_name: str, model_type: str, metrics: Dict[str, Any]) -> None:
+    """Save model metadata to database."""
+    try:
+        db: Session = SessionLocal()
+        now = datetime.utcnow()
+        training_start = now - timedelta(days=5*365)  # 5 year training window
+        
+        metadata = ModelMetadataModel(
+            model_name=model_name,
+            version="1.0",
+            trained_at=now,
+            training_window_start=training_start,
+            training_window_end=now,
+            performance_metrics={"model_type": model_type, **metrics},
+            is_active=True,
+            file_path=f"models/{model_name}.pkl",
+            created_at=now
+        )
+        db.add(metadata)
+        db.commit()
+        db.close()
+        logger.info(f"Model metadata saved for {model_name}")
+    except Exception as e:
+        logger.error(f"Failed to save model metadata: {e}")
+
+
 def load_model(filename: str) -> Any:
     """Load a trained model from disk."""
     filepath = os.path.join(MODEL_DIR, filename)
@@ -210,14 +239,35 @@ def train_all_models() -> None:
         save_model(regime_model, "regime_classifier.pkl")
         save_model(regime_scaler, "regime_scaler.pkl")
         
+        # Save regime classifier metadata
+        save_model_metadata(
+            model_name="regime_classifier",
+            model_type="classification",
+            metrics={"feature_count": 5, "classes": 3}
+        )
+        
         # Train forecast model
         forecast_model, forecast_scaler = train_forecast_model()
         save_model(forecast_model, "forecast_model.pkl")
         save_model(forecast_scaler, "forecast_scaler.pkl")
         
+        # Save forecast model metadata
+        save_model_metadata(
+            model_name="forecast_model",
+            model_type="regression",
+            metrics={"feature_count": 5, "target": "value_change"}
+        )
+        
         # Train anomaly detector
         anomaly_model = train_anomaly_detector()
         save_model(anomaly_model, "anomaly_detector.pkl")
+        
+        # Save anomaly detector metadata
+        save_model_metadata(
+            model_name="anomaly_detector",
+            model_type="anomaly_detection",
+            metrics={"contamination": 0.1, "feature_count": 4}
+        )
         
         logger.info("All models trained and saved successfully!")
         

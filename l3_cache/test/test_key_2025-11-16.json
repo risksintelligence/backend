@@ -1,0 +1,1 @@
+{"data": {"timestamp": "2024-01-01T00:00:00", "value": "100.0"}, "metadata": {"cached_at": "2025-11-16T01:45:57.831514", "source": "test_provider", "source_url": "https://test.com/api", "checksum": "ac76fae48fee2121", "derivation_flag": "raw", "soft_ttl": 3600, "hard_ttl": 14400}}

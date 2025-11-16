@@ -1,12 +1,12 @@
 from typing import Callable, List, Dict
 
-from app.data.fetchers.local import load_series
+from app.data.fetchers.local import fetch_local_series
 from app.data.fetchers.fred import fetch_series
 
 SourceFunc = Callable[[str], List[Dict[str, str]]]
 
 SOURCE_MAP = {
-    "local": load_series,
+    "local": fetch_local_series,
     "fred": fetch_series,
 }
 

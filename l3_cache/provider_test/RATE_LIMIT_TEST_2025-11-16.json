@@ -1,0 +1,1 @@
+{"data": [{"timestamp": "2024-11-16T12:00:00Z", "value": "45.2"}], "metadata": {"cached_at": "2025-11-16T03:05:27.296404", "source": "fred", "source_url": "test_url", "checksum": "8f3a55d5c9cd0437", "derivation_flag": "raw", "soft_ttl": 1800, "hard_ttl": 3600}}

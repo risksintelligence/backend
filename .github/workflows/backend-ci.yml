@@ -6,24 +6,90 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  PYTHON_VERSION: '3.11'
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_rrio
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+          
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Lint & Tests
+          
+      - name: Set up test environment
+        run: |
+          echo "RIS_POSTGRES_DSN=postgresql://postgres:test_password@localhost:5432/test_rrio" > .env
+          echo "RIS_REDIS_URL=redis://localhost:6379/0" >> .env
+          echo "RIS_FRED_API_KEY=test_key" >> .env
+          
+      - name: Run database migrations
+        run: |
+          alembic upgrade head
+          
+      - name: Run code quality checks
         run: |
           python -m compileall app
+          
+      - name: Test caching system
+        run: |
+          python -c "
+          from app.core.unified_cache import UnifiedCache
+          cache = UnifiedCache('test')
+          cache.set('test_key', {'value': 'test'}, 'test_source', 'test_url', 'raw', 3600, 14400)
+          data, metadata = cache.get('test_key')
+          assert data['value'] == 'test'
+          print('Caching system test passed')
+          "
+          
+      - name: Test ML pipeline
+        run: |
+          python -c "
+          from app.services.training import train_all_models
+          train_all_models()
+          print('ML pipeline test passed')
+          "
+          
+      - name: Test API endpoints
+        run: |
           uvicorn app.main:app --host 0.0.0.0 --port 10000 &
-          sleep 5
+          sleep 10
           curl -f http://localhost:10000/health
+          curl -f http://localhost:10000/api/v1/analytics/geri
+          curl -f http://localhost:10000/api/v1/ai/regime/current
+          echo "API endpoints test passed"
+          
       - name: Deploy to Render
         if: github.ref == 'refs/heads/main'
         run: |

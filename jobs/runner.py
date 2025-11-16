@@ -1,25 +1,30 @@
-import logging
-import random
-import time
+#!/usr/bin/env python3
+"""
+Jobs Runner Module
 
-from app.services.impact import update_snapshot
+This module provides the entry point for background workers as expected
+by Render deployment configuration. It delegates to the production worker
+implementation in scripts/start_worker.py.
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+Usage:
+    python -m jobs.runner
 
-COMPONENT_KEYS = ["policy", "analyses", "labs", "media", "community"]
+Environment Variables:
+    - WORKER_ROLE: Type of worker (ingestion, training, maintenance)
+"""
 
+import sys
+import os
+from pathlib import Path
+
+# Add scripts directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+from start_worker import main as run_production_worker
 
 def main() -> None:
-    logging.info("RRIO worker started: updating RAS snapshot every 5 minutes")
-    while True:
-        metric_updates = {
-            key: round(random.uniform(0.05, 0.3), 3)
-            for key in COMPONENT_KEYS
-        }
-        snapshot = update_snapshot(metric_updates)
-        logging.info("Updated RAS snapshot: composite=%s", snapshot.composite)
-        time.sleep(300)
-
+    """Main entry point for background worker jobs."""
+    run_production_worker()
 
 if __name__ == "__main__":
     main()

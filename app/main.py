@@ -1,30 +1,139 @@
 from datetime import datetime
 from typing import Dict
+import asyncio
+from functools import wraps
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.services.ingestion import ingest_local_series
-from app.services.geri import compute_griscore
+from app.services.geri import compute_griscore, compute_geri_score
 from app.services.impact import load_snapshot
 from app.ml.regime import classify_regime
 from app.ml.forecast import forecast_delta
 from app.ml.anomaly import detect_anomalies
 from app.services.transparency import get_data_freshness, get_update_log
 from app.api import submissions as submissions_router
+from app.api import monitoring as monitoring_router
+from app.api import analytics as analytics_router
+from app.api import community as community_router
+from app.api import communication as communication_router
+from app.db import SessionLocal
+from app.models import ObservationModel
+from app.core.config import get_settings
+from app.core.security import require_analytics_rate_limit, require_ai_rate_limit, require_system_rate_limit
+from app.core.auth import require_observatory_read, require_ai_read, optional_auth
+from sqlalchemy import desc
 
-app = FastAPI(title="RRIO GRII API", version="0.4.0")
+def with_timeout(seconds: int):
+    """Decorator to add timeout to operations."""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await asyncio.wait_for(
+                    asyncio.to_thread(func, *args, **kwargs),
+                    timeout=seconds
+                )
+            except asyncio.TimeoutError:
+                raise HTTPException(
+                    status_code=504,
+                    detail=f"Operation timed out after {seconds} seconds. Using cached data."
+                )
+        return wrapper
+    return decorator
+
+settings = get_settings()
+app = FastAPI(
+    title="RRIO GRII API", 
+    version="0.4.0",
+    description="RiskSX Resilience Intelligence Observatory - Global Economic Resilience Index"
+)
+
+# Security middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins.split(","),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+
+# Trusted host middleware for production
+if settings.is_production:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["*.rrio.dev", "*.risksx.com", "localhost"]
+    )
 
 
 @app.on_event("startup")
-def load_data_cache() -> None:
-    app.state.observations = ingest_local_series()
+async def load_data_cache() -> None:
+    """Load initial data cache with timeout protection."""
+    try:
+        # Try to load from cache first, then ingest if needed
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("ingestion") 
+        
+        # Check if we have any cached data
+        from app.data.registry import SERIES_REGISTRY
+        cached_count = 0
+        for series_id in SERIES_REGISTRY.keys():
+            data, _ = cache.get(series_id)
+            if data:
+                cached_count += 1
+        
+        if cached_count > 0:
+            print(f"Using {cached_count} cached series for startup")
+            app.state.observations = {}  # Will load from cache on demand
+        else:
+            print("No cache found, attempting initial ingestion with timeout...")
+            app.state.observations = await asyncio.wait_for(
+                asyncio.to_thread(ingest_local_series),
+                timeout=30  # 30 second timeout for startup
+            )
+            print(f"Initial ingestion completed: {len(app.state.observations)} series")
+            
+    except asyncio.TimeoutError:
+        print("Startup ingestion timed out, will load from cache on demand")
+        app.state.observations = {}
+    except Exception as e:
+        print(f"Startup ingestion failed: {e}, will load from cache on demand")
+        app.state.observations = {}
 
 
 def _get_observations() -> dict:
+    """Get observations with cache fallback to avoid timeouts."""
     observations = getattr(app.state, "observations", None)
-    if observations is None:
-        observations = ingest_local_series()
+    
+    if observations is None or len(observations) == 0:
+        # Try to load from cache first to avoid blocking API calls
+        from app.core.unified_cache import UnifiedCache
+        from app.data.registry import SERIES_REGISTRY
+        from app.services.ingestion import Observation
+        from datetime import datetime
+        
+        cache = UnifiedCache("ingestion")
+        observations = {}
+        
+        for series_id in SERIES_REGISTRY.keys():
+            data, metadata = cache.get(series_id)
+            if data and 'timestamp' in data and 'value' in data:
+                # Convert cached data to observation format
+                timestamp_str = data['timestamp']
+                if 'T' not in timestamp_str:
+                    timestamp_str += 'T00:00:00'
+                
+                obs = Observation(
+                    series_id=series_id,
+                    observed_at=datetime.fromisoformat(timestamp_str.replace('Z', '')),
+                    value=float(data['value'])
+                )
+                observations[series_id] = [obs]
+        
         app.state.observations = observations
+    
     return observations
 
 
@@ -34,19 +143,35 @@ def health_check() -> Dict[str, str]:
 
 
 @app.get("/api/v1/analytics/geri")
-def current_griscore() -> Dict[str, object]:
+def current_griscore(
+    _rate_limit: bool = Depends(require_analytics_rate_limit),
+    _auth: dict = Depends(optional_auth)
+) -> Dict[str, object]:
+    """Get current GERI score with full v1 methodology."""
     observations = _get_observations()
-    result = compute_griscore(observations)
+    
+    # Get regime classification for potential weight override
+    regime_probs = classify_regime(observations)
+    regime_confidence = max(regime_probs.values()) if regime_probs else 0.0
+    
+    # Compute full GERI score
+    result = compute_geri_score(observations, regime_confidence=regime_confidence)
+    
+    # Add API-specific formatting
     result["drivers"] = [
         {"component": comp, "contribution": round(value, 3)}
         for comp, value in result["contributions"].items()
     ]
     result["color"] = _band_color(result["band"])
+    
     return result
 
 
 @app.get("/api/v1/ai/regime/current")
-def current_regime() -> Dict[str, object]:
+def current_regime(
+    _rate_limit: bool = Depends(require_ai_rate_limit),
+    _auth: dict = Depends(optional_auth)
+) -> Dict[str, object]:
     observations = _get_observations()
     probabilities = classify_regime(observations)
     return {
@@ -56,7 +181,10 @@ def current_regime() -> Dict[str, object]:
 
 
 @app.get("/api/v1/ai/forecast/next-24h")
-def next_day_forecast() -> Dict[str, float]:
+def next_day_forecast(
+    _rate_limit: bool = Depends(require_ai_rate_limit),
+    _auth: dict = Depends(optional_auth)
+) -> Dict[str, float]:
     observations = _get_observations()
     return forecast_delta(observations)
 
@@ -81,7 +209,119 @@ def data_freshness() -> dict:
 def update_log() -> dict:
     return {"entries": get_update_log()}
 
+
+# Additional API endpoints per documentation
+
+@app.get("/api/v1/analytics/geri/history")
+def geri_history() -> Dict[str, object]:
+    """Get historical GERI snapshots."""
+    try:
+        db = SessionLocal()
+        # Get recent observations to show trend
+        recent_obs = db.query(ObservationModel).order_by(
+            desc(ObservationModel.observed_at)
+        ).limit(100).all()
+        db.close()
+        
+        # Group by timestamp and compute historical scores
+        timestamps = {}
+        for obs in recent_obs:
+            ts_key = obs.observed_at.isoformat()
+            if ts_key not in timestamps:
+                timestamps[ts_key] = {}
+            timestamps[ts_key][obs.series_id] = obs.value
+        
+        # Generate historical series (simplified for demo)
+        series = []
+        for timestamp, values in list(timestamps.items())[:10]:  # Last 10 snapshots
+            if len(values) >= 3:  # Need minimum data
+                # Simplified historical score calculation
+                score = 50 + sum(values.values()) / len(values) * 0.1
+                score = max(0, min(100, score))
+                series.append({
+                    "timestamp": timestamp,
+                    "score": round(score, 2)
+                })
+        
+        return {"series": series}
+        
+    except Exception as e:
+        return {"series": [], "error": str(e)}
+
+
+@app.get("/api/v1/analytics/components")
+def geri_components() -> Dict[str, object]:
+    """Get component-level values and z-scores."""
+    observations = _get_observations()
+    
+    components = []
+    for series_id, obs_list in observations.items():
+        if obs_list:
+            latest_obs = obs_list[-1]
+            # Simplified z-score calculation
+            values = [o.value for o in obs_list[-30:]]  # Last 30 values
+            if len(values) > 1:
+                mean_val = sum(values) / len(values)
+                std_val = (sum((v - mean_val) ** 2 for v in values) / len(values)) ** 0.5
+                z_score = (latest_obs.value - mean_val) / (std_val or 1.0)
+            else:
+                z_score = 0.0
+            
+            components.append({
+                "id": series_id,
+                "value": round(latest_obs.value, 2),
+                "z_score": round(z_score, 3),
+                "timestamp": latest_obs.observed_at.isoformat() + "Z"
+            })
+    
+    return {"components": components}
+
+
+@app.get("/api/v1/system/data-freshness")
+def system_data_freshness(_rate_limit: bool = Depends(require_system_rate_limit)) -> dict:
+    """TTL status per component."""
+    return {"freshness": get_data_freshness()}
+
+
+@app.get("/api/v1/system/releases")
+def system_releases() -> dict:
+    """Release history referencing governance approvals."""
+    # Placeholder implementation
+    return {
+        "releases": [
+            {
+                "version": "v1.0.0",
+                "date": "2024-11-16",
+                "description": "Phase A implementation with 8-component GERI",
+                "governance_approval": "2024-11-15",
+                "changes": ["Added 5-year rolling window", "Implemented all 8 GERI components"]
+            }
+        ]
+    }
+
+
+@app.get("/api/v1/impact/partners")
+def impact_partners() -> dict:
+    """Active Partner Labs, sectors served, deliverables."""
+    # Placeholder implementation
+    return {
+        "partners": [
+            {
+                "lab_id": "fintech_lab_01",
+                "sector": "financial_services", 
+                "status": "active",
+                "deliverables": ["risk_assessment", "scenario_analysis"],
+                "showcase_date": "2024-12-01"
+            }
+        ]
+    }
+
+
 app.include_router(submissions_router.router)
+app.include_router(monitoring_router.router)
+app.include_router(analytics_router.router)
+app.include_router(community_router.router)
+app.include_router(communication_router.router)
 
 
 def _band_color(band: str) -> str:

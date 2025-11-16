@@ -35,3 +35,7 @@ def fetch_fred_series(series_id: str, limit: int = 30) -> List[Dict[str, str]]:
     observations.reverse()
     cache.set(series_id, observations)
     return observations
+
+
+# Alias for backward compatibility
+fetch_series = fetch_fred_series
