@@ -17,32 +17,26 @@ import sys
 import os
 from pathlib import Path
 
-def check_dependencies():
-    """Check that required dependencies are installed."""
+def ensure_dependencies():
+    """Verify required dependencies exist. Do not auto-install in managed environments."""
     required_packages = ['pydantic', 'fastapi', 'sqlalchemy', 'redis']
-    missing_packages = []
-    
+    missing = []
+
     for package in required_packages:
         try:
             __import__(package)
         except ImportError:
-            missing_packages.append(package)
-    
-    if missing_packages:
-        print(f"❌ Missing required packages: {', '.join(missing_packages)}")
-        print("🔧 Installing missing packages...")
-        
-        import subprocess
-        for package in missing_packages:
-            try:
-                subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
-                print(f"✅ Installed {package}")
-            except subprocess.CalledProcessError as e:
-                print(f"❌ Failed to install {package}: {e}")
-                sys.exit(1)
+            missing.append(package)
 
-# Check dependencies before importing worker code
-check_dependencies()
+    if missing:
+        missing_list = ', '.join(missing)
+        print(f"❌ Missing required packages: {missing_list}")
+        print("⚠️  Install dependencies via your deployment build step (e.g., pip install -r requirements.txt)")
+        print("ℹ️  Render managed environments block runtime pip installs; use a virtualenv or image build instead.")
+        sys.exit(1)
+
+# Ensure dependencies are present before importing the worker
+ensure_dependencies()
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))

@@ -305,14 +305,21 @@ def update_log() -> dict:
 # Additional API endpoints per documentation
 
 @app.get("/api/v1/analytics/geri/history")
-def geri_history() -> Dict[str, object]:
-    """Get historical GERI snapshots."""
+def geri_history(limit: int = 50, offset: int = 0) -> Dict[str, object]:
+    """Get historical GERI snapshots with pagination."""
     try:
+        # Validate pagination parameters
+        limit = min(max(1, limit), 1000)  # Between 1 and 1000
+        offset = max(0, offset)
+        
         db = SessionLocal()
-        # Get recent observations to show trend
+        # Get observations with pagination for memory efficiency
         recent_obs = db.query(ObservationModel).order_by(
             desc(ObservationModel.observed_at)
-        ).limit(100).all()
+        ).offset(offset).limit(limit).all()
+        
+        # Get total count for pagination metadata
+        total_count = db.query(ObservationModel).count()
         db.close()
         
         # Group by timestamp and compute historical scores
@@ -323,9 +330,9 @@ def geri_history() -> Dict[str, object]:
                 timestamps[ts_key] = {}
             timestamps[ts_key][obs.series_id] = obs.value
         
-        # Generate historical series (simplified for demo)
+        # Generate historical series with memory-efficient processing
         series = []
-        for timestamp, values in list(timestamps.items())[:10]:  # Last 10 snapshots
+        for timestamp, values in timestamps.items():
             if len(values) >= 3:  # Need minimum data
                 # Simplified historical score calculation
                 score = 50 + sum(values.values()) / len(values) * 0.1
@@ -335,7 +342,18 @@ def geri_history() -> Dict[str, object]:
                     "score": round(score, 2)
                 })
         
-        return {"series": series}
+        # Sort by timestamp for consistent ordering
+        series.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return {
+            "series": series,
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+                "total": total_count,
+                "has_more": offset + limit < total_count
+            }
+        }
         
     except Exception as e:
         return {"series": [], "error": str(e)}
