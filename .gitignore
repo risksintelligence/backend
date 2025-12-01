@@ -56,6 +56,39 @@ l3_cache/
 # Data directories (contain potentially sensitive API data)
 data/
 
+# Documentation files (not needed in production)
+*.md
+docs/
+API_DOCUMENTATION.md
+DEPLOYMENT.md
+ENDPOINT_VALIDATION_REPORT.md
+INFRASTRUCTURE_VALIDATION_REPORT.md
+PRODUCTION_READINESS.md
+
+# Test and development files
+test-results/
+playwright-report/
+coverage/
+*.log
+governance_reports/
+explainability_logs/
+
+# Development/local files
+local_dev.db
+test.db
+*.db
+cache_infrastructure_test_results.json
+validate_infrastructure_manually.py
+
+# Build artifacts
+models_v*/
+monitoring/
+
+# Development scripts
+scripts/deployment_plan.md
+scripts/test_cache_infrastructure.py
+scripts/generate_synthetic_training_data.py
+
 # Database
 *.db
 *.sqlite
