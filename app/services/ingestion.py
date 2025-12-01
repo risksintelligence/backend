@@ -9,6 +9,7 @@ from app.core.provider_failover import failover_manager
 from app.core.unified_cache import UnifiedCache
 from app.db import SessionLocal
 from app.models import ObservationModel
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,38 @@ def ingest_local_series() -> Dict[str, List[Observation]]:
             logger.error(f"❌ Failed to ingest {series_id}: {e}")
             # Note: No fallbacks to fake data - real provider failover handles redundancy
     
+    # Run comprehensive data quality validation on ingested data
+    if observations:
+        logger.info("🔍 Running data quality validation on ingested observations")
+        try:
+            from app.services.data_quality import validate_ingestion_output
+            
+            # Flatten observations for validation
+            all_observations = []
+            for series_id, obs_list in observations.items():
+                for obs in obs_list:
+                    all_observations.append({
+                        "series_id": obs.series_id,
+                        "value": obs.value,
+                        "observed_at": obs.observed_at.isoformat(),
+                        "fetched_at": datetime.utcnow().isoformat()
+                    })
+            
+            # Validate data quality
+            quality_report = validate_ingestion_output(all_observations)
+            
+            # Log quality results
+            if quality_report.institutional_grade:
+                logger.info(f"✅ Data quality validation passed - Institutional grade: {quality_report.overall_score:.3f}")
+            else:
+                logger.warning(f"⚠️ Data quality issues detected - Score: {quality_report.overall_score:.3f}, Critical: {quality_report.critical_issues}")
+            
+            # Store quality report for transparency endpoint
+            _store_quality_report(quality_report)
+            
+        except Exception as e:
+            logger.error(f"❌ Data quality validation failed: {e}")
+    
     return observations
 
 
@@ -172,3 +205,42 @@ def _get_ttl_for_frequency(frequency: str) -> tuple[int, int]:
     }
     
     return ttl_mapping.get(frequency.lower(), (3600, 14400))  # Default: 1hr soft, 4hr hard
+
+def _store_quality_report(quality_report) -> None:
+    """Store data quality report for transparency and audit purposes."""
+    try:
+        from app.services.data_quality import export_validation_summary
+        
+        # Use unified cache to store quality reports with 24-hour retention
+        cache = UnifiedCache("data_quality")
+        
+        # Export summary for API consumption
+        summary = export_validation_summary(quality_report)
+        
+        # Store detailed report
+        cache.set(
+            key="latest_quality_report",
+            value=summary,
+            source="rrio_data_quality_validator",
+            source_url="internal://data_quality_validation",
+            derivation_flag="validation",
+            soft_ttl=86400,  # 24 hours
+            hard_ttl=604800  # 7 days
+        )
+        
+        # Also store historical quality metrics for trending
+        timestamp_key = f"quality_report_{int(datetime.utcnow().timestamp())}"
+        cache.set(
+            key=timestamp_key,
+            value=summary,
+            source="rrio_data_quality_validator",
+            source_url="internal://data_quality_validation", 
+            derivation_flag="validation",
+            soft_ttl=2592000,  # 30 days
+            hard_ttl=7776000   # 90 days
+        )
+        
+        logger.info(f"📊 Data quality report stored - Score: {summary['overall_score']}, Grade: {'INSTITUTIONAL' if summary['institutional_grade'] else 'STANDARD'}")
+        
+    except Exception as e:
+        logger.error(f"Failed to store quality report: {e}")

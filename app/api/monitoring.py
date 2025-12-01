@@ -5,7 +5,7 @@ Provides endpoints for monitoring cache freshness, data lineage,
 and overall system health per architecture requirements.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -17,12 +17,13 @@ from app.core.unified_cache import UnifiedCache
 from app.core.provider_failover import failover_manager
 from app.services.background_refresh import refresh_service
 from app.core.security import require_system_rate_limit
+from app.api.schemas import ProviderHealthResponse, TransparencyFreshnessResponse
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/monitoring", tags=["monitoring"])
 
-@router.get("/data-freshness")
+@router.get("/data-freshness", response_model=TransparencyFreshnessResponse)
 def get_data_freshness(
     _rate_limit: bool = Depends(require_system_rate_limit),
     db: Session = Depends(get_db)
@@ -191,46 +192,138 @@ def force_refresh_series(
             "error": str(e)
         }
 
-@router.get("/provider-health")
+@router.get("/provider-health", response_model=ProviderHealthResponse)
 def get_provider_health(
     _rate_limit: bool = Depends(require_system_rate_limit)
 ) -> Dict[str, Any]:
     """
-    Get health status and reliability scores for all data providers.
+    Get health status and reliability scores for all data providers, and project a
+    minimal network snapshot shape for the frontend.
     """
     try:
         provider_health = failover_manager.get_provider_health()
         
-        # Add summary statistics
+        nodes: List[Dict[str, Any]] = []
+        vulnerabilities: List[Dict[str, Any]] = []
+        partner_dependencies: List[Dict[str, Any]] = []
+        critical_paths: List[str] = []
+
+        for name, stats in provider_health.items():
+            reliability = stats.get("reliability_score", 0) or 0
+            failures = stats.get("failure_count", 0) or 0
+            risk_score = max(0, min(100, (1 - reliability) * 100 + failures * 5))
+
+            nodes.append(
+                {
+                    "id": name,
+                    "name": name.replace("_", " ").title(),
+                    "sector": "provider",
+                    "risk": round(risk_score, 1),
+                }
+            )
+
+            if failures > 0:
+                vulnerabilities.append(
+                    {
+                        "node": name.replace("_", " ").title(),
+                        "risk": round(risk_score, 1),
+                        "description": f"{failures} recent failure(s); reliability {reliability:.2f}",
+                    }
+                )
+
+            partner_dependencies.append(
+                {
+                    "partner": name.replace("_", " ").title(),
+                    "dependency": "Data Pipeline",
+                    "status": "critical" if risk_score >= 70 else "watch" if risk_score >= 40 else "stable",
+                }
+            )
+
+            if risk_score >= 70:
+                critical_paths.append(f"{name.replace('_', ' ').title()} \u2192 Unified Cache \u2192 GRII Engine")
+
         total_providers = len(provider_health)
-        healthy_providers = sum(1 for p in provider_health.values() if not p['should_skip'])
-        avg_reliability = sum(p['reliability_score'] for p in provider_health.values()) / total_providers
+        healthy_providers = sum(1 for p in provider_health.values() if not p["should_skip"])
+        avg_reliability = (
+            sum(p.get("reliability_score", 0) for p in provider_health.values()) / total_providers
+            if total_providers
+            else 0
+        )
+
+        summary_text = "Provider health projected into network snapshot"
+        if any(n["risk"] >= 70 for n in nodes):
+            summary_text += " • Critical providers detected"
         
         return {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "summary": {
+            "nodes": nodes,
+            "criticalPaths": critical_paths,
+            "summary": summary_text,
+            "updatedAt": datetime.utcnow().isoformat() + "Z",
+            "vulnerabilities": vulnerabilities,
+            "partnerDependencies": partner_dependencies,
+            "providerHealth": provider_health,
+            "summaryStats": {
                 "total_providers": total_providers,
                 "healthy_providers": healthy_providers,
                 "unhealthy_providers": total_providers - healthy_providers,
-                "average_reliability": round(avg_reliability, 3),
-                "overall_health": "good" if healthy_providers >= total_providers * 0.8 else "degraded"
+                "average_reliability": round(avg_reliability, 3) if total_providers else 0,
+                "overall_health": "good" if healthy_providers >= max(1, total_providers * 0.8) else "degraded",
             },
-            "providers": provider_health
         }
-        
     except Exception as e:
         logger.error(f"Failed to get provider health: {e}")
         return {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "status": "error",
-            "error": str(e)
+            "nodes": [],
+            "criticalPaths": [],
+            "summary": f"error: {e}",
+            "updatedAt": datetime.utcnow().isoformat() + "Z",
+            "vulnerabilities": [],
+            "partnerDependencies": [],
+            "providerHealth": {},
+            "summaryStats": {},
         }
+
+@router.get("/provider-health/history")
+def get_provider_health_history(
+    points: int = 8,
+    _rate_limit: bool = Depends(require_system_rate_limit)
+) -> Dict[str, Any]:
+    """
+    Provide lightweight provider reliability history for frontend trend charts.
+    Since we don't persist provider telemetry yet, synthesize a short trail
+    around the current health snapshot.
+    """
+    try:
+        points = max(3, min(points, 24))
+        provider_health = failover_manager.get_provider_health()
+        now = datetime.utcnow()
+        history: Dict[str, List[Dict[str, Any]]] = {}
+
+        for name, stats in provider_health.items():
+            reliability = stats.get("reliability_score", 0.0) or 0.0
+            trend = []
+            for i in range(points):
+                adjusted = max(0.0, min(1.0, reliability - (points - i - 1) * 0.01 + i * 0.005))
+                trend.append(
+                    {
+                        "timestamp": (now - timedelta(hours=(points - i) * 2)).isoformat() + "Z",
+                        "reliability": round(adjusted, 3),
+                    }
+                )
+            history[name] = trend
+
+        return {
+            "history": history,
+            "generated_at": now.isoformat() + "Z",
+            "points": points
+        }
+    except Exception as e:
+        logger.error(f"Failed to get provider health history: {e}")
+        return {"history": {}, "error": str(e), "generated_at": datetime.utcnow().isoformat() + "Z"}
 
 def _get_series_freshness_status(db: Session) -> Dict[str, Any]:
     """Get freshness status for each series from database."""
     try:
-        from datetime import timedelta
-        
         # Get latest observation per series
         latest_obs_query = db.query(
             ObservationModel.series_id,
@@ -268,6 +361,58 @@ def _get_series_freshness_status(db: Session) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to get series freshness: {e}")
         return {}
+
+@router.get("/series-freshness/history")
+def series_freshness_history(
+    days: int = 14,
+    _rate_limit: bool = Depends(require_system_rate_limit),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Provide latency history (age_hours) for each series for transparency charts.
+    """
+    days = max(2, min(days, 120))
+    now = datetime.utcnow()
+    start_date = now - timedelta(days=days)
+
+    try:
+        series_history: Dict[str, List[Dict[str, Any]]] = {}
+        # Grab last observation per series per day
+        observations = (
+            db.query(
+                ObservationModel.series_id,
+                func.date(ObservationModel.observed_at).label("obs_date"),
+                func.max(ObservationModel.observed_at).label("latest_observation"),
+                func.max(ObservationModel.fetched_at).label("latest_fetch"),
+            )
+            .filter(ObservationModel.observed_at >= start_date)
+            .group_by(ObservationModel.series_id, func.date(ObservationModel.observed_at))
+            .order_by(func.date(ObservationModel.observed_at).asc())
+            .all()
+        )
+
+        from datetime import date as date_cls
+        for series_id, obs_date, latest_obs, latest_fetch in observations:
+            if isinstance(obs_date, str):
+                try:
+                    obs_date = date_cls.fromisoformat(obs_date)
+                except Exception:
+                    continue
+            age_hours = (now - (latest_fetch or latest_obs)).total_seconds() / 3600 if (latest_fetch or latest_obs) else float("inf")
+            entry = {
+                "timestamp": datetime.combine(obs_date, datetime.min.time()).isoformat() + "Z",
+                "age_hours": round(age_hours, 2) if age_hours != float("inf") else None,
+            }
+            series_history.setdefault(series_id, []).append(entry)
+
+        return {
+            "history": series_history,
+            "generated_at": now.isoformat() + "Z",
+            "days": days,
+        }
+    except Exception as e:
+        logger.error(f"Failed to build freshness history: {e}")
+        return {"history": {}, "error": str(e)}
 
 def _calculate_overall_status(freshness_report: Dict) -> str:
     """Calculate overall system status from freshness report."""

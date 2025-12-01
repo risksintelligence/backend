@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import logging
 
-from app.core.cache import FileCache
+from app.core.unified_cache import UnifiedCache
 from app.core.config import get_settings
 from app.services.ingestion import ingest_local_series
 from app.db import SessionLocal
@@ -12,7 +12,7 @@ from app.models import TransparencyLogModel, ObservationModel
 from sqlalchemy import desc
 
 settings = get_settings()
-cache = FileCache("freshness")
+cache = UnifiedCache("freshness")
 TRANSPARENCY_FILE = settings.data_dir / "transparency.json"
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,9 @@ def _write_data(data: Dict[str, List[Dict[str, str]]]) -> None:
 
 def get_data_freshness() -> List[Dict[str, str]]:
     """Return freshness rows using stored observations + TTL semantics."""
-    cached = cache.get("freshness")
-    if cached:
-        return cached
+    cached_data, metadata = cache.get("freshness")
+    if cached_data:
+        return cached_data
     
     freshness: List[Dict[str, str]] = []
     now = datetime.utcnow()
@@ -109,7 +109,7 @@ def get_data_freshness() -> List[Dict[str, str]]:
                 "source_url": None
             })
     
-    cache.set("freshness", freshness, ttl=300)
+    cache.set("freshness", freshness, source="transparency_pipeline", soft_ttl=300, hard_ttl=1200)
     return freshness
 
 

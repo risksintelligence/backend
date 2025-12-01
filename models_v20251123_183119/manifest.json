@@ -1,0 +1,33 @@
+{
+  "version": "20251123_183119",
+  "created_at": "2025-11-23T23:31:19.414034Z",
+  "training_window": "77_years_1948_2025",
+  "dataset_size": 4693,
+  "models": {
+    "regime_classifier.pkl": {
+      "checksum": "1a76907d96815e192d28bb189f91013db16388cc0dfc068c468593bf0751052d",
+      "size_bytes": 568977,
+      "path": "models_v20251123_183119/regime_classifier.pkl"
+    },
+    "forecast_model.pkl": {
+      "checksum": "1ea25f29ebf2c702cfd5e766d937b21534825b086cd5f8c1606435bc939208ea",
+      "size_bytes": 624,
+      "path": "models_v20251123_183119/forecast_model.pkl"
+    },
+    "anomaly_detector.pkl": {
+      "checksum": "9d684b553728dce5e83e6c2892b2f6abc1655f0ae626c6471d5abb9afc38f5ea",
+      "size_bytes": 914088,
+      "path": "models_v20251123_183119/anomaly_detector.pkl"
+    },
+    "regime_scaler.pkl": {
+      "checksum": "1b8672ea6dd55b7d45f8aeaee73f5aae42a94ac7c3e8393ada86a4ce28735fc1",
+      "size_bytes": 1103,
+      "path": "models_v20251123_183119/regime_scaler.pkl"
+    },
+    "forecast_scaler.pkl": {
+      "checksum": "6880fa54a676b7321ea01127661950918a954608caafa3650adacdc01998af93",
+      "size_bytes": 1103,
+      "path": "models_v20251123_183119/forecast_scaler.pkl"
+    }
+  }
+}

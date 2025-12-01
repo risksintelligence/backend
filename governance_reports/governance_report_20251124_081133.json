@@ -1,0 +1,71 @@
+{
+  "report_date": "2025-11-24T08:11:33.058058",
+  "executive_summary": {
+    "key_metrics": {
+      "models_under_governance": 0,
+      "average_compliance_score": "0.0%",
+      "explanations_accessed_24h": 0,
+      "overall_health": "Needs Attention"
+    },
+    "critical_alerts": [],
+    "status_summary": "RRIO governance monitoring 0 models with 0.0% average compliance"
+  },
+  "model_governance": {
+    "error": "HTTP 500",
+    "total_models": 0
+  },
+  "compliance_overview": {
+    "error": "Failed to fetch models for compliance check"
+  },
+  "drift_analysis": {
+    "total_drift_checks": 0,
+    "alerts_by_type": {
+      "data_drift": 0,
+      "concept_drift": 0,
+      "prediction_drift": 0,
+      "performance_drift": 0
+    },
+    "alerts_by_risk": {
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    },
+    "most_affected_models": [],
+    "recommendation_actions": []
+  },
+  "explainability_audit": {
+    "error": "Failed to fetch explainability data"
+  },
+  "risk_assessment": {
+    "overall_risk_level": "medium",
+    "risk_factors": [
+      {
+        "category": "Model Governance",
+        "risk_level": "low",
+        "description": "Active model registry with compliance monitoring"
+      },
+      {
+        "category": "Data Quality",
+        "risk_level": "medium",
+        "description": "Ongoing data quality validation with acceptable thresholds"
+      },
+      {
+        "category": "Explainability",
+        "risk_level": "low",
+        "description": "Comprehensive audit trails and explanation access"
+      }
+    ],
+    "mitigation_actions": [
+      "Continue monitoring compliance scores",
+      "Investigate any drift alerts promptly",
+      "Maintain explainability documentation"
+    ]
+  },
+  "recommendations": [
+    "Schedule weekly model governance reviews",
+    "Implement automated drift detection thresholds",
+    "Enhance explainability documentation for high-risk models",
+    "Consider additional compliance frameworks as needed"
+  ],
+  "prometheus_metrics": "# Prometheus not available"
+}

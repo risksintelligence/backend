@@ -13,32 +13,83 @@ def forecast_delta(observations: Dict[str, List[Observation]]) -> Dict[str, floa
     """Generate 24-hour forecast using trained ML model."""
     try:
         # Load trained models
-        model = load_model("forecast_model.pkl")
-        scaler = load_model("forecast_scaler.pkl")
-        
+        model = load_model("forecast_model.pkl", max_age_hours=48)
+        scaler = load_model("forecast_scaler.pkl", max_age_hours=48)
+
         # Prepare features from latest observations
         features = _prepare_forecast_features(observations)
         if features is None:
             logger.warning("Insufficient data for forecasting")
             return _fallback_forecast()
-        
+
         # Scale and predict
         features_scaled = scaler.transform([features])
         delta_prediction = float(model.predict(features_scaled)[0])
-        
+
         # Calculate confidence metrics
         confidence_interval = [delta_prediction - 2.0, delta_prediction + 2.0]
         p_gt_5 = max(0.0, min(1.0, (delta_prediction - 5.0) / 10.0 + 0.5))
-        
+
         return {
             "delta": round(delta_prediction, 2),
             "p_gt_5": round(p_gt_5, 3),
             "confidence_interval": [round(ci, 1) for ci in confidence_interval],
         }
-        
+
+    except FileNotFoundError as e:
+        logger.error(f"Forecast model missing: {e}")
+        raise
+    except ValueError as e:
+        logger.error(f"Forecast model stale or invalid: {e}")
+        raise
     except Exception as e:
         logger.error(f"Forecast failed: {e}")
         return _fallback_forecast()
+
+
+FORECAST_FEATURE_NAMES = [
+    "value_lag1",
+    "value_lag7",
+    "rolling_mean_7",
+    "pct_change",
+    "volatility",
+]
+
+
+def explain_forecast(observations: Dict[str, List[Observation]]) -> List[Dict[str, float]]:
+    """
+    Return simple driver contributions for the forecast model.
+    For linear regression, contribution = coef * scaled_feature.
+    """
+    try:
+        model = load_model("forecast_model.pkl", max_age_hours=48)
+        scaler = load_model("forecast_scaler.pkl", max_age_hours=48)
+
+        features = _prepare_forecast_features(observations)
+        if features is None:
+            logger.warning("Insufficient data for forecast explainability")
+            return []
+
+        if not hasattr(model, "coef_"):
+            return []
+
+        scaled = scaler.transform([features])[0]
+        contributions = []
+        for name, coef, val in zip(FORECAST_FEATURE_NAMES, model.coef_, scaled):
+            contributions.append(
+                {
+                    "feature": name,
+                    "contribution": round(float(coef * val), 4),
+                    "coef": round(float(coef), 4),
+                    "value": round(float(val), 4),
+                }
+            )
+
+        contributions.sort(key=lambda x: abs(x["contribution"]), reverse=True)
+        return contributions
+    except Exception as e:
+        logger.error(f"Forecast explainability failed: {e}")
+        return []
 
 
 def _prepare_forecast_features(observations: Dict[str, List[Observation]]) -> List[float]:

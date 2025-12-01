@@ -1,0 +1,170 @@
+{
+  "timestamp": "2025-11-24T19:32:17.687343",
+  "tests": {
+    "cache_invalidation_error": {
+      "status": "FAIL",
+      "details": {
+        "error": "Data should be fresh initially",
+        "error_type": "AssertionError"
+      },
+      "timestamp": "2025-11-24T19:32:17.878964"
+    },
+    "l1_redis_cache": {
+      "status": "PASS",
+      "details": {
+        "data_retrieved": true,
+        "cache_layer": "l3_fallback",
+        "source_attribution": "test_provider"
+      },
+      "timestamp": "2025-11-24T19:32:17.879592"
+    },
+    "l2_postgresql_fallback": {
+      "status": "PASS",
+      "details": {
+        "data_retrieved": true,
+        "cache_status": "l2_fallback",
+        "l1_repopulated": true
+      },
+      "timestamp": "2025-11-24T19:32:17.881391"
+    },
+    "l3_file_store_fallback": {
+      "status": "PASS",
+      "details": {
+        "data_retrieved": true,
+        "cache_status": "l3_fallback",
+        "l3_bundle_exists": true
+      },
+      "timestamp": "2025-11-24T19:32:17.881612"
+    },
+    "cache_freshness_monitoring": {
+      "status": "PASS",
+      "details": {
+        "l1_status": "unavailable",
+        "l2_status": "available",
+        "l3_status": "available",
+        "unified_status": {
+          "architecture": "3_tier_l1_l2_l3",
+          "stale_while_revalidate": true,
+          "data_lineage": true,
+          "ttl_management": true
+        }
+      },
+      "timestamp": "2025-11-24T19:32:17.882727"
+    },
+    "analytics_query_performance": {
+      "status": "PASS",
+      "details": {
+        "query_time_ms": 1.19,
+        "page_views_count": 2,
+        "events_count": 0,
+        "avg_feedback": 4.67,
+        "performance_target": "< 100ms"
+      },
+      "timestamp": "2025-11-24T19:32:17.883943"
+    },
+    "observation_query_performance": {
+      "status": "PASS",
+      "details": {
+        "query_time_ms": 0.76,
+        "observations_count": 1,
+        "performance_target": "< 50ms"
+      },
+      "timestamp": "2025-11-24T19:32:17.884707"
+    },
+    "database_performance_error": {
+      "status": "FAIL",
+      "details": {
+        "error": "Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')",
+        "error_type": "ArgumentError"
+      },
+      "timestamp": "2025-11-24T19:32:17.884730"
+    },
+    "page_view_persistence": {
+      "status": "PASS",
+      "details": {
+        "saved_successfully": true,
+        "path_correct": true,
+        "timestamp_stored": true
+      },
+      "timestamp": "2025-11-24T19:32:17.886499"
+    },
+    "user_event_persistence": {
+      "status": "PASS",
+      "details": {
+        "saved_successfully": true,
+        "event_data_stored": true,
+        "json_data_intact": true
+      },
+      "timestamp": "2025-11-24T19:32:17.888302"
+    },
+    "user_feedback_persistence": {
+      "status": "PASS",
+      "details": {
+        "saved_successfully": true,
+        "rating_stored": true,
+        "comment_stored": true
+      },
+      "timestamp": "2025-11-24T19:32:17.889964"
+    },
+    "analytics_aggregation": {
+      "status": "PASS",
+      "details": {
+        "total_about_views": 3,
+        "avg_about_rating": 5.0,
+        "unique_sessions": 1,
+        "data_aggregation_working": true
+      },
+      "timestamp": "2025-11-24T19:32:17.890900"
+    },
+    "analytics_cache_warming": {
+      "status": "PASS",
+      "details": {
+        "cache_populated": true,
+        "data_structure_intact": true,
+        "cache_freshness": "l3_fallback"
+      },
+      "timestamp": "2025-11-24T19:32:17.891551"
+    },
+    "geri_cache_warming": {
+      "status": "PASS",
+      "details": {
+        "geri_cached": true,
+        "score_available": true,
+        "real_time_ttl": true
+      },
+      "timestamp": "2025-11-24T19:32:17.891929"
+    },
+    "engagement_cache_warming": {
+      "status": "PASS",
+      "details": {
+        "engagement_cached": true,
+        "about_page_views": true,
+        "session_data_available": true
+      },
+      "timestamp": "2025-11-24T19:32:17.892270"
+    },
+    "cache_performance_verification": {
+      "status": "PASS",
+      "details": {
+        "avg_retrieval_time_ms": 0.22,
+        "max_retrieval_time_ms": 0.33,
+        "performance_target": "< 10ms",
+        "performance_achieved": true
+      },
+      "timestamp": "2025-11-24T19:32:17.894494"
+    },
+    "cache_warming_strategy": {
+      "status": "PASS",
+      "details": {
+        "l1_cache_status": "unavailable",
+        "fresh_data_percentage": 0,
+        "warming_successful": false
+      },
+      "timestamp": "2025-11-24T19:32:17.894939"
+    }
+  },
+  "performance_metrics": {},
+  "infrastructure_status": {},
+  "start_time": "2025-11-24T19:32:17.687615",
+  "end_time": "2025-11-24T19:32:17.894945"
+}

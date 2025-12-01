@@ -45,6 +45,10 @@ env/
 secrets.env
 *.env
 
+# Secret files
+secrets/
+secret_keys/
+
 # Cache directories
 cache/
 l3_cache/
@@ -57,8 +61,8 @@ data/
 *.sqlite
 *.sqlite3
 
-# ML Models
-models/*.pkl
+# ML Models (uncomment for production - models should be trained in CI/CD)
+# models/*.pkl
 
 # Logs
 *.log

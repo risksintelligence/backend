@@ -1,0 +1,31 @@
+groups:
+  - name: rrio-governance-alerts
+    rules:
+      - alert: RRIOGovernanceDriftHigh
+        expr: increase(rrio_governance_drift_alerts_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Governance drift alert detected"
+          description: "Drift alerts fired in the last 5m (type/risk in labels). Investigate model drift dashboards."
+      - alert: RRIOComplianceFailure
+        expr: increase(rrio_governance_compliance_failures_total[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Compliance score below threshold"
+          description: "A compliance report fell below the compliant threshold in the last 15m. Model={{ $labels.model_name }}"
+      - alert: RRIOHighLatency
+        expr: histogram_quantile(0.95, sum(rate(rrio_request_latency_seconds_bucket[5m])) by (le)) > 0.8
+        labels:
+          severity: warning
+        annotations:
+          summary: "API latency elevated"
+          description: "p95 latency > 800ms over 5m window."
+      - alert: RRIOHighErrorRate
+        expr: sum(rate(rrio_requests_total{status=~\"5..\"}[5m])) / sum(rate(rrio_requests_total[5m])) > 0.05
+        labels:
+          severity: critical
+        annotations:
+          summary: "API error rate high"
+          description: "5xx error rate > 5% over 5m window."

@@ -1,20 +1,25 @@
 import os
 import json
-import time
 import hashlib
 import logging
-from pathlib import Path
-from typing import Any, Optional, Dict, Tuple
+from typing import Any, Optional, Dict, Tuple, Callable, Awaitable
 from datetime import datetime, timedelta
+from functools import wraps
 import redis
 
 class RedisCache:
     """L1 Redis cache with TTL management and stale-while-revalidate support."""
     
     def __init__(self, namespace: str) -> None:
-        url = os.getenv('RIS_REDIS_URL')
+        from app.core.config import get_settings
+        settings = get_settings()
+        url = settings.redis_url
         if not url:
-            raise RuntimeError("Redis URL missing; set RIS_REDIS_URL environment variable")
+            logging.getLogger(__name__).warning("Redis URL missing; cache will be disabled for local development")
+            self.client = None
+            self.available = False
+            self.namespace = namespace
+            return
         try:
             # Production Redis configuration with connection pooling
             pool = redis.ConnectionPool.from_url(
@@ -174,48 +179,84 @@ class RedisCache:
             return {"status": "error", "cache_layer": "l1_redis", "error": str(e)}
 
 
-class FileCache:
-    """File-based cache implementation for reliability when Redis unavailable."""
-    
-    def __init__(self, namespace: str):
-        self.namespace = namespace
-        cache_dir = Path("cache") / namespace
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_dir = cache_dir
+class CacheConfig:
+    """Configuration for cache decorators"""
+    def __init__(self, key_prefix: str, ttl_seconds: int = 900, fallback_ttl_seconds: int = 86400):
+        self.key_prefix = key_prefix
+        self.ttl_seconds = ttl_seconds
+        self.fallback_ttl_seconds = fallback_ttl_seconds
 
-    def _key_path(self, key: str) -> Path:
-        return self.cache_dir / f"{key}.json"
 
-    def get(self, key: str) -> Optional[Any]:
-        """Get cached value if exists and not expired."""
-        try:
-            key_path = self._key_path(key)
-            if not key_path.exists():
-                return None
-            
-            with open(key_path, 'r') as f:
-                data = json.load(f)
-            
-            # Check expiration
-            if data.get('expires_at', 0) < time.time():
-                key_path.unlink(missing_ok=True)
-                return None
-            
-            return data.get('value')
-        except Exception:
-            return None
+def cache_with_fallback(config: CacheConfig):
+    """
+    Decorator for caching async functions with fallback support.
+    Uses Redis cache with stale-while-revalidate pattern.
+    """
+    def decorator(func: Callable[..., Awaitable[Dict[str, Any]]]) -> Callable[..., Awaitable[Dict[str, Any]]]:
+        @wraps(func)
+        async def wrapper(*args, **kwargs) -> Dict[str, Any]:
+            try:
+                # Create cache instance
+                cache = RedisCache(config.key_prefix)
+                
+                # Generate cache key from function name and arguments
+                key_parts = [func.__name__]
+                if args:
+                    key_parts.extend(str(arg) for arg in args)
+                if kwargs:
+                    key_parts.extend(f"{k}={v}" for k, v in sorted(kwargs.items()))
+                cache_key = ":".join(key_parts)
+                
+                # Try to get from cache with metadata
+                cached_data, metadata = cache.get_with_metadata(cache_key)
+                
+                if cached_data and metadata:
+                    # Check if data is still fresh
+                    is_stale_soft = metadata.get('is_stale_soft', False)
+                    is_stale_hard = metadata.get('is_stale_hard', False)
+                    
+                    if not is_stale_hard:
+                        # Data is still valid (not hard stale)
+                        if not is_stale_soft:
+                            # Data is fresh, return it
+                            return cached_data
+                        else:
+                            # Data is soft stale, return it but trigger background refresh
+                            # For now, just return the stale data
+                            return cached_data
+                
+                # Cache miss or hard stale - fetch fresh data
+                try:
+                    fresh_data = await func(*args, **kwargs)
+                    
+                    # Cache the fresh data
+                    cache.set_with_metadata(
+                        cache_key, 
+                        fresh_data, 
+                        soft_ttl=config.ttl_seconds,
+                        hard_ttl=config.fallback_ttl_seconds,
+                        source=func.__module__,
+                        derivation_flag="fresh"
+                    )
+                    
+                    return fresh_data
+                    
+                except Exception as e:
+                    logging.getLogger(__name__).error(f"Function {func.__name__} failed: {e}")
+                    
+                    # If we have stale data, return it
+                    if cached_data:
+                        return cached_data
+                    
+                    # No cached data available, re-raise the exception
+                    raise
+                    
+            except Exception as e:
+                # Cache system failed, call function directly
+                logging.getLogger(__name__).warning(f"Cache system failed for {func.__name__}: {e}")
+                return await func(*args, **kwargs)
+        
+        return wrapper
+    return decorator
 
-    def set(self, key: str, value: Any, ttl: int = 900) -> None:
-        """Set cached value with TTL."""
-        try:
-            key_path = self._key_path(key)
-            data = {
-                'value': value,
-                'expires_at': time.time() + ttl,
-                'created_at': time.time()
-            }
-            
-            with open(key_path, 'w') as f:
-                json.dump(data, f)
-        except Exception:
-            pass  # Fail silently for cache errors
+

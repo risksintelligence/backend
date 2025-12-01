@@ -13,28 +13,34 @@ def detect_anomalies(observations: Dict[str, List[Observation]]) -> Dict[str, fl
     """Detect anomalies using trained isolation forest model."""
     try:
         # Load trained model
-        model = load_model("anomaly_detector.pkl")
-        
+        model = load_model("anomaly_detector.pkl", max_age_hours=48)
+
         # Prepare features from latest observations
         features = _prepare_anomaly_features(observations)
         if features is None:
             logger.warning("Insufficient data for anomaly detection")
             return _fallback_anomaly()
-        
+
         # Predict anomaly score
         anomaly_score = model.score_samples([features])[0]
         is_outlier = model.predict([features])[0] == -1
-        
+
         # Convert to 0-1 score (higher = more anomalous)
         normalized_score = max(0.0, min(1.0, (0.5 - anomaly_score) * 2))
-        
+
         classification = "anomaly" if is_outlier else "normal"
-        
+
         return {
             "score": round(float(normalized_score), 3),
             "classification": classification,
         }
-        
+
+    except FileNotFoundError as e:
+        logger.error(f"Anomaly model missing: {e}")
+        raise
+    except ValueError as e:
+        logger.error(f"Anomaly model stale or invalid: {e}")
+        raise
     except Exception as e:
         logger.error(f"Anomaly detection failed: {e}")
         return _fallback_anomaly()

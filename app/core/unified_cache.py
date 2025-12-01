@@ -226,14 +226,15 @@ class UnifiedCache:
                 with open(daily_file, 'r') as f:
                     bundle = json.load(f)
                 
+                meta = bundle.get('metadata', {})
                 metadata = CacheMetadata(
-                    cached_at=datetime.fromisoformat(bundle['metadata']['cached_at']),
-                    source=bundle['metadata']['source'],
-                    source_url=bundle['metadata']['source_url'],
-                    checksum=bundle['metadata']['checksum'],
-                    derivation_flag=bundle['metadata']['derivation_flag'],
-                    soft_ttl=bundle['metadata']['soft_ttl'],
-                    hard_ttl=bundle['metadata']['hard_ttl'],
+                    cached_at=datetime.fromisoformat(meta.get('cached_at', datetime.utcnow().isoformat())),
+                    source=meta.get('source', 'l3'),
+                    source_url=meta.get('source_url', 'l3'),
+                    checksum=meta.get('checksum', ''),
+                    derivation_flag=meta.get('derivation_flag', 'raw'),
+                    soft_ttl=meta.get('soft_ttl', 0),
+                    hard_ttl=meta.get('hard_ttl', 0),
                     age_seconds=0,
                     is_stale_soft=True,  # L3 data is always considered stale
                     is_stale_hard=False,

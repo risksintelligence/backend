@@ -2,16 +2,16 @@ from typing import List, Dict
 
 import httpx
 
-from app.core.cache import FileCache
+from app.core.unified_cache import UnifiedCache
 from app.core.config import get_settings
 
-cache = FileCache("fred")
+cache = UnifiedCache("fred")
 
 
 def fetch_fred_series(series_id: str, limit: int = 30) -> List[Dict[str, str]]:
-    cached = cache.get(series_id)
-    if cached:
-        return cached
+    cached_data, _ = cache.get(series_id)
+    if cached_data:
+        return cached_data
     settings = get_settings()
     api_key = settings.fred_api_key
     if not api_key:
@@ -33,7 +33,7 @@ def fetch_fred_series(series_id: str, limit: int = 30) -> List[Dict[str, str]]:
         if obs.get("value") not in (".", None)
     ]
     observations.reverse()
-    cache.set(series_id, observations)
+    cache.set(series_id, observations, source="fred_api")
     return observations
 
 

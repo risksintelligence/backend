@@ -45,10 +45,10 @@ class RateLimiter:
         """Get when the rate limit resets."""
         return int(rate_limit_storage.get(client_id, {}).get('reset_time', time.time()))
 
-# Rate limiters for different endpoint types
-analytics_limiter = RateLimiter(60)  # 60 req/min for analytics
-ai_limiter = RateLimiter(30)         # 30 req/min for AI endpoints
-system_limiter = RateLimiter(120)    # 120 req/min for system endpoints
+# Rate limiters for different endpoint types (increased for local development)
+analytics_limiter = RateLimiter(600)   # 600 req/min for analytics
+ai_limiter = RateLimiter(300)          # 300 req/min for AI endpoints
+system_limiter = RateLimiter(1200)     # 1200 req/min for system endpoints
 
 def get_client_id(request: Request) -> str:
     """Get client identifier for rate limiting."""

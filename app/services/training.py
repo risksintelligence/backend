@@ -2,7 +2,7 @@ import joblib
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from app.db import SessionLocal
 from app.models import ObservationModel, ModelMetadataModel
 
-WINDOW_YEARS = 5
+WINDOW_YEARS = 77
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -255,12 +255,73 @@ def save_model_metadata(model_name: str, model_type: str, metrics: Dict[str, Any
             db.close()
 
 
-def load_model(filename: str) -> Any:
-    """Load a trained model from disk."""
+def load_model(filename: str, max_age_hours: Optional[int] = None) -> Any:
+    """
+    Load a trained model from disk with optional freshness validation.
+    Raises FileNotFoundError or ValueError on stale artifacts.
+    """
     filepath = os.path.join(MODEL_DIR, filename)
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"Model not found: {filepath}")
+    if max_age_hours is not None:
+        from app.core.config import get_settings
+        settings = get_settings()
+        
+        # Allow environment override for model staleness tolerance
+        effective_max_age = max_age_hours
+        if hasattr(settings, 'ML_MODEL_MAX_AGE_HOURS'):
+            effective_max_age = settings.ML_MODEL_MAX_AGE_HOURS
+        elif os.getenv('RIS_ML_MODEL_MAX_AGE_HOURS'):
+            effective_max_age = float(os.getenv('RIS_ML_MODEL_MAX_AGE_HOURS', max_age_hours))
+        # Allow bypass for tests/dev if explicitly set
+        if os.getenv("ALLOW_STALE_MODELS_FOR_TESTS", "").lower() in ["1", "true", "yes"]:
+            effective_max_age = float("inf")
+        
+        mtime = os.path.getmtime(filepath)
+        age_hours = (datetime.utcnow().timestamp() - mtime) / 3600
+        if age_hours > effective_max_age:
+            raise ValueError(f"Model {filename} is stale ({age_hours:.1f}h old, max: {effective_max_age}h)")
     return joblib.load(filepath)
+
+
+def model_file_status(model_name: str) -> Dict[str, Any]:
+    """Return existence/mtime info for a saved model artifact."""
+    filepath = os.path.join(MODEL_DIR, f"{model_name}.pkl")
+    exists = os.path.exists(filepath)
+    mtime = os.path.getmtime(filepath) if exists else None
+    return {
+        "model": model_name,
+        "exists": exists,
+        "path": filepath,
+        "modified_at": datetime.fromtimestamp(mtime).isoformat() if mtime else None,
+    }
+
+
+def list_model_status() -> List[Dict[str, Any]]:
+    """Summarize all known model artifacts + metadata table if present."""
+    models = ["regime_classifier", "forecast_model", "anomaly_detector", "regime_scaler", "forecast_scaler"]
+    statuses = [model_file_status(name) for name in models]
+
+    # Attach metadata if available
+    try:
+        db: Session = SessionLocal()
+        rows = db.query(ModelMetadataModel).all()
+        meta_map = {row.model_name: row for row in rows}
+        for status in statuses:
+            meta = meta_map.get(status["model"].replace("_scaler", ""))
+            if meta:
+                status["metadata"] = {
+                    "model_type": meta.model_type,
+                    "trained_at": meta.training_window_end.isoformat() if meta.training_window_end else None,
+                    "metrics": meta.performance_metrics,
+                    "is_active": meta.is_active,
+                }
+        db.close()
+    except Exception:
+        # Keep statuses best-effort; don't break if metadata table missing
+        pass
+
+    return statuses
 
 
 def train_all_models() -> None:

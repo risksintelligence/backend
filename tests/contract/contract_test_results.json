@@ -1,0 +1,248 @@
+{
+  "summary": {
+    "total_endpoints": 5,
+    "passed": 4,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 1
+  },
+  "endpoints": [
+    {
+      "endpoint": "/api/v1/analytics/geri",
+      "status": "pass",
+      "response_code": 200,
+      "schema_valid": true,
+      "errors": [],
+      "response_time_ms": 32.64229199999999,
+      "data_sample": {
+        "score": 56.59,
+        "band": "moderate",
+        "confidence": 45,
+        "updated_at": "2025-11-24T13:20:08.031462Z",
+        "contributions": {
+          "VIX": 0.1282,
+          "YIELD_CURVE": 0.0851,
+          "CREDIT_SPREAD": 0.0,
+          "WTI_OIL": -0.0133,
+          "UNEMPLOYMENT": 0.215
+        },
+        "component_scores": {
+          "VIX": 0.855,
+          "YIELD_CURVE": 0.851,
+          "CREDIT_SPREAD": 0.0,
+          "WTI_OIL": -0.089,
+          "UNEMPLOYMENT": 1.434
+        },
+        "metadata": {
+          "total_weight": 0.63,
+          "raw_score": 56.59,
+          "regime_override": null,
+          "regime_confidence": 1.0
+        },
+        "drivers": [
+          {
+            "component": "VIX",
+            "contribution": 0.128,
+            "impact": 12.8
+          },
+          {
+            "component": "YIELD_CURVE",
+            "contribution": 0.085,
+            "impact": 8.5
+          },
+          {
+            "component": "CREDIT_SPREAD",
+            "contribution": 0.0,
+            "impact": 0.0
+          },
+          {
+            "component": "WTI_OIL",
+            "contribution": -0.013,
+            "impact": -1.3
+          },
+          {
+            "component": "UNEMPLOYMENT",
+            "contribution": 0.215,
+            "impact": 21.5
+          }
+        ],
+        "color": "#FFD600",
+        "band_color": "#FFD600",
+        "change_24h": 0.66,
+        "risk_taxonomy": {
+          "coso_framework": {
+            "control_environment": {
+              "score": 56.59,
+              "assessment": "acceptable_risk",
+              "governance_quality": "established"
+            },
+            "risk_assessment": {
+              "likelihood": "medium",
+              "impact": "moderate",
+              "risk_tolerance": "within_bounds"
+            },
+            "control_activities": {
+              "monitoring_frequency": "weekly",
+              "escalation_required": false,
+              "response_protocol": "standard"
+            }
+          },
+          "fair_analysis": {
+            "threat_event_frequency": {
+              "category": "medium",
+              "annual_probability": 0.5659000000000001,
+              "confidence_interval": [
+                46.59,
+                66.59
+              ]
+            },
+            "threat_capability": {
+              "sophistication": "intermediate",
+              "resources": "moderate"
+            },
+            "control_strength": {
+              "effectiveness": "adequate",
+              "maturity": "managed",
+              "coverage": "comprehensive"
+            },
+            "loss_magnitude": {
+              "primary_impact": "medium",
+              "secondary_impact": "moderate",
+              "total_risk_exposure": "$56,590,000"
+            }
+          },
+          "basel_iii": {
+            "market_risk": {
+              "var_contribution": 22.636000000000003,
+              "stress_test_impact": "limited"
+            },
+            "credit_risk": {
+              "expected_loss": 16.977,
+              "unexpected_loss": 28.295
+            },
+            "operational_risk": {
+              "business_environment_factor": 1.0,
+              "internal_control_factor": 0.8
+            }
+          },
+          "nist_csf": {
+            "identify": {
+              "asset_management": "established",
+              "risk_assessment": "continuous"
+            },
+            "protect": {
+              "access_control": "implemented",
+              "data_security": "managed"
+            },
+            "detect": {
+              "anomaly_detection": "operational",
+              "monitoring": "24x7"
+            },
+            "respond": {
+              "response_planning": "documented",
+              "communications": "established"
+            },
+            "recover": {
+              "recovery_planning": "tested",
+              "improvements": "ongoing"
+            }
+          },
+          "mapping_metadata": {
+            "framework_version": "2024.1",
+            "last_updated": "2025-11-24T13:20:08.031507",
+            "confidence_level": 45,
+            "institutional_grade": true,
+            "regulatory_alignment": [
+              "COSO",
+              "FAIR",
+              "Basel III",
+              "NIST CSF"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "endpoint": "/api/v1/ai/governance/models",
+      "status": "endpoint_available",
+      "response_code": 500,
+      "schema_valid": false,
+      "errors": [
+        "HTTP 500 - endpoint exists but no test data"
+      ],
+      "response_time_ms": 66.001,
+      "data_sample": null
+    },
+    {
+      "endpoint": "/api/v1/ai/explainability/audit-log",
+      "status": "pass",
+      "response_code": 200,
+      "schema_valid": true,
+      "errors": [],
+      "response_time_ms": 6.018583000000022,
+      "data_sample": {
+        "status": "success",
+        "audit_logs": [],
+        "total_entries": 0,
+        "period": {
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "duration_days": 364
+        },
+        "retrieved_at": "2025-11-24T13:20:08.110216Z"
+      }
+    },
+    {
+      "endpoint": "/api/v1/ai/forecast/next-24h",
+      "status": "pass",
+      "response_code": 200,
+      "schema_valid": true,
+      "errors": [],
+      "response_time_ms": 6.963750000000046,
+      "data_sample": {
+        "delta": 0.01,
+        "p_gt_5": 0.001,
+        "confidence_interval": [
+          -2.0,
+          2.0
+        ],
+        "drivers": [
+          {
+            "component": "UNEMPLOYMENT",
+            "impact": 21.5
+          },
+          {
+            "component": "VIX",
+            "impact": 12.8
+          },
+          {
+            "component": "YIELD_CURVE",
+            "impact": 8.5
+          }
+        ],
+        "updated_at": "2025-11-24T13:20:08.119738Z"
+      }
+    },
+    {
+      "endpoint": "/api/v1/ai/regime/current",
+      "status": "pass",
+      "response_code": 200,
+      "schema_valid": true,
+      "errors": [],
+      "response_time_ms": 19.75316599999999,
+      "data_sample": {
+        "regime": "Calm",
+        "probabilities": {
+          "Calm": 1.0,
+          "Inflationary_Stress": 0.0,
+          "Supply_Shock": 0.0,
+          "Financial_Stress": 0.0
+        },
+        "weights": {},
+        "confidence": 1.0,
+        "updated_at": "2025-11-24T13:20:08.142045Z"
+      }
+    }
+  ],
+  "timestamp": "2025-11-24T13:15:00Z"
+}
