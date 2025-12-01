@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     
     # Security
     reviewer_api_key: Optional[str] = Field(None, alias="ris_reviewer_api_key")
-    allowed_origins: str = Field("https://frontend-1-tzlw.onrender.com,https://backend-1-s84g.onrender.com", alias="ris_allowed_origins")
+    allowed_origins: str = Field("https://riskx-frontend-production.up.railway.app,https://riskx-backend-production.up.railway.app", alias="ris_allowed_origins")
     jwt_secret: Optional[str] = Field(None, alias="ris_jwt_secret")
     
     # Auth (for future use)
