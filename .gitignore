@@ -88,6 +88,24 @@ monitoring/
 scripts/deployment_plan.md
 scripts/test_cache_infrastructure.py
 scripts/generate_synthetic_training_data.py
+scripts/daily_governance_report.py
+scripts/run_e2e_tests.py
+
+# Root level development files
+create_supply_chain_tables.py
+validate_infrastructure_manually.py
+
+# Development configs
+build.sh
+setup_redis.sh
+docker-compose.redis.yml
+pytest.ini
+secrets.env
+
+# Development directories
+jobs/
+rrio/
+tests/
 
 # Database
 *.db
