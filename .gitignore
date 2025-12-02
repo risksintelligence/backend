@@ -104,10 +104,61 @@ docker-compose.redis.yml
 pytest.ini
 secrets.env
 
-# Development directories
+# Test directories and files (keep tests for development, exclude from production deployment)
+tests/
+.pytest_cache/
+coverage/
+htmlcov/
+test-results/
+playwright-report/
+pytest.ini
+*_test.py
+test_*.py
+
+# Runtime generated files (created at runtime, don't commit)
+cache/
+l3_cache/
+logs/
+*.log
+background_refresh.log
+
+# Development/debugging files (not needed in production)
+cache_infrastructure_test_results.json
+validate_infrastructure_manually.py
+create_supply_chain_tables.py
+
+# Development-only directories (if they contain only dev tools)
 jobs/
 rrio/
-tests/
+
+# Scripts are KEPT - they contain production deployment and worker scripts
+
+# Development tools and IDE files
+.vscode/settings.json
+.idea/workspace.xml
+.idea/tasks.xml
+*.swp
+*.swo
+
+# Jupyter notebooks (development analysis)
+*.ipynb
+.ipynb_checkpoints
+
+# Development data and models
+data/raw/
+data/temp/
+models/experiments/
+models/dev/
+
+# Performance profiling
+*.prof
+.coverage
+.coverage.*
+
+# Development scripts that shouldn't be in production
+scripts/dev_*
+scripts/debug_*
+scripts/local_*
 
 # Database
 *.db
