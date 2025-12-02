@@ -16,6 +16,7 @@ import hashlib
 from enum import Enum
 
 from ..core.unified_cache import UnifiedCache
+from ..core.json_encoder import safe_asdict
 from ..core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -184,7 +185,7 @@ class WTOIntegration:
                 trade_stats = self._generate_mock_trade_data(reporter, partner, years, products)
             
             # Cache the results
-            serializable_data = [asdict(stat) for stat in trade_stats]
+            serializable_data = [safe_asdict(stat) for stat in trade_stats]
             self.cache.set(cache_key, serializable_data, source="WTO_API", 
                           source_url=f"{self.base_url}/v2/timeseries", soft_ttl=21600)
             
@@ -231,7 +232,7 @@ class WTOIntegration:
                     logger.error(f"WTO global trade API failed: {e}")
             
             # Cache the result
-            self.cache.set(cache_key, asdict(trade_volume), source="WTO_API",
+            self.cache.set(cache_key, safe_asdict(trade_volume), source="WTO_API",
                           source_url=f"{self.api_base}/data", soft_ttl=43200)
             
             return trade_volume
@@ -299,7 +300,7 @@ class WTOIntegration:
                 tariff_data = self._generate_mock_tariff_data(reporter, partner, product_codes)
             
             # Cache the results
-            serializable_data = [asdict(tariff) for tariff in tariff_data]
+            serializable_data = [safe_asdict(tariff) for tariff in tariff_data]
             self.cache.set(
                 cache_key,
                 serializable_data,
@@ -342,7 +343,7 @@ class WTOIntegration:
             agreements = self._generate_mock_trade_agreements(country, agreement_type, status)
             
             # Cache the results
-            serializable_data = [asdict(agreement) for agreement in agreements]
+            serializable_data = [safe_asdict(agreement) for agreement in agreements]
             self.cache.set(
                 cache_key,
                 serializable_data,

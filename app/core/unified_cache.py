@@ -15,6 +15,7 @@ from typing import Any, Optional, Dict, Tuple, List
 from dataclasses import dataclass
 
 from app.core.cache import RedisCache
+from app.core.json_encoder import safe_json_dump, safe_json_dumps
 from app.db import SessionLocal
 from app.models import ObservationModel
 from app.core.config import get_settings
@@ -271,14 +272,14 @@ class UnifiedCache:
             }
             
             with open(daily_file, 'w') as f:
-                json.dump(bundle, f)
+                safe_json_dump(bundle, f)
                 
         except Exception as e:
             logger.error(f"L3 bundle creation failed for {key}: {e}")
     
     def _calculate_checksum(self, value: Any) -> str:
         """Calculate checksum for data integrity verification."""
-        data_str = json.dumps(value, sort_keys=True, default=str)
+        data_str = safe_json_dumps(value, sort_keys=True)
         return hashlib.sha256(data_str.encode()).hexdigest()[:16]
     
     def _get_l2_freshness(self) -> Dict[str, Any]:
