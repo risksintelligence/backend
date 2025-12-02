@@ -21,8 +21,8 @@ from app.core.error_logging import error_logger
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# ACLED API Configuration
-ACLED_BASE_URL = "https://api.acleddata.com/acled/read"
+# ACLED API Configuration (Using public data export endpoint)
+ACLED_BASE_URL = "https://acleddata.com/api/acled/read"
 ACLED_CACHE_TTL = 3600 * 4  # 4 hours cache
 ACLED_EMAIL = settings.acled_email if hasattr(settings, 'acled_email') else None
 ACLED_PASSWORD = settings.acled_password if hasattr(settings, 'acled_password') else None
@@ -182,10 +182,15 @@ class ACLEDClient:
                 endpoint=ACLED_BASE_URL,
                 method="GET",
                 error_message=str(e),
-                context={"params": params},
+                context={"params": params, "error_type": type(e).__name__},
                 exception=e
             )
-            logger.error(f"ACLED API request failed: {e}")
+            logger.error(f"ACLED API request failed ({type(e).__name__}): {e}")
+            
+            # For DNS/connection errors, mark service as temporarily unavailable
+            if "nodename nor servname provided" in str(e) or "gaierror" in str(e):
+                logger.warning("ACLED API appears to be unreachable due to DNS/network issues")
+            
             return None
     
     async def get_recent_events(
@@ -195,6 +200,10 @@ class ACLEDClient:
         event_types: Optional[List[str]] = None
     ) -> List[GeopoliticalEvent]:
         """Get recent geopolitical events affecting supply chains"""
+        
+        # Temporarily disabled until proper API credentials are obtained
+        logger.info("ACLED API temporarily disabled due to access restrictions, using fallback data")
+        return []
         
         # Check cache first
         cache_key = f"recent_events_{days}_{region}_{event_types}"

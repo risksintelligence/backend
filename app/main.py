@@ -1990,7 +1990,7 @@ async def supply_chain_vulnerability_assessment(
 ) -> dict:
     """Get supply chain vulnerability assessment using real trade data."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.comtrade_integration import ComtradeIntegration
+    from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
     
     cache = UnifiedCache("vulnerability_assessment")
     
@@ -2092,7 +2092,7 @@ async def network_topology(
 ) -> dict:
     """Get network topology data from real data sources."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.comtrade_integration import ComtradeIntegration
+    from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
     
     cache = UnifiedCache("network_topology")
     
@@ -2349,7 +2349,7 @@ async def network_dependencies(
 ) -> dict:
     """Get network dependencies analysis from real data sources."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.comtrade_integration import ComtradeIntegration
+    from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
     
     cache = UnifiedCache("network_dependencies")
     

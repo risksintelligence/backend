@@ -9,7 +9,7 @@ from ..services.resilience_metrics import (
     NodeResilience,
     ResilienceMetric
 )
-from ..services.comtrade_integration import ComtradeIntegration
+from ..services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
 from ..services.acled_integration import ACLEDIntegration
 from ..services.marinetraffic_integration import MarineTrafficIntegration
 

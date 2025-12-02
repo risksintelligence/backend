@@ -750,7 +750,7 @@ async def get_network_overview():
     try:
         from app.db import SessionLocal
         from app.models import SupplyChainNode, SupplyChainRelationship
-        from app.services.comtrade_integration import ComtradeIntegration
+        from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
         
         db = SessionLocal()
         
@@ -817,7 +817,7 @@ async def get_routes_analysis():
     
     try:
         from app.services.openroute_integration import OpenRouteIntegration
-        from app.services.comtrade_integration import ComtradeIntegration
+        from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
         from app.db import SessionLocal
         
         # Get real route data from OpenRouteService

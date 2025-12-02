@@ -13,7 +13,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# UN Comtrade API
+# UN Comtrade API (Updated to correct endpoints)
 COMTRADE_API_BASE = "https://comtradeapi.un.org/data/v1/get"
 COMTRADE_REF_BASE = "https://comtradeapi.un.org/references"
 
@@ -55,8 +55,14 @@ class UNComtradeIntegration:
             response = await self.session.get(COMTRADE_API_BASE, params=params)
             
             if response.status_code == 200:
-                data = response.json()
-                return data
+                # Check if response is actually JSON
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    data = response.json()
+                    return data
+                else:
+                    logger.warning(f"UN Comtrade returned non-JSON content: {content_type}")
+                    return None
             elif response.status_code == 429:  # Rate limited
                 logger.warning("UN Comtrade rate limit hit, using fallback data")
                 return None

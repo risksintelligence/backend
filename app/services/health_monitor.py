@@ -59,7 +59,7 @@ class HealthMonitor:
                 "timeout": 10
             },
             "comtrade": {
-                "url": "https://comtradeplus.un.org/api/v1/get",
+                "url": "https://comtradeapi.un.org/data/v1/get",
                 "params": {"format": "json", "max": 1},
                 "timeout": 15
             },

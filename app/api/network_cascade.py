@@ -18,7 +18,7 @@ from app.api.schemas import (
     CascadeImpactsResponse,
 )
 from app.core.security import require_system_rate_limit
-from app.services.comtrade_integration import get_comtrade_integration
+from app.services.un_comtrade_integration import un_comtrade as get_comtrade_integration
 from app.services.acled_integration import get_acled_integration
 from app.services.marinetraffic_integration import get_marinetraffic_integration
 
