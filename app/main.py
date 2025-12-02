@@ -89,6 +89,7 @@ from app.api import ml_models as ml_models_router
 from app.api import ml_intelligence as ml_intelligence_router
 from app.api import health_monitoring as health_monitoring_router
 from app.api import error_monitoring as error_monitoring_router
+from app.api import supply_chain as supply_chain_router
 from app.db import SessionLocal, Base, engine, get_db
 from app.models import ObservationModel
 from app.core.config import get_settings
@@ -2582,6 +2583,7 @@ app.include_router(ml_models_router.router)
 app.include_router(ml_intelligence_router.router)
 app.include_router(health_monitoring_router.router)
 app.include_router(error_monitoring_router.router)
+app.include_router(supply_chain_router.router)
 # Duplicate mock endpoints removed - using supply chain router with real data instead
 
 # Analytics endpoints added to existing analytics router in app.api.analytics

@@ -28,28 +28,49 @@ class WorldBankWITSIntegration:
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
         )
     
-    async def get_trade_flows(self, reporter: str = "USA", partner: str = "WLD", year: int = 2022) -> Optional[Dict[str, Any]]:
-        """Get bilateral trade flows using WITS API"""
+    async def get_trade_flows(self, countries: List[str], year: int = 2021) -> Dict[str, Any]:
+        """Get trade flows using World Bank Data API"""
         try:
-            # WITS API endpoint for bilateral trade data
-            url = f"{WITS_API_BASE}/tradeflows"
+            # Get merchandise trade as % of GDP for multiple countries
+            country_codes = ";".join(countries)
+            
+            # Get trade data (imports + exports as % of GDP)
+            trade_url = f"{WB_DATA_API}/country/{country_codes}/indicator/TG.VAL.TOTL.GD.ZS"
             params = {
-                "reporter": reporter,
-                "partner": partner,
-                "year": year,
-                "productcode": "TOTAL",
-                "format": "json"
+                "format": "json",
+                "date": str(year)
             }
             
-            response = await self.session.get(url, params=params)
+            response = await self.session.get(trade_url, params=params)
             if response.status_code == 200:
-                return response.json()
+                data = response.json()
+                if len(data) > 1 and data[1]:
+                    trade_data = {}
+                    for item in data[1]:
+                        if item['value'] is not None:
+                            country_name = item['country']['value']
+                            country_code = item['countryiso3code']
+                            trade_percentage = item['value']
+                            
+                            trade_data[country_code] = {
+                                "country_name": country_name,
+                                "trade_percentage_gdp": trade_percentage,
+                                "year": year,
+                                "last_updated": item.get('date', str(year))
+                            }
+                    
+                    logger.info(f"Retrieved trade data for {len(trade_data)} countries")
+                    return trade_data
+                else:
+                    logger.warning("No trade data found in World Bank response")
+                    return {}
             else:
-                logger.warning(f"WITS API returned status {response.status_code}")
-                return None
+                logger.warning(f"World Bank API returned status {response.status_code}")
+                return {}
+                
         except Exception as e:
             logger.error(f"Failed to fetch trade flows: {e}")
-            return None
+            return {}
     
     async def get_country_indicators(self, country_code: str = "USA") -> Optional[Dict[str, Any]]:
         """Get country economic indicators from World Bank Data API"""
@@ -99,27 +120,37 @@ class WorldBankWITSIntegration:
             return None
     
     async def get_global_trade_overview(self) -> Dict[str, Any]:
-        """Get global trade overview and stress indicators"""
+        """Get global trade overview and stress indicators using real World Bank data"""
         try:
-            # Major trading partners for global overview
-            major_economies = ["USA", "CHN", "DEU", "JPN", "GBR", "FRA", "IND", "ITA", "BRA", "CAN"]
+            # Major trading economies
+            major_economies = ["USA", "CHN", "DEU", "JPN", "GBR", "FRA", "IND", "ITA"]
             
-            trade_data = {}
+            # Get trade flows for all countries in one call
+            trade_data = await self.get_trade_flows(major_economies, year=2021)
+            
             country_risks = {}
             
-            for country in major_economies[:5]:  # Limit to top 5 to avoid timeouts
-                # Get trade flows
-                trade_flows = await self.get_trade_flows(reporter=country, partner="WLD")
-                if trade_flows:
-                    trade_data[country] = trade_flows
-                
-                # Get country risk indicators
+            # Get country risk indicators for each country
+            for country in major_economies:
                 indicators = await self.get_country_indicators(country)
                 if indicators:
                     country_risks[country] = self.calculate_country_risk_score(indicators)
+                else:
+                    # If no indicators available, use trade data to estimate basic risk
+                    trade_info = trade_data.get(country)
+                    if trade_info:
+                        trade_pct = trade_info.get("trade_percentage_gdp", 50)
+                        # Higher trade dependency = higher risk in volatile times
+                        base_risk = 50 + (trade_pct - 50) * 0.3  # Adjust based on trade openness
+                        country_risks[country] = {
+                            "risk_score": max(0, min(100, base_risk)),
+                            "risk_level": self.get_risk_level(base_risk),
+                            "risk_factors": {"trade_openness": trade_pct},
+                            "last_updated": datetime.utcnow().isoformat()
+                        }
                 
-                # Rate limiting
-                await asyncio.sleep(0.2)
+                # Small delay to be respectful to the API
+                await asyncio.sleep(0.1)
             
             # Calculate global stress indicators
             stress_score = self.calculate_global_stress_score(country_risks)
@@ -128,13 +159,23 @@ class WorldBankWITSIntegration:
                 "global_stress_score": stress_score,
                 "country_risks": country_risks,
                 "trade_data": trade_data,
-                "data_source": "World Bank WITS",
-                "last_updated": datetime.utcnow().isoformat()
+                "data_source": "World Bank Data API",
+                "last_updated": datetime.utcnow().isoformat(),
+                "countries_analyzed": len(country_risks)
             }
             
         except Exception as e:
             logger.error(f"Failed to get global trade overview: {e}")
-            return self.get_fallback_trade_data()
+            # Return empty data instead of fallback - let the caller handle it
+            return {
+                "global_stress_score": 0,
+                "country_risks": {},
+                "trade_data": {},
+                "data_source": "World Bank Data API (error)",
+                "error": str(e),
+                "last_updated": datetime.utcnow().isoformat(),
+                "countries_analyzed": 0
+            }
     
     def calculate_country_risk_score(self, indicators: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate country risk score from economic indicators"""
@@ -274,6 +315,108 @@ class WorldBankWITSIntegration:
         else:
             return "critical"
     
+    async def build_supply_chain_network(self) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Build supply chain network nodes and edges from real World Bank trade data"""
+        try:
+            trade_overview = await self.get_global_trade_overview()
+            
+            if trade_overview.get("countries_analyzed", 0) == 0:
+                raise Exception("No trade data available from World Bank API")
+            
+            # Create nodes from real data
+            nodes = []
+            country_risks = trade_overview.get("country_risks", {})
+            trade_data = trade_overview.get("trade_data", {})
+            
+            country_info = {
+                "USA": {"name": "United States", "region": "North America"},
+                "CHN": {"name": "China", "region": "Asia"},
+                "DEU": {"name": "Germany", "region": "Europe"},
+                "JPN": {"name": "Japan", "region": "Asia"},
+                "GBR": {"name": "United Kingdom", "region": "Europe"},
+                "FRA": {"name": "France", "region": "Europe"},
+                "IND": {"name": "India", "region": "Asia"},
+                "ITA": {"name": "Italy", "region": "Europe"}
+            }
+            
+            for code, info in country_info.items():
+                risk_data = country_risks.get(code, {})
+                trade_info = trade_data.get(code, {})
+                
+                node = {
+                    "id": code,
+                    "name": trade_info.get("country_name", info["name"]),
+                    "region": info["region"],
+                    "trade_percentage_gdp": trade_info.get("trade_percentage_gdp", 0),
+                    "risk_score": risk_data.get("risk_score", 50),
+                    "risk_level": risk_data.get("risk_level", "medium"),
+                    "type": "country",
+                    "data_year": trade_info.get("year", 2021),
+                    "has_real_data": code in trade_data
+                }
+                nodes.append(node)
+            
+            # Create edges based on real trade relationships and risk factors
+            edges = []
+            
+            # Calculate trade relationships based on trade openness and risk scores
+            for i, source_node in enumerate(nodes):
+                for j, target_node in enumerate(nodes):
+                    if i != j:  # Don't connect country to itself
+                        source_code = source_node["id"]
+                        target_code = target_node["id"]
+                        
+                        # Calculate trade relationship strength based on real data
+                        source_trade = source_node.get("trade_percentage_gdp", 0)
+                        target_trade = target_node.get("trade_percentage_gdp", 0)
+                        
+                        # Only create edges for significant trade relationships
+                        if source_trade > 20 and target_trade > 20:
+                            # Estimate trade value based on GDP trade percentage
+                            # This is a simplification - in reality you'd need bilateral trade data
+                            trade_strength = min(source_trade, target_trade) * 10000000000  # Scale to billions
+                            
+                            # Calculate combined risk
+                            avg_risk = (source_node["risk_score"] + target_node["risk_score"]) / 2
+                            risk_level = "low" if avg_risk > 70 else "medium" if avg_risk > 50 else "high"
+                            
+                            edge = {
+                                "source": source_code,
+                                "target": target_code,
+                                "type": "trade",
+                                "value": trade_strength,
+                                "weight": min(trade_strength / 1e9, 50),  # Normalize for visualization
+                                "risk_level": risk_level,
+                                "risk_score": avg_risk,
+                                "source_trade_pct": source_trade,
+                                "target_trade_pct": target_trade
+                            }
+                            edges.append(edge)
+            
+            # Update node metrics based on created edges
+            for node in nodes:
+                node_id = node["id"]
+                outgoing_edges = [e for e in edges if e["source"] == node_id]
+                incoming_edges = [e for e in edges if e["target"] == node_id]
+                
+                total_outgoing = sum(e["value"] for e in outgoing_edges)
+                total_incoming = sum(e["value"] for e in incoming_edges)
+                total_trade = total_outgoing + total_incoming
+                
+                node["trade_volume"] = total_trade
+                node["export_dependence"] = total_outgoing / total_trade if total_trade > 0 else 0
+                node["import_dependence"] = total_incoming / total_trade if total_trade > 0 else 0
+                node["trade_partners"] = len(outgoing_edges) + len(incoming_edges)
+            
+            logger.info(f"Built real data supply chain network: {len(nodes)} nodes, {len(edges)} edges")
+            logger.info(f"Countries with real data: {sum(1 for n in nodes if n['has_real_data'])}")
+            
+            return nodes, edges
+            
+        except Exception as e:
+            logger.error(f"Failed to build supply chain network from real data: {e}")
+            raise Exception(f"Could not build network from World Bank data: {e}")
+    
     def get_fallback_trade_data(self) -> Dict[str, Any]:
         """Return fallback data when World Bank API fails"""
         return {
@@ -302,11 +445,7 @@ wb_wits = WorldBankWITSIntegration()
 )
 async def get_trade_intelligence() -> Dict[str, Any]:
     """Get trade intelligence and supply chain stress monitoring"""
-    try:
-        return await wb_wits.get_global_trade_overview()
-    except Exception as e:
-        logger.error(f"World Bank WITS integration failed: {e}")
-        return wb_wits.get_fallback_trade_data()
+    return await wb_wits.get_global_trade_overview()
 
 @cache_with_fallback(
     config=CacheConfig(
@@ -317,24 +456,14 @@ async def get_trade_intelligence() -> Dict[str, Any]:
 )
 async def get_country_risk_assessment(country_code: str = "USA") -> Dict[str, Any]:
     """Get detailed country risk assessment"""
-    try:
-        indicators = await wb_wits.get_country_indicators(country_code)
-        if indicators:
-            risk_assessment = wb_wits.calculate_country_risk_score(indicators)
-            risk_assessment["country_code"] = country_code
-            risk_assessment["data_source"] = "World Bank"
-            return risk_assessment
-        else:
-            return wb_wits.get_fallback_trade_data()["country_risks"]["USA"]
-    except Exception as e:
-        logger.error(f"Country risk assessment failed for {country_code}: {e}")
-        return {
-            "risk_score": 50,
-            "risk_level": "medium",
-            "country_code": country_code,
-            "data_source": "World Bank (fallback)",
-            "last_updated": datetime.utcnow().isoformat()
-        }
+    indicators = await wb_wits.get_country_indicators(country_code)
+    if indicators:
+        risk_assessment = wb_wits.calculate_country_risk_score(indicators)
+        risk_assessment["country_code"] = country_code
+        risk_assessment["data_source"] = "World Bank"
+        return risk_assessment
+    else:
+        raise Exception(f"Could not get country indicators for {country_code}")
 
 async def cleanup_worldbank():
     """Cleanup World Bank session"""

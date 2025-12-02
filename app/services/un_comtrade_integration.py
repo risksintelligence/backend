@@ -1,83 +1,210 @@
 """
 UN Comtrade API Integration for Global Trade Statistics
-Replaces S&P Global trade flow analysis with free UN data
+Uses official comtradeapicall library with proper authentication
 """
 
 import asyncio
-import httpx
 import logging
+import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from app.core.cache import cache_with_fallback, CacheConfig
 from app.core.config import settings
 
+# Import official UN Comtrade library
+try:
+    import comtradeapicall
+except ImportError:
+    comtradeapicall = None
+    logger.warning("comtradeapicall library not installed")
+
 logger = logging.getLogger(__name__)
 
-# UN Comtrade API (Updated to correct endpoints)
-COMTRADE_API_BASE = "https://comtradeapi.un.org/data/v1/get"
-COMTRADE_REF_BASE = "https://comtradeapi.un.org/references"
-
 class UNComtradeIntegration:
-    """UN Comtrade API integration for comprehensive global trade analysis"""
+    """UN Comtrade API integration using official comtradeapicall library"""
     
     def __init__(self):
-        self.session = httpx.AsyncClient(
-            timeout=30.0,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
-        )
-        self.rate_limit_delay = 1.0  # 1 second between requests (guest limit: 100/hour)
+        self.primary_key = settings.comtrade_primary_key
+        self.secondary_key = settings.comtrade_secondary_key
+        self.current_key = self.primary_key  # Start with primary key
+    
+    def _get_api_key(self) -> Optional[str]:
+        """Get current API key"""
+        return self.current_key if self.current_key else None
+    
+    def _switch_api_key(self):
+        """Switch to secondary key if primary fails"""
+        if self.current_key == self.primary_key and self.secondary_key:
+            self.current_key = self.secondary_key
+            logger.info("Switched to secondary Comtrade API key")
+            return True
+        return False
     
     async def get_trade_data(self, 
-                           reporter_code: str = "842",  # USA
+                           reporter_code: str = "840",  # USA
                            partner_code: str = "156",   # China
-                           time_period: str = "2022",
-                           trade_flow: str = "1",       # Imports
-                           freq: str = "A") -> Optional[Dict[str, Any]]:
-        """Get bilateral trade data from UN Comtrade"""
+                           time_period: str = "2021",
+                           trade_flow: str = "M",       # Imports (M=Import, X=Export)
+                           commodity_code: str = "TOTAL") -> Optional[pd.DataFrame]:
+        """Get bilateral trade data using official comtradeapicall library"""
+        
+        if not comtradeapicall:
+            logger.error("comtradeapicall library not available")
+            return None
+            
+        api_key = self._get_api_key()
+        if not api_key:
+            logger.error("No Comtrade API key available")
+            return None
+        
         try:
-            params = {
-                "typeCode": "C",  # Commodities
-                "freqCode": freq,  # Annual
-                "clCode": "HS",   # Harmonized System
-                "period": time_period,
-                "reporterCode": reporter_code,
-                "partnerCode": partner_code,
-                "flowCode": trade_flow,
-                "partnerCode2": "0",
-                "customsCode": "C00",
-                "motCode": "0",
-                "maxRecords": "250",
-                "format": "json",
-                "aggregateBy": "none",
-                "breakdownMode": "plus"
-            }
+            # Use official library with simplified approach
+            # Try authenticated call first
+            if api_key:
+                try:
+                    df = comtradeapicall.getFinalData(
+                        subscription_key=api_key,
+                        typeCode='C',           # Commodities
+                        freqCode='A',           # Annual
+                        clCode='HS',            # Harmonized System
+                        period=time_period,
+                        reporterCode=reporter_code,
+                        cmdCode=commodity_code,
+                        flowCode=trade_flow,
+                        partnerCode=partner_code
+                    )
+                    if df is not None and not df.empty:
+                        logger.info(f"Retrieved {len(df)} trade records from UN Comtrade (authenticated)")
+                        return df
+                except Exception as e:
+                    logger.warning(f"Authenticated call failed, trying preview: {e}")
             
-            response = await self.session.get(COMTRADE_API_BASE, params=params)
+            # Fallback to preview data (limited but no auth required)
+            df = comtradeapicall.previewFinalData(
+                typeCode='C',           # Commodities
+                freqCode='A',           # Annual
+                clCode='HS',            # Harmonized System
+                period=time_period,
+                reporterCode=reporter_code
+            )
             
-            if response.status_code == 200:
-                # Check if response is actually JSON
-                content_type = response.headers.get('content-type', '')
-                if 'application/json' in content_type:
-                    data = response.json()
-                    return data
-                else:
-                    logger.warning(f"UN Comtrade returned non-JSON content: {content_type}")
-                    return None
-            elif response.status_code == 429:  # Rate limited
-                logger.warning("UN Comtrade rate limit hit, using fallback data")
-                return None
+            if df is not None and not df.empty:
+                logger.info(f"Retrieved {len(df)} trade records from UN Comtrade")
+                return df
             else:
-                logger.warning(f"UN Comtrade API returned status {response.status_code}")
+                logger.warning("No trade data returned from UN Comtrade")
                 return None
                 
         except Exception as e:
             logger.error(f"Failed to fetch trade data: {e}")
+            # Try switching API key if request failed
+            if self._switch_api_key():
+                return await self.get_trade_data(reporter_code, partner_code, time_period, trade_flow, commodity_code)
             return None
     
-    async def get_global_trade_matrix(self) -> Dict[str, Any]:
-        """Get trade matrix for major economies"""
+    async def build_supply_chain_network(self) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Build supply chain network nodes and edges from trade data"""
         try:
-            # Major economies (using UN country codes)
+            trade_matrix = await self.get_global_trade_matrix()
+            
+            # Create nodes (countries)
+            nodes = []
+            countries = {
+                "840": {"name": "USA", "region": "North America"},
+                "156": {"name": "China", "region": "Asia"},
+                "276": {"name": "Germany", "region": "Europe"},
+                "392": {"name": "Japan", "region": "Asia"},
+                "826": {"name": "UK", "region": "Europe"},
+                "250": {"name": "France", "region": "Europe"},
+                "356": {"name": "India", "region": "Asia"},
+                "380": {"name": "Italy", "region": "Europe"}
+            }
+            
+            for code, info in countries.items():
+                node = {
+                    "id": code,
+                    "name": info["name"],
+                    "region": info["region"],
+                    "trade_volume": 0,
+                    "import_dependence": 0.0,
+                    "export_dependence": 0.0,
+                    "type": "country"
+                }
+                nodes.append(node)
+            
+            # Create edges (trade relationships)
+            edges = []
+            trade_flows = trade_matrix.get("trade_flows", {})
+            
+            for flow_key, flow_data in trade_flows.items():
+                # Parse country pair from flow_key (e.g., "USA-CHN")
+                if "-" in flow_key:
+                    countries_pair = flow_key.split("-")
+                    if len(countries_pair) == 2:
+                        source_country = countries_pair[0]
+                        target_country = countries_pair[1]
+                        
+                        # Find country codes for these names
+                        source_code = None
+                        target_code = None
+                        for code, info in countries.items():
+                            if info["name"] == source_country or source_country in info["name"]:
+                                source_code = code
+                            if info["name"] == target_country or target_country in info["name"]:
+                                target_code = code
+                        
+                        if source_code and target_code:
+                            imports_value = flow_data.get("imports", {}).get("value", 0)
+                            exports_value = flow_data.get("exports", {}).get("value", 0)
+                            
+                            # Create edge for imports (target imports from source)
+                            if imports_value > 0:
+                                edge = {
+                                    "source": source_code,
+                                    "target": target_code,
+                                    "type": "import",
+                                    "value": imports_value,
+                                    "weight": min(imports_value / 1e9, 100),  # Normalize to reasonable weight
+                                    "risk_level": "medium" if imports_value > 100e9 else "low"
+                                }
+                                edges.append(edge)
+                            
+                            # Create edge for exports (source exports to target)
+                            if exports_value > 0:
+                                edge = {
+                                    "source": target_code,
+                                    "target": source_code,
+                                    "type": "export",
+                                    "value": exports_value,
+                                    "weight": min(exports_value / 1e9, 100),  # Normalize to reasonable weight
+                                    "risk_level": "medium" if exports_value > 100e9 else "low"
+                                }
+                                edges.append(edge)
+            
+            # Update node trade volumes based on edges
+            for node in nodes:
+                node_id = node["id"]
+                total_imports = sum(edge["value"] for edge in edges if edge["target"] == node_id and edge["type"] == "import")
+                total_exports = sum(edge["value"] for edge in edges if edge["source"] == node_id and edge["type"] == "export")
+                node["trade_volume"] = total_imports + total_exports
+                
+                # Calculate dependence metrics
+                if total_imports + total_exports > 0:
+                    node["import_dependence"] = total_imports / (total_imports + total_exports)
+                    node["export_dependence"] = total_exports / (total_imports + total_exports)
+            
+            logger.info(f"Built supply chain network: {len(nodes)} nodes, {len(edges)} edges")
+            return nodes, edges
+            
+        except Exception as e:
+            logger.error(f"Failed to build supply chain network: {e}")
+            # Return empty network on error
+            return [], []
+    
+    async def get_global_trade_matrix(self) -> Dict[str, Any]:
+        """Get trade matrix for major economies using official API"""
+        try:
+            # Major economies with UN country codes
             countries = {
                 "840": "USA",      # United States
                 "156": "CHN",      # China
@@ -104,106 +231,80 @@ class UNComtradeIntegration:
             for reporter, partner in key_pairs:
                 try:
                     # Get imports
-                    imports = await self.get_trade_data(
+                    imports_df = await self.get_trade_data(
                         reporter_code=reporter,
                         partner_code=partner,
-                        trade_flow="1"  # Imports
+                        trade_flow="M"  # Imports
                     )
                     
                     # Get exports  
-                    exports = await self.get_trade_data(
+                    exports_df = await self.get_trade_data(
                         reporter_code=reporter,
                         partner_code=partner,
-                        trade_flow="2"  # Exports
+                        trade_flow="X"  # Exports
                     )
                     
-                    if imports or exports:
-                        pair_key = f"{countries.get(reporter, reporter)}-{countries.get(partner, partner)}"
-                        trade_flows[pair_key] = {
-                            "imports": self.process_trade_data(imports) if imports else {"value": 0, "records": 0},
-                            "exports": self.process_trade_data(exports) if exports else {"value": 0, "records": 0},
-                            "last_updated": datetime.utcnow().isoformat()
-                        }
-                        
-                        # Update summary
-                        import_val = trade_flows[pair_key]["imports"]["value"]
-                        export_val = trade_flows[pair_key]["exports"]["value"]
-                        trade_summary["total_imports"] += import_val
-                        trade_summary["total_exports"] += export_val
-                        trade_summary["trade_balance"][pair_key] = export_val - import_val
+                    pair_key = f"{countries.get(reporter, reporter)}-{countries.get(partner, partner)}"
                     
-                    # Rate limiting - UN Comtrade allows 100 requests/hour for guests
-                    await asyncio.sleep(self.rate_limit_delay)
+                    imports_value = self._calculate_total_value(imports_df) if imports_df is not None else 0
+                    exports_value = self._calculate_total_value(exports_df) if exports_df is not None else 0
+                    
+                    trade_flows[pair_key] = {
+                        "imports": {
+                            "value": imports_value,
+                            "records": len(imports_df) if imports_df is not None else 0
+                        },
+                        "exports": {
+                            "value": exports_value,
+                            "records": len(exports_df) if exports_df is not None else 0
+                        },
+                        "last_updated": datetime.utcnow().isoformat()
+                    }
+                    
+                    # Update summary
+                    trade_summary["total_imports"] += imports_value
+                    trade_summary["total_exports"] += exports_value
+                    trade_summary["trade_balance"][pair_key] = exports_value - imports_value
+                    
+                    # Rate limiting - be respectful to the API
+                    await asyncio.sleep(1.0)
                     
                 except Exception as e:
                     logger.warning(f"Failed to get trade data for {reporter}-{partner}: {e}")
                     continue
             
             # Calculate trade concentration and vulnerability metrics
-            trade_metrics = self.calculate_trade_metrics(trade_flows, trade_summary)
+            trade_metrics = self._calculate_trade_metrics(trade_flows, trade_summary)
             
             return {
                 "trade_flows": trade_flows,
                 "summary": trade_summary,
                 "metrics": trade_metrics,
                 "countries_analyzed": len(countries),
-                "data_source": "UN Comtrade",
+                "data_source": "UN Comtrade (Official API)",
                 "last_updated": datetime.utcnow().isoformat()
             }
             
         except Exception as e:
             logger.error(f"Failed to get global trade matrix: {e}")
-            return self.get_fallback_trade_matrix()
+            return self._get_fallback_trade_matrix()
     
-    def process_trade_data(self, trade_data: Dict) -> Dict[str, Any]:
-        """Process raw trade data from UN Comtrade"""
-        try:
-            if not trade_data or "data" not in trade_data:
-                return {"value": 0, "records": 0, "top_commodities": []}
+    def _calculate_total_value(self, df: pd.DataFrame) -> float:
+        """Calculate total trade value from DataFrame"""
+        if df is None or df.empty:
+            return 0.0
             
-            data_records = trade_data["data"]
-            if not data_records:
-                return {"value": 0, "records": 0, "top_commodities": []}
-            
-            total_value = 0
-            commodity_values = {}
-            
-            for record in data_records:
-                trade_value = record.get("primaryValue", 0) or 0
-                commodity_code = record.get("cmdCode", "Unknown")
-                commodity_desc = record.get("cmdDesc", "Unknown Commodity")
-                
-                total_value += trade_value
-                commodity_values[commodity_code] = {
-                    "value": trade_value,
-                    "description": commodity_desc
-                }
-            
-            # Get top 5 commodities by value
-            top_commodities = sorted(
-                commodity_values.items(),
-                key=lambda x: x[1]["value"],
-                reverse=True
-            )[:5]
-            
-            return {
-                "value": total_value,
-                "records": len(data_records),
-                "top_commodities": [
-                    {
-                        "code": code,
-                        "description": data["description"],
-                        "value": data["value"]
-                    }
-                    for code, data in top_commodities
-                ]
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to process trade data: {e}")
-            return {"value": 0, "records": 0, "top_commodities": []}
+        # Look for common trade value columns
+        value_columns = ['primaryValue', 'tradeValue', 'value', 'TradeValue']
+        
+        for col in value_columns:
+            if col in df.columns:
+                return float(df[col].sum())
+        
+        logger.warning("No recognized value column found in trade data")
+        return 0.0
     
-    def calculate_trade_metrics(self, trade_flows: Dict, summary: Dict) -> Dict[str, Any]:
+    def _calculate_trade_metrics(self, trade_flows: Dict, summary: Dict) -> Dict[str, Any]:
         """Calculate trade concentration and risk metrics"""
         try:
             metrics = {
@@ -273,8 +374,9 @@ class UNComtradeIntegration:
                 "trade_growth_estimate": 0.0
             }
     
-    def get_fallback_trade_matrix(self) -> Dict[str, Any]:
-        """Return fallback trade data when UN Comtrade fails"""
+    def _get_fallback_trade_matrix(self) -> Dict[str, Any]:
+        """Return fallback trade data when API fails"""
+        logger.warning("Using fallback UN Comtrade data")
         return {
             "trade_flows": {
                 "USA-CHN": {
@@ -320,17 +422,17 @@ un_comtrade = UNComtradeIntegration()
 @cache_with_fallback(
     config=CacheConfig(
         key_prefix="un_comtrade_global",
-        ttl_seconds=7200,  # 2 hour cache (due to rate limits)
+        ttl_seconds=7200,  # 2 hour cache (API rate limits)
         fallback_ttl_seconds=86400  # 24 hour fallback
     )
 )
 async def get_global_trade_statistics() -> Dict[str, Any]:
-    """Get comprehensive global trade statistics"""
+    """Get comprehensive global trade statistics using official API"""
     try:
         return await un_comtrade.get_global_trade_matrix()
     except Exception as e:
         logger.error(f"UN Comtrade integration failed: {e}")
-        return un_comtrade.get_fallback_trade_matrix()
+        return un_comtrade._get_fallback_trade_matrix()
 
 @cache_with_fallback(
     config=CacheConfig(
@@ -340,25 +442,34 @@ async def get_global_trade_statistics() -> Dict[str, Any]:
     )
 )
 async def get_bilateral_trade(reporter: str = "840", partner: str = "156") -> Dict[str, Any]:
-    """Get detailed bilateral trade analysis"""
+    """Get detailed bilateral trade analysis using official API"""
     try:
-        imports = await un_comtrade.get_trade_data(
+        imports_df = await un_comtrade.get_trade_data(
             reporter_code=reporter, 
             partner_code=partner, 
-            trade_flow="1"
+            trade_flow="M"  # Imports
         )
-        exports = await un_comtrade.get_trade_data(
+        exports_df = await un_comtrade.get_trade_data(
             reporter_code=reporter, 
             partner_code=partner, 
-            trade_flow="2"
+            trade_flow="X"  # Exports
         )
         
+        imports_value = un_comtrade._calculate_total_value(imports_df) if imports_df is not None else 0
+        exports_value = un_comtrade._calculate_total_value(exports_df) if exports_df is not None else 0
+        
         return {
-            "imports": un_comtrade.process_trade_data(imports) if imports else {"value": 0},
-            "exports": un_comtrade.process_trade_data(exports) if exports else {"value": 0},
+            "imports": {
+                "value": imports_value,
+                "records": len(imports_df) if imports_df is not None else 0
+            },
+            "exports": {
+                "value": exports_value,
+                "records": len(exports_df) if exports_df is not None else 0
+            },
             "reporter": reporter,
             "partner": partner,
-            "data_source": "UN Comtrade",
+            "data_source": "UN Comtrade (Official API)",
             "last_updated": datetime.utcnow().isoformat()
         }
     except Exception as e:
@@ -373,6 +484,5 @@ async def get_bilateral_trade(reporter: str = "840", partner: str = "156") -> Di
         }
 
 async def cleanup_comtrade():
-    """Cleanup UN Comtrade session"""
-    if hasattr(un_comtrade, 'session'):
-        await un_comtrade.session.aclose()
+    """Cleanup function (no persistent connections in official library)"""
+    logger.info("UN Comtrade cleanup completed")

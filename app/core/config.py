@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     # Free API replacements for S&P Global
     openroute_api_key: Optional[str] = Field(None, alias="ris_openroute_api_key")
     
+    
     # Security
     reviewer_api_key: Optional[str] = Field(None, alias="ris_reviewer_api_key")
     allowed_origins: str = Field("https://riskx-frontend-production.up.railway.app,https://riskx-backend-production.up.railway.app", alias="ris_allowed_origins")

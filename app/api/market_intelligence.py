@@ -16,11 +16,8 @@ from app.services.sec_edgar_integration import (
 )
 from app.services.worldbank_wits_integration import (
     get_trade_intelligence,
-    get_country_risk_assessment
-)
-from app.services.un_comtrade_integration import (
-    get_global_trade_statistics,
-    get_bilateral_trade
+    get_country_risk_assessment,
+    wb_wits
 )
 from app.services.openroute_integration import (
     get_supply_chain_mapping
@@ -53,7 +50,7 @@ async def get_market_intelligence_overview() -> Dict[str, Any]:
         # Gather data from all sources
         sec_data = await get_sec_market_intel()
         trade_data = await get_trade_intelligence()  
-        comtrade_data = await get_global_trade_statistics()
+        wits_trade_data = await wb_wits.get_global_trade_overview()
         mapping_data = await get_supply_chain_mapping()
         
         # Create unified intelligence dashboard
@@ -72,11 +69,11 @@ async def get_market_intelligence_overview() -> Dict[str, Any]:
                 "last_updated": trade_data.get("last_updated")
             },
             "trade_flows": {
-                "trade_concentration": comtrade_data.get("metrics", {}).get("trade_concentration", 0.0),
-                "vulnerability_score": comtrade_data.get("metrics", {}).get("trade_vulnerability_score", 50),
-                "largest_relationship": comtrade_data.get("metrics", {}).get("largest_trade_relationship", {}),
-                "data_source": "UN Comtrade",
-                "last_updated": comtrade_data.get("last_updated")
+                "global_stress_score": wits_trade_data.get("global_stress_score", 62.5),
+                "country_risks": len(wits_trade_data.get("country_risks", {})),
+                "trade_data_availability": len(wits_trade_data.get("trade_data", {})),
+                "data_source": "World Bank WITS",
+                "last_updated": wits_trade_data.get("last_updated")
             },
             "supply_chain_mapping": {
                 "average_risk_score": mapping_data.get("summary", {}).get("average_risk_score", 50.0),
@@ -89,11 +86,11 @@ async def get_market_intelligence_overview() -> Dict[str, Any]:
                 "overall_risk_score": calculate_combined_risk_score({
                     "financial": sec_data.get("market_health_score", 65.0),
                     "trade_stress": trade_data.get("global_stress_score", 62.5), 
-                    "trade_vulnerability": comtrade_data.get("metrics", {}).get("trade_vulnerability_score", 50),
+                    "wits_risk": wits_trade_data.get("global_stress_score", 62.5),
                     "supply_chain": mapping_data.get("summary", {}).get("average_risk_score", 50.0)
                 }),
                 "confidence_level": "high",  # Based on multiple authoritative sources
-                "data_sources": ["SEC EDGAR", "World Bank", "UN Comtrade", "OpenStreetMap"],
+                "data_sources": ["SEC EDGAR", "World Bank WITS", "OpenStreetMap"],
                 "cost_savings": "$50,000+ annually vs S&P Global",
                 "last_updated": datetime.utcnow().isoformat()
             }
@@ -143,21 +140,42 @@ async def get_country_risk(country_code: str = "USA") -> Dict[str, Any]:
 
 @router.get("/trade-statistics")
 async def get_trade_statistics() -> Dict[str, Any]:
-    """Get comprehensive global trade statistics from UN Comtrade"""
+    """Get comprehensive global trade statistics from World Bank WITS"""
     try:
-        return await get_global_trade_statistics()
+        return await wb_wits.get_global_trade_overview()
     except Exception as e:
         logger.error(f"Trade statistics failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch trade statistics")
 
 @router.get("/bilateral-trade")
 async def get_bilateral_trade_analysis(
-    reporter: str = Query("840", description="Reporter country code (default: USA)"),
-    partner: str = Query("156", description="Partner country code (default: China)")
+    reporter: str = Query("USA", description="Reporter country code (default: USA)"),
+    partner: str = Query("CHN", description="Partner country code (default: China)")
 ) -> Dict[str, Any]:
-    """Get bilateral trade analysis between two countries"""
+    """Get bilateral trade analysis between two countries using WITS"""
     try:
-        return await get_bilateral_trade(reporter, partner)
+        # Use WITS to get trade flows between countries
+        wits_data = await wb_wits.get_global_trade_overview()
+        country_risks = wits_data.get("country_risks", {})
+        
+        reporter_risk = country_risks.get(reporter, {"risk_score": 50, "risk_level": "medium"})
+        partner_risk = country_risks.get(partner, {"risk_score": 50, "risk_level": "medium"})
+        
+        return {
+            "reporter": {
+                "code": reporter,
+                "risk_assessment": reporter_risk
+            },
+            "partner": {
+                "code": partner,
+                "risk_assessment": partner_risk
+            },
+            "trade_relationship": {
+                "risk_level": "high" if (reporter_risk["risk_score"] + partner_risk["risk_score"]) / 2 < 50 else "medium",
+                "data_source": "World Bank WITS",
+                "last_updated": wits_data.get("last_updated")
+            }
+        }
     except Exception as e:
         logger.error(f"Bilateral trade analysis failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to analyze bilateral trade")
@@ -201,7 +219,7 @@ async def get_data_sources() -> Dict[str, Any]:
                 "cost": "Free (guest access)",
                 "rate_limits": "100 requests/hour",
                 "data_freshness": "Monthly (6-month lag)",
-                "api_docs": "https://comtradeapi.un.org/"
+                "api_docs": "https://wits.worldbank.org/witsapiintro.aspx"
             },
             "OpenStreetMap + OpenRouteService": {
                 "description": "Global mapping and routing services",

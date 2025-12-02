@@ -53,7 +53,7 @@ class SupplyChainCache:
         
         # External API data - depends on source refresh rates
         'acled_data': CachePolicy(soft_ttl=7200, hard_ttl=43200),  # 2hours/12hours
-        'comtrade_data': CachePolicy(soft_ttl=86400, hard_ttl=604800),  # 1day/1week (monthly updates)
+        'wits_data': CachePolicy(soft_ttl=86400, hard_ttl=604800),  # 1day/1week (monthly updates)
         'wto_statistics': CachePolicy(soft_ttl=86400, hard_ttl=604800),  # 1day/1week (quarterly updates)
         
         # Machine learning models and predictions

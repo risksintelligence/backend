@@ -2,7 +2,7 @@
 Supply Chain Cascade API
 
 Provides snapshot, history, and impact rollups for supply-chain cascades.
-Now integrated with UN Comtrade API for real trade flow data.
+Now integrated with World Bank WITS API for real trade flow data.
 """
 
 import logging
@@ -18,7 +18,7 @@ from app.api.schemas import (
     CascadeImpactsResponse,
 )
 from app.core.security import require_system_rate_limit
-from app.services.un_comtrade_integration import un_comtrade as get_comtrade_integration
+from app.services.worldbank_wits_integration import wb_wits as get_wits_integration
 from app.services.acled_integration import get_acled_integration
 from app.services.marinetraffic_integration import get_marinetraffic_integration
 
@@ -33,13 +33,13 @@ def _now_iso() -> str:
 async def get_supply_cascade_snapshot(
     _rate_limit: bool = Depends(require_system_rate_limit),
 ) -> Dict[str, Any]:
-    """Return real-time cascade snapshot with UN Comtrade trade flow data."""
+    """Return real-time cascade snapshot with World Bank WITS trade flow data."""
     as_of = _now_iso()
     
     try:
-        # Get real trade data from UN Comtrade
-        comtrade = get_comtrade_integration()
-        nodes, edges = await comtrade.build_supply_chain_network()
+        # Get real trade data from World Bank WITS
+        wits = get_wits_integration()
+        nodes, edges = await wits.build_supply_chain_network()
         
         # Get real geopolitical disruption events from ACLED
         acled = get_acled_integration()

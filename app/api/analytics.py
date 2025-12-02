@@ -437,7 +437,7 @@ from collections import defaultdict, Counter
 
 class PageViewCreate(BaseModel):
     path: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: str  # Accept ISO string from frontend
     user_agent: Optional[str] = None
     referrer: Optional[str] = None
     viewport: Optional[str] = None
@@ -445,7 +445,7 @@ class PageViewCreate(BaseModel):
 class EventCreate(BaseModel):
     event: str
     parameters: Dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: str  # Accept ISO string from frontend
     path: str
 
 class FeedbackCreate(BaseModel):
@@ -462,10 +462,16 @@ async def track_page_view(page_view: PageViewCreate):
         from app.db import SessionLocal
         
         with SessionLocal() as db:
+            # Parse ISO timestamp string to datetime
+            try:
+                timestamp_dt = datetime.fromisoformat(page_view.timestamp.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                timestamp_dt = datetime.utcnow()  # Fallback to current time
+            
             # Create page view record
             db_page_view = PageView(
                 path=page_view.path,
-                timestamp=page_view.timestamp,
+                timestamp=timestamp_dt,
                 user_agent=page_view.user_agent,
                 referrer=page_view.referrer,
                 viewport=page_view.viewport
@@ -488,11 +494,17 @@ async def track_event(event: EventCreate):
         from app.db import SessionLocal
         
         with SessionLocal() as db:
+            # Parse ISO timestamp string to datetime
+            try:
+                timestamp_dt = datetime.fromisoformat(event.timestamp.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                timestamp_dt = datetime.utcnow()  # Fallback to current time
+                
             # Create event record
             db_event = UserEvent(
                 event_name=event.event,
                 event_data=event.parameters,
-                timestamp=event.timestamp,
+                timestamp=timestamp_dt,
                 path=event.path
             )
             db.add(db_event)

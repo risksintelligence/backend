@@ -260,3 +260,52 @@ def cache_with_fallback(config: CacheConfig):
     return decorator
 
 
+class FileCache:
+    """Simple file-based cache for data providers that need FileCache interface."""
+    
+    def __init__(self, namespace: str):
+        self.namespace = namespace
+        self.cache_dir = f"cache/{namespace}"
+        os.makedirs(self.cache_dir, exist_ok=True)
+        self.logger = logging.getLogger(__name__)
+    
+    def get(self, key: str, default=None):
+        """Get cached value by key."""
+        try:
+            cache_file = os.path.join(self.cache_dir, f"{key}.json")
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r') as f:
+                    data = json.load(f)
+                    # Check if cache is expired (24 hours)
+                    cached_time = datetime.fromisoformat(data.get('cached_at', ''))
+                    if datetime.now() - cached_time < timedelta(hours=24):
+                        return data.get('value')
+            return default
+        except Exception as e:
+            self.logger.debug(f"FileCache get error for {key}: {e}")
+            return default
+    
+    def set(self, key: str, value: Any, ttl_seconds: int = 86400):
+        """Set cached value with TTL."""
+        try:
+            cache_file = os.path.join(self.cache_dir, f"{key}.json")
+            data = {
+                'value': value,
+                'cached_at': datetime.now().isoformat(),
+                'ttl_seconds': ttl_seconds
+            }
+            with open(cache_file, 'w') as f:
+                json.dump(data, f, default=str)
+        except Exception as e:
+            self.logger.debug(f"FileCache set error for {key}: {e}")
+    
+    def delete(self, key: str):
+        """Delete cached value by key."""
+        try:
+            cache_file = os.path.join(self.cache_dir, f"{key}.json")
+            if os.path.exists(cache_file):
+                os.remove(cache_file)
+        except Exception as e:
+            self.logger.debug(f"FileCache delete error for {key}: {e}")
+
+

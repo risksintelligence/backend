@@ -47,7 +47,7 @@ class ProviderFailoverManager:
                     "VIX": "VIXCLS",
                     "YIELD_CURVE": "T10Y2Y",
                     "CREDIT_SPREAD": "BAA10YM", 
-                    "PMI": "NAPM",
+                    "PMI": "UMCSENT",  # University of Michigan Consumer Sentiment
                     "WTI_OIL": "DCOILWTICO",
                     "UNEMPLOYMENT": "UNRATE"
                 },

@@ -750,7 +750,7 @@ async def get_network_overview():
     try:
         from app.db import SessionLocal
         from app.models import SupplyChainNode, SupplyChainRelationship
-        from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
+        from app.services.worldbank_wits_integration import wb_wits
         
         db = SessionLocal()
         
@@ -770,15 +770,15 @@ async def get_network_overview():
             low_risk_nodes = total_nodes - high_risk_nodes - medium_risk_nodes
             
             # Get real trade flow data
-            comtrade = ComtradeIntegration()
-            trade_flows = await comtrade.get_top_trade_flows()
+            wits = wb_wits
+            nodes, edges = await wits.build_supply_chain_network()
             
             return {
                 "network_topology": {
                     "total_nodes": total_nodes,
                     "total_connections": total_connections,
                     "network_density": round(network_density, 3),
-                    "data_source": "database + UN Comtrade"
+                    "data_source": "database + World Bank WITS"
                 },
                 "risk_distribution": {
                     "high_risk_nodes": high_risk_nodes,
@@ -817,21 +817,21 @@ async def get_routes_analysis():
     
     try:
         from app.services.openroute_integration import OpenRouteIntegration
-        from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
+        from app.services.worldbank_wits_integration import wb_wits
         from app.db import SessionLocal
         
         # Get real route data from OpenRouteService
         route_service = OpenRouteIntegration()
-        comtrade = ComtradeIntegration()
+        wits = wb_wits
         
         # Analyze real trade routes
         major_routes = await route_service.get_supply_chain_routes()
-        trade_data = await comtrade.get_bilateral_trade("USA", "CHN")
+        trade_data = await wits.get_global_trade_overview()
         
         return {
             "routes_analyzed": len(major_routes),
-            "trade_relationships": len(trade_data),
-            "data_sources": ["OpenRouteService", "UN Comtrade"],
+            "trade_relationships": len(trade_data.get("country_risks", {})),
+            "data_sources": ["OpenRouteService", "World Bank WITS"],
             "route_details": [
                 {
                     "route_id": route["route_id"],

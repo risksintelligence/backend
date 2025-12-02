@@ -100,6 +100,10 @@ class ACLEDClient:
         self.access_token = None
         self.token_expiry = None
         self.refresh_token = None
+        # Circuit breaker pattern to prevent error floods
+        self.consecutive_failures = 0
+        self.max_failures = 5
+        self.failure_backoff_until = None
     
     async def __aenter__(self):
         self.session = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
@@ -111,6 +115,11 @@ class ACLEDClient:
     
     async def _get_access_token(self) -> Optional[str]:
         """Get or refresh OAuth access token"""
+        # Check if credentials are available first to prevent error flood
+        if not ACLED_EMAIL or not ACLED_PASSWORD:
+            logger.warning("ACLED credentials not configured - API calls will be skipped")
+            return None
+            
         try:
             # Check if current token is still valid
             if self.access_token and self.token_expiry and datetime.utcnow() < self.token_expiry:
@@ -170,6 +179,16 @@ class ACLEDClient:
     
     async def _rate_limited_request(self, params: dict) -> Optional[dict]:
         """Make rate-limited request to ACLED API"""
+        # Circuit breaker: check if we're in backoff period
+        if self.failure_backoff_until and datetime.utcnow() < self.failure_backoff_until:
+            logger.debug(f"ACLED circuit breaker active until {self.failure_backoff_until}")
+            return None
+            
+        # Reset circuit breaker if enough time has passed
+        if self.failure_backoff_until and datetime.utcnow() >= self.failure_backoff_until:
+            self.consecutive_failures = 0
+            self.failure_backoff_until = None
+            
         # Ensure rate limiting
         current_time = asyncio.get_event_loop().time()
         time_since_last = current_time - self.last_request_time
@@ -189,6 +208,12 @@ class ACLEDClient:
             response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             
             if response.status_code == 200:
+                # Success - reset circuit breaker
+                if self.consecutive_failures > 0:
+                    logger.info(f"ACLED API recovered after {self.consecutive_failures} failures")
+                    self.consecutive_failures = 0
+                    self.failure_backoff_until = None
+                    
                 data = response.json()
                 logger.info(f"ACLED API success: {data.get('count', 0)} events retrieved")
                 return data
@@ -208,18 +233,28 @@ class ACLEDClient:
                 await asyncio.sleep(10)
                 return None
             elif response.status_code == 401:
-                # Log authentication failure
-                error_logger.log_api_error(
-                    service="acled",
-                    endpoint=ACLED_BASE_URL,
-                    method="GET",
-                    status_code=response.status_code,
-                    error_message="Authentication failed - check credentials",
-                    response_time_ms=response_time,
-                    response_body=response.text[:200],
-                    context={"has_email": ACLED_EMAIL is not None, "has_password": ACLED_PASSWORD is not None}
-                )
-                logger.error("ACLED API authentication failed - check credentials")
+                # Activate circuit breaker for authentication failures
+                self.consecutive_failures += 1
+                if self.consecutive_failures >= self.max_failures:
+                    backoff_minutes = min(60, 5 * self.consecutive_failures)
+                    self.failure_backoff_until = datetime.utcnow() + timedelta(minutes=backoff_minutes)
+                    logger.error(f"ACLED circuit breaker activated - too many auth failures. Backing off for {backoff_minutes} minutes")
+                
+                # Only log the first few failures to prevent error flood
+                if self.consecutive_failures <= 3:
+                    error_logger.log_api_error(
+                        service="acled",
+                        endpoint=ACLED_BASE_URL,
+                        method="GET",
+                        status_code=response.status_code,
+                        error_message="Authentication failed - check credentials",
+                        response_time_ms=response_time,
+                        response_body=response.text[:200],
+                        context={"has_email": ACLED_EMAIL is not None, "has_password": ACLED_PASSWORD is not None}
+                    )
+                    logger.error("ACLED API authentication failed - check credentials")
+                else:
+                    logger.debug(f"ACLED auth failure #{self.consecutive_failures} - suppressing detailed log")
                 return None
             else:
                 # Log other HTTP errors

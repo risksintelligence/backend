@@ -9,7 +9,7 @@ from ..services.resilience_metrics import (
     NodeResilience,
     ResilienceMetric
 )
-from ..services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
+from ..services.worldbank_wits_integration import wb_wits
 from ..services.acled_integration import ACLEDIntegration
 from ..services.marinetraffic_integration import MarineTrafficIntegration
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/v1/resilience", tags=["resilience"])
 
 # Initialize services
 resilience_service = SupplyChainResilienceService()
-comtrade_service = ComtradeIntegration()
+wits_service = wb_wits
 acled_service = ACLEDIntegration()
 marinetraffic_service = MarineTrafficIntegration()
 
@@ -26,22 +26,22 @@ async def get_supply_chain_data() -> Dict[str, Any]:
     """Aggregates supply chain data from all integrated services."""
     try:
         # Fetch data from all sources in parallel
-        comtrade_data, acled_data, port_data = await asyncio.gather(
-            comtrade_service.build_supply_chain_network(),
+        wits_data, acled_data, port_data = await asyncio.gather(
+            wits_service.build_supply_chain_network(),
             acled_service.get_supply_chain_disruptions(),
             marinetraffic_service.get_all_port_data(),
             return_exceptions=True
         )
         
         # Handle potential exceptions
-        if isinstance(comtrade_data, Exception):
-            comtrade_data = ([], [])
+        if isinstance(wits_data, Exception):
+            wits_data = ([], [])
         if isinstance(acled_data, Exception):
             acled_data = []
         if isinstance(port_data, Exception):
             port_data = []
         
-        nodes, edges = comtrade_data
+        nodes, edges = wits_data
         disruptions = acled_data if isinstance(acled_data, list) else []
         ports = port_data if isinstance(port_data, list) else []
         

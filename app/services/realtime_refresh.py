@@ -121,9 +121,9 @@ class RealTimeRefreshService:
                 "endpoints": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"]
             },
             {
-                "job_id": "comtrade_flows",
-                "data_source": "comtrade",
-                "function": "refresh_comtrade_data",
+                "job_id": "wits_trade_flows",
+                "data_source": "wits",
+                "function": "refresh_wits_data",
                 "priority": RefreshPriority.LOW,
                 "endpoints": ["/api/v1/network/supply-cascade"]
             },
@@ -322,16 +322,16 @@ class RealTimeRefreshService:
         """Call the appropriate refresh function for a data source."""
         
         if function_name == "refresh_cascade_snapshot":
-            from app.services.un_comtrade_integration import un_comtrade
+            from app.services.worldbank_wits_integration import wb_wits
             from app.services.acled_integration import get_acled_integration
             from app.services.marinetraffic_integration import get_marinetraffic_integration
             
             # Get fresh data from all sources
-            comtrade = un_comtrade
+            wits = wb_wits
             acled = get_acled_integration()
             marinetraffic = get_marinetraffic_integration()
             
-            nodes, edges = await comtrade.build_supply_chain_network()
+            nodes, edges = await wits.build_supply_chain_network()
             disruptions = await acled.get_supply_chain_disruptions(days=30)
             maritime_disruptions = await marinetraffic.get_maritime_disruptions()
             
@@ -383,10 +383,10 @@ class RealTimeRefreshService:
             disruptions = await marinetraffic.get_maritime_disruptions()
             return {"port_statuses": port_statuses, "disruptions": disruptions}
             
-        elif function_name == "refresh_comtrade_data":
-            from app.services.un_comtrade_integration import un_comtrade
-            comtrade = un_comtrade
-            nodes, edges = await comtrade.build_supply_chain_network()
+        elif function_name == "refresh_wits_data":
+            from app.services.worldbank_wits_integration import wb_wits
+            wits = wb_wits
+            nodes, edges = await wits.build_supply_chain_network()
             return {"nodes": nodes, "edges": edges}
             
         elif function_name == "refresh_wto_data":
@@ -517,11 +517,11 @@ class RealTimeRefreshService:
                 "maritime_disruptions": len(data.get("disruptions", [])),
                 "data_source": "MarineTraffic"
             }
-        elif data_source == "comtrade":
+        elif data_source == "wits":
             return {
                 "trade_nodes": len(data.get("nodes", [])),
                 "trade_flows": len(data.get("edges", [])),
-                "data_source": "UN Comtrade"
+                "data_source": "World Bank WITS"
             }
         elif data_source == "predictive":
             return {
@@ -540,7 +540,7 @@ class RealTimeRefreshService:
             "cascade_impacts": ["/api/v1/network/cascade/impacts"],
             "acled": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"],
             "marinetraffic": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"],
-            "comtrade": ["/api/v1/network/supply-cascade"],
+            "wits": ["/api/v1/network/supply-cascade"],
             "predictive": ["/api/v1/predictive/disruption-forecast", "/api/v1/predictive/early-warning"]
         }
         
