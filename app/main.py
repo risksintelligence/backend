@@ -435,13 +435,15 @@ if settings.is_production:
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and load data cache on startup."""
-    # Ensure database tables exist
+    logger.info("🚀 Starting RRIO backend service...")
+    
+    # Database initialization (with automatic fallback built into engine creation)
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables initialized successfully")
+        logger.info("✅ Database tables initialized successfully")
     except Exception as exc:
-        logger.error(f"Database initialization failed: {exc}")
-        # Continue startup even if DB init fails, as tables may already exist
+        logger.error(f"❌ Database table creation failed: {exc}")
+        logger.warning("⚠️ Some database features may not work properly")
     
     # Schedule background worker tasks for Render web service
     # Can be disabled by setting DISABLE_BACKGROUND_WORKERS=true
@@ -565,11 +567,15 @@ def _get_observations() -> dict:
 @app.get("/health")
 def health_check() -> Dict[str, str]:
     """Basic health check endpoint."""
+    db_type = "PostgreSQL" if settings.database_url.startswith("postgresql") else "SQLite" if settings.database_url.startswith("sqlite") else "Unknown"
+    
     return {
         "status": "ok", 
         "checked_at": datetime.utcnow().isoformat() + "Z",
         "version": "0.4.0",
-        "environment": settings.environment
+        "environment": settings.environment,
+        "database_type": db_type,
+        "database_url_prefix": settings.database_url[:30] + "..." if len(settings.database_url) > 30 else settings.database_url
     }
 
 @app.get("/metrics")

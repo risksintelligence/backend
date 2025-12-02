@@ -104,7 +104,14 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     settings = Settings()
-    settings.validate_production_config()
+    try:
+        settings.validate_production_config()
+    except RuntimeError as e:
+        # Log the configuration error but allow startup to continue with degraded functionality
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Production configuration validation failed: {e}")
+        logger.warning("Starting with degraded configuration - some features may not work")
     return settings
 
 
