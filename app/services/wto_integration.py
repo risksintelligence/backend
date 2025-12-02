@@ -143,8 +143,8 @@ class WTOIntegration:
         cache_key = f"bilateral_trade_{reporter}_{partner}_{hash(tuple(years))}_{hash(tuple(products))}"
         cached_data, metadata = self.cache.get(cache_key)
         
-        if cached_data and metadata.get("timestamp"):
-            cache_time = datetime.fromisoformat(metadata["timestamp"])
+        if cached_data and metadata and metadata.cached_at:
+            cache_time = metadata.cached_at
             if datetime.utcnow() - cache_time < timedelta(hours=6):  # 6-hour cache
                 return [TradeStatistic(**item) for item in cached_data]
         
@@ -201,8 +201,8 @@ class WTOIntegration:
         cache_key = "global_trade_volume"
         cached_data, metadata = self.cache.get(cache_key)
         
-        if cached_data and metadata.get("timestamp"):
-            cache_time = datetime.fromisoformat(metadata["timestamp"])
+        if cached_data and metadata and metadata.cached_at:
+            cache_time = metadata.cached_at
             if datetime.utcnow() - cache_time < timedelta(hours=12):  # 12-hour cache
                 return WTOTradeVolume(**cached_data)
         
@@ -262,8 +262,8 @@ class WTOIntegration:
         cache_key = f"tariff_data_{reporter}_{partner}_{hash(tuple(product_codes))}"
         cached_data, metadata = self.cache.get(cache_key)
         
-        if cached_data and metadata.get("timestamp"):
-            cache_time = datetime.fromisoformat(metadata["timestamp"])
+        if cached_data and metadata and metadata.cached_at:
+            cache_time = metadata.cached_at
             if datetime.utcnow() - cache_time < timedelta(days=7):  # Weekly cache
                 return [TariffData(**item) for item in cached_data]
         
@@ -333,8 +333,8 @@ class WTOIntegration:
         cache_key = f"trade_agreements_{country}_{agreement_type}_{status}"
         cached_data, metadata = self.cache.get(cache_key)
         
-        if cached_data and metadata.get("timestamp"):
-            cache_time = datetime.fromisoformat(metadata["timestamp"])
+        if cached_data and metadata and metadata.cached_at:
+            cache_time = metadata.cached_at
             if datetime.utcnow() - cache_time < timedelta(days=30):  # Monthly cache
                 return [TradeAgreement(**item) for item in cached_data]
         

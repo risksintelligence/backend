@@ -187,16 +187,25 @@ class MarineTrafficClient:
         if time_since_last < self.rate_limit_delay:
             await asyncio.sleep(self.rate_limit_delay - time_since_last)
         
-        # Add API key if available and valid
-        if MARINETRAFFIC_API_KEY and not MARINETRAFFIC_API_KEY.startswith("your-"):
-            params["key"] = MARINETRAFFIC_API_KEY
-        else:
-            logger.warning("MarineTraffic API key not configured or invalid - using demo/limited data")
-        
+        # Build URL with manual parameter encoding to handle base64 API key
         url = f"{MARINETRAFFIC_BASE_URL}/{endpoint}"
         
+        if MARINETRAFFIC_API_KEY and not MARINETRAFFIC_API_KEY.startswith("your-"):
+            # Manually build query string to avoid double-encoding of API key
+            param_parts = [f"{k}={v}" for k, v in params.items()]
+            param_parts.append(f"key={MARINETRAFFIC_API_KEY}")
+            query_string = "&".join(param_parts)
+            full_url = f"{url}?{query_string}"
+        else:
+            logger.warning("MarineTraffic API key not configured or invalid - using demo/limited data")
+            full_url = url
+        
         try:
-            response = await self.session.get(url, params=params)
+            # Use the full URL directly without params to avoid double-encoding
+            if MARINETRAFFIC_API_KEY and not MARINETRAFFIC_API_KEY.startswith("your-"):
+                response = await self.session.get(full_url)
+            else:
+                response = await self.session.get(url, params=params)
             self.last_request_time = asyncio.get_event_loop().time()
             
             if response.status_code == 200:

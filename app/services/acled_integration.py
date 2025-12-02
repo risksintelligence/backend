@@ -90,13 +90,16 @@ class SupplyChainDisruption:
 
 
 class ACLEDClient:
-    """ACLED API client with rate limiting and regional filtering"""
+    """ACLED API client with OAuth authentication and rate limiting"""
     
     def __init__(self):
         self.cache = UnifiedCache("acled")
         self.session = None
         self.rate_limit_delay = 1.2  # ACLED rate limit
         self.last_request_time = 0
+        self.access_token = None
+        self.token_expiry = None
+        self.refresh_token = None
     
     async def __aenter__(self):
         self.session = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
@@ -106,6 +109,65 @@ class ACLEDClient:
         if self.session:
             await self.session.aclose()
     
+    async def _get_access_token(self) -> Optional[str]:
+        """Get or refresh OAuth access token"""
+        try:
+            # Check if current token is still valid
+            if self.access_token and self.token_expiry and datetime.utcnow() < self.token_expiry:
+                return self.access_token
+            
+            # If we have a refresh token, try to refresh
+            if self.refresh_token:
+                logger.info("Refreshing ACLED access token")
+                response = await self.session.post(
+                    "https://acleddata.com/oauth/token",
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    data={
+                        "refresh_token": self.refresh_token,
+                        "grant_type": "refresh_token",
+                        "client_id": "acled"
+                    }
+                )
+                
+                if response.status_code == 200:
+                    token_data = response.json()
+                    self.access_token = token_data["access_token"]
+                    self.refresh_token = token_data["refresh_token"]
+                    self.token_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"] - 300)  # 5 min buffer
+                    return self.access_token
+            
+            # Get new token with credentials
+            if not ACLED_EMAIL or not ACLED_PASSWORD:
+                logger.warning("ACLED credentials not configured")
+                return None
+                
+            logger.info("Getting new ACLED access token")
+            response = await self.session.post(
+                "https://acleddata.com/oauth/token",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "username": ACLED_EMAIL,
+                    "password": ACLED_PASSWORD,
+                    "grant_type": "password",
+                    "client_id": "acled"
+                }
+            )
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                self.access_token = token_data["access_token"]
+                self.refresh_token = token_data["refresh_token"]
+                self.token_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"] - 300)  # 5 min buffer
+                logger.info("ACLED access token obtained successfully")
+                return self.access_token
+            else:
+                logger.error(f"Failed to get ACLED access token: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting ACLED access token: {e}")
+            return None
+    
     async def _rate_limited_request(self, params: dict) -> Optional[dict]:
         """Make rate-limited request to ACLED API"""
         # Ensure rate limiting
@@ -114,16 +176,15 @@ class ACLEDClient:
         if time_since_last < self.rate_limit_delay:
             await asyncio.sleep(self.rate_limit_delay - time_since_last)
         
-        # Add authentication if available
-        if ACLED_EMAIL and ACLED_PASSWORD:
-            params.update({
-                "email": ACLED_EMAIL,
-                "key": ACLED_PASSWORD
-            })
+        # Get OAuth access token
+        access_token = await self._get_access_token()
+        headers = {}
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
         
         try:
             start_time = datetime.utcnow()
-            response = await self.session.get(ACLED_BASE_URL, params=params)
+            response = await self.session.get(ACLED_BASE_URL, params=params, headers=headers)
             self.last_request_time = asyncio.get_event_loop().time()
             response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             

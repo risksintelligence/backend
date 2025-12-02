@@ -322,12 +322,12 @@ class RealTimeRefreshService:
         """Call the appropriate refresh function for a data source."""
         
         if function_name == "refresh_cascade_snapshot":
-            from app.services.un_comtrade_integration import un_comtrade as get_comtrade_integration
+            from app.services.un_comtrade_integration import un_comtrade
             from app.services.acled_integration import get_acled_integration
             from app.services.marinetraffic_integration import get_marinetraffic_integration
             
             # Get fresh data from all sources
-            comtrade = get_comtrade_integration()
+            comtrade = un_comtrade
             acled = get_acled_integration()
             marinetraffic = get_marinetraffic_integration()
             
@@ -384,8 +384,8 @@ class RealTimeRefreshService:
             return {"port_statuses": port_statuses, "disruptions": disruptions}
             
         elif function_name == "refresh_comtrade_data":
-            from app.services.un_comtrade_integration import un_comtrade as get_comtrade_integration
-            comtrade = get_comtrade_integration()
+            from app.services.un_comtrade_integration import un_comtrade
+            comtrade = un_comtrade
             nodes, edges = await comtrade.build_supply_chain_network()
             return {"nodes": nodes, "edges": edges}
             
