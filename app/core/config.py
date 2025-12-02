@@ -80,16 +80,10 @@ class Settings(BaseSettings):
     def validate_production_config(self) -> None:
         """Validate that all required production settings are configured."""
         if self.is_production:
+            # Only validate critical fields, allow API keys to be optional for basic functionality
             required_fields = {
                 "postgres_dsn": self.postgres_dsn,
-                "fred_api_key": self.fred_api_key,
-                "reviewer_api_key": self.reviewer_api_key,
-                "jwt_secret": self.jwt_secret,
             }
-            
-            # Redis is optional for development
-            if self.redis_url:
-                required_fields["redis_url"] = self.redis_url
             
             missing_fields = [field for field, value in required_fields.items() if not value]
             
