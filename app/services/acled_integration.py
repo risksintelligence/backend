@@ -750,3 +750,6 @@ class ACLEDIntegration:
         ]
         
         return fallback_disruptions
+
+# Global instance
+acled = ACLEDIntegration()

@@ -118,10 +118,9 @@ class HealthMonitor:
                 
                 # Add API keys where available
                 if api_name == "acled" and hasattr(self.settings, 'acled_email'):
-                    params.update({
-                        "email": self.settings.acled_email,
-                        "key": getattr(self.settings, 'acled_password', '')
-                    })
+                    # ACLED now uses OAuth - skip authentication in health check
+                    # The health check will test basic connectivity without auth
+                    pass
                 elif api_name == "marinetraffic" and hasattr(self.settings, 'marinetraffic_api_key'):
                     api_key = self.settings.marinetraffic_api_key
                     if api_key and not api_key.startswith("your-"):
