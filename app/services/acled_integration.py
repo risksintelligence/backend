@@ -201,10 +201,6 @@ class ACLEDClient:
     ) -> List[GeopoliticalEvent]:
         """Get recent geopolitical events affecting supply chains"""
         
-        # Temporarily disabled until proper API credentials are obtained
-        logger.info("ACLED API temporarily disabled due to access restrictions, using fallback data")
-        return []
-        
         # Check cache first
         cache_key = f"recent_events_{days}_{region}_{event_types}"
         cached_data, _ = self.cache.get(cache_key)
