@@ -34,27 +34,32 @@ async def get_geopolitical_disruptions(
             # Convert dataclasses to dicts for JSON serialization
             result = []
             for disruption in disruptions:
-                # Handle dataclass conversion
-                if hasattr(disruption, '__dict__'):
-                    disruption_dict = disruption.__dict__.copy()
-                else:
-                    disruption_dict = {
-                        "event_id": getattr(disruption, 'event_id', ''),
-                        "title": getattr(disruption, 'title', 'Unknown Event'),
-                        "location": getattr(disruption, 'location', 'Unknown Location'),
-                        "severity": getattr(disruption, 'severity', 'low'),
-                        "impact_score": getattr(disruption, 'impact_score', 0),
-                        "confidence": getattr(disruption, 'confidence', 0),
-                        "timestamp": getattr(disruption, 'timestamp', ''),
-                        "duration_days": getattr(disruption, 'duration_days', 0),
-                        "affected_routes": getattr(disruption, 'affected_routes', []),
-                        "source": getattr(disruption, 'source', 'gdelt'),
-                        "description": getattr(disruption, 'description', ''),
-                    }
+                # Map SupplyChainDisruption dataclass fields to expected API format
+                disruption_dict = {
+                    "event_id": getattr(disruption, 'disruption_id', ''),
+                    "title": getattr(disruption, 'description', 'Unknown Event')[:100],
+                    "location": f"{disruption.location[0]:.3f},{disruption.location[1]:.3f}" if hasattr(disruption, 'location') and disruption.location else 'Unknown',
+                    "severity": getattr(disruption, 'severity', 'low'),
+                    "impact_score": getattr(disruption, 'economic_impact_usd', 0) or 0,
+                    "confidence": 75,  # Default confidence for GDELT data
+                    "timestamp": getattr(disruption, 'start_date', ''),
+                    "duration_days": getattr(disruption, 'estimated_duration_days', 0),
+                    "affected_routes": getattr(disruption, 'affected_trade_routes', []),
+                    "affected_commodities": getattr(disruption, 'affected_commodities', []),
+                    "source": getattr(disruption, 'source', 'gdelt'),
+                    "description": getattr(disruption, 'description', ''),
+                    "event_type": getattr(disruption, 'event_type', 'unknown'),
+                    "mitigation_strategies": getattr(disruption, 'mitigation_strategies', [])
+                }
                 
                 # Ensure timestamp is string for JSON serialization
-                if hasattr(disruption_dict.get('timestamp'), 'isoformat'):
-                    disruption_dict['timestamp'] = disruption_dict['timestamp'].isoformat()
+                timestamp = disruption_dict.get('timestamp')
+                if hasattr(timestamp, 'isoformat'):
+                    disruption_dict['timestamp'] = timestamp.isoformat()
+                elif timestamp:
+                    disruption_dict['timestamp'] = str(timestamp)
+                else:
+                    disruption_dict['timestamp'] = ''
                     
                 result.append(disruption_dict)
             
