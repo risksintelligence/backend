@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # Security
     reviewer_api_key: Optional[str] = Field(None, alias="ris_reviewer_api_key")
     allowed_origins: str = Field(
-        "https://frontend-production.up.railway.app,https://backend-production.up.railway.app,https://frontend-1-tzlw.onrender.com,https://backend-1-s84g.onrender.com,http://localhost:3000,http://127.0.0.1:3000",
+        "https://frontend-production-06f5.up.railway.app,https://backend-production-83c7.up.railway.app,https://frontend-1-tzlw.onrender.com,https://backend-1-s84g.onrender.com,http://localhost:3000,http://127.0.0.1:3000",
         alias="ris_allowed_origins",
     )
     jwt_secret: Optional[str] = Field(None, alias="ris_jwt_secret")
