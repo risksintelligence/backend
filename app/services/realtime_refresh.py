@@ -386,8 +386,13 @@ class RealTimeRefreshService:
             from app.services.maritime_intelligence import maritime_intelligence
              # maritime_intelligence already imported as singleton
             port_statuses = await maritime_intelligence.get_port_congestion()
-            disruptions = await maritime_intelligence.get_maritime_disruptions()
-            return {"port_statuses": port_statuses, "disruptions": disruptions}
+            shipping_delays = await maritime_intelligence.get_shipping_delays()
+            risk_assessment = await maritime_intelligence.get_supply_chain_risk_assessment()
+            return {
+                "port_statuses": port_statuses, 
+                "shipping_delays": shipping_delays,
+                "supply_chain_risks": risk_assessment
+            }
             
         elif function_name == "refresh_wits_data":
             from app.services.worldbank_wits_integration import wb_wits
@@ -398,14 +403,21 @@ class RealTimeRefreshService:
         elif function_name == "refresh_wto_data":
             from app.services.wto_integration import get_wto_integration
             wto = get_wto_integration()
-            trade_volume = await wto.get_global_trade_volume()
-            bilateral_data = await wto.get_bilateral_trade_data("USA", "CHN")  # Sample bilateral data
-            agreements = await wto.get_trade_agreements(status="In Force")
+            
+            # Focus on what WTO actually provides for free
+            try:
+                trade_volume = await wto.get_global_trade_volume()
+            except RuntimeError:
+                trade_volume = None
+                logger.warning("WTO global trade volume not available - continuing without it")
+            
+            # Skip bilateral data - we use World Bank WITS for this instead
+            # Skip trade agreements - WTO doesn't provide free API access for this
             return {
-                "global_trade_volume": trade_volume.total_global_trade,
-                "bilateral_trade_count": len(bilateral_data),
-                "active_agreements": len(agreements),
-                "regional_breakdown": trade_volume.regional_breakdown
+                "global_trade_volume": trade_volume.total_global_trade if trade_volume else 0,
+                "trade_growth": trade_volume.trade_growth_forecast if trade_volume else 0,
+                "data_source": "WTO Global Trade Statistics",
+                "note": "Using WTO for global volumes only - bilateral data from World Bank WITS"
             }
             
             
@@ -455,7 +467,7 @@ class RealTimeRefreshService:
             timeline_service = get_timeline_cascade_service()
             
             # Get recent cascades and timeline data
-            recent_cascades = await timeline_service.get_historical_cascades(limit=20)
+            recent_cascades = await timeline_service.get_cascade_history(limit=20)
             
             # Get timeline visualization for last 90 days
             end_date = datetime.utcnow()
@@ -519,8 +531,9 @@ class RealTimeRefreshService:
             }
         elif data_source == "maritime_intelligence":
             return {
-                "ports_monitored": len(data.get("port_statuses", [])),
-                "maritime_disruptions": len(data.get("disruptions", [])),
+                "ports_monitored": len(data.get("port_statuses", {})),
+                "shipping_delays": len(data.get("shipping_delays", [])),
+                "supply_chain_risks": len(data.get("supply_chain_risks", {}).get("risk_factors", [])) if isinstance(data.get("supply_chain_risks"), dict) else 0,
                 "data_source": "Free Maritime Intelligence"
             }
         elif data_source == "wits":
