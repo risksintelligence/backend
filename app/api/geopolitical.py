@@ -28,48 +28,54 @@ async def get_geopolitical_disruptions(
     """
     try:
         service = GeopoliticalIntelligenceService()
-        async with service:
-            disruptions = await service.get_supply_chain_disruptions(days=days)
+        disruptions = await service.get_supply_chain_disruptions(days=days)
+        
+        # Convert dataclasses to dicts for JSON serialization
+        result = []
+        for disruption in disruptions:
+            # Map SupplyChainDisruption dataclass fields to expected API format
+            disruption_dict = {
+                "event_id": getattr(disruption, 'disruption_id', ''),
+                "title": getattr(disruption, 'description', 'Unknown Event')[:100],
+                "location": f"{disruption.location[0]:.3f},{disruption.location[1]:.3f}" if hasattr(disruption, 'location') and disruption.location else 'Unknown',
+                "severity": getattr(disruption, 'severity', 'low'),
+                "impact_score": getattr(disruption, 'economic_impact_usd', 0) or 0,
+                "confidence": 75,  # Default confidence for GDELT data
+                "timestamp": getattr(disruption, 'start_date', ''),
+                "duration_days": getattr(disruption, 'estimated_duration_days', 0),
+                "affected_routes": getattr(disruption, 'affected_trade_routes', []),
+                "affected_commodities": getattr(disruption, 'affected_commodities', []),
+                "source": getattr(disruption, 'source', 'gdelt'),
+                "description": getattr(disruption, 'description', ''),
+                "event_type": getattr(disruption, 'event_type', 'unknown'),
+                "mitigation_strategies": getattr(disruption, 'mitigation_strategies', [])
+            }
             
-            # Convert dataclasses to dicts for JSON serialization
-            result = []
-            for disruption in disruptions:
-                # Map SupplyChainDisruption dataclass fields to expected API format
-                disruption_dict = {
-                    "event_id": getattr(disruption, 'disruption_id', ''),
-                    "title": getattr(disruption, 'description', 'Unknown Event')[:100],
-                    "location": f"{disruption.location[0]:.3f},{disruption.location[1]:.3f}" if hasattr(disruption, 'location') and disruption.location else 'Unknown',
-                    "severity": getattr(disruption, 'severity', 'low'),
-                    "impact_score": getattr(disruption, 'economic_impact_usd', 0) or 0,
-                    "confidence": 75,  # Default confidence for GDELT data
-                    "timestamp": getattr(disruption, 'start_date', ''),
-                    "duration_days": getattr(disruption, 'estimated_duration_days', 0),
-                    "affected_routes": getattr(disruption, 'affected_trade_routes', []),
-                    "affected_commodities": getattr(disruption, 'affected_commodities', []),
-                    "source": getattr(disruption, 'source', 'gdelt'),
-                    "description": getattr(disruption, 'description', ''),
-                    "event_type": getattr(disruption, 'event_type', 'unknown'),
-                    "mitigation_strategies": getattr(disruption, 'mitigation_strategies', [])
-                }
+            # Ensure timestamp is string for JSON serialization
+            timestamp = disruption_dict.get('timestamp')
+            if hasattr(timestamp, 'isoformat'):
+                disruption_dict['timestamp'] = timestamp.isoformat()
+            elif timestamp:
+                disruption_dict['timestamp'] = str(timestamp)
+            else:
+                disruption_dict['timestamp'] = ''
                 
-                # Ensure timestamp is string for JSON serialization
-                timestamp = disruption_dict.get('timestamp')
-                if hasattr(timestamp, 'isoformat'):
-                    disruption_dict['timestamp'] = timestamp.isoformat()
-                elif timestamp:
-                    disruption_dict['timestamp'] = str(timestamp)
-                else:
-                    disruption_dict['timestamp'] = ''
-                    
-                result.append(disruption_dict)
+            result.append(disruption_dict)
+        
+        logger.info(f"Retrieved {len(result)} geopolitical disruptions for {days} days")
+        return result
             
-            logger.info(f"Retrieved {len(result)} geopolitical disruptions for {days} days")
-            return result
-            
+    except ImportError as e:
+        logger.error(f"Import error in geopolitical service: {str(e)}")
+        return []
+    except AttributeError as e:
+        logger.error(f"Attribute error in geopolitical service: {str(e)}")
+        return []
     except Exception as e:
         error_logger.log_error(e, {
             "endpoint": "/api/v1/geopolitical/disruptions",
-            "days": days
+            "days": days,
+            "error_type": type(e).__name__
         })
         logger.error(f"Error getting geopolitical disruptions: {str(e)}")
         
