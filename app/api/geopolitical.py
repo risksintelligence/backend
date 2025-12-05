@@ -96,9 +96,11 @@ async def get_recent_geopolitical_events(
         List of recent geopolitical events
     """
     try:
-        service = GeopoliticalIntelligenceService()
-        async with service:
-            events = await service.get_recent_events(limit=limit)
+        from app.services.geopolitical_intelligence import GDELTClient
+        
+        # Use GDELT client directly for events
+        async with GDELTClient() as gdelt_client:
+            events = await gdelt_client.get_recent_events(days=30)
             
             # Ensure proper JSON serialization
             result = []
@@ -108,10 +110,11 @@ async def get_recent_geopolitical_events(
                 else:
                     result.append({
                         "event_id": str(getattr(event, 'event_id', '')),
-                        "title": str(getattr(event, 'title', 'Unknown Event')),
+                        "title": str(getattr(event, 'description', 'Unknown Event')),
                         "location": str(getattr(event, 'location', 'Unknown')),
-                        "date": str(getattr(event, 'date', '')),
+                        "date": str(getattr(event, 'event_date', '')),
                         "confidence": float(getattr(event, 'confidence', 0)),
+                        "impact_score": float(getattr(event, 'impact_score', 0)),
                     })
             
             logger.info(f"Retrieved {len(result)} recent geopolitical events")
@@ -134,19 +137,18 @@ async def geopolitical_health_check() -> Dict[str, Any]:
     """
     try:
         service = GeopoliticalIntelligenceService()
-        async with service:
-            # Test basic connectivity
-            test_disruptions = await service.get_supply_chain_disruptions(days=1)
-            
-            return {
-                "status": "healthy",
-                "service": "geopolitical_intelligence",
-                "last_check": "ok",
-                "data_sources": ["gdelt", "free_apis"],
-                "test_results": {
-                    "disruptions_available": len(test_disruptions) > 0 if test_disruptions else False
-                }
+        # Test basic connectivity
+        test_disruptions = await service.get_supply_chain_disruptions(days=1)
+        
+        return {
+            "status": "healthy",
+            "service": "geopolitical_intelligence",
+            "last_check": "ok",
+            "data_sources": ["gdelt", "free_apis"],
+            "test_results": {
+                "disruptions_available": len(test_disruptions) > 0 if test_disruptions else False
             }
+        }
     except Exception as e:
         logger.warning(f"Geopolitical health check failed: {str(e)}")
         return {
