@@ -90,6 +90,7 @@ from app.api import ml_intelligence as ml_intelligence_router
 from app.api import production_alerts as production_alerts_router
 from app.api import health_monitoring as health_monitoring_router
 from app.api import error_monitoring as error_monitoring_router
+from app.api import geopolitical as geopolitical_router
 from app.api import supply_chain as supply_chain_router
 from app.api import maritime_intelligence as maritime_intelligence_router
 from app.db import SessionLocal, Base, engine, get_db
@@ -2521,6 +2522,7 @@ app.include_router(health_monitoring_router.router)
 app.include_router(error_monitoring_router.router)
 app.include_router(supply_chain_router.router)
 app.include_router(maritime_intelligence_router.router)
+app.include_router(geopolitical_router.router, prefix="/api/v1/geopolitical", tags=["geopolitical"])
 app.include_router(production_alerts_router.router)
 # Duplicate mock endpoints removed - using supply chain router with real data instead
 
