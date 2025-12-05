@@ -87,9 +87,11 @@ from app.api import timeline_cascade as timeline_cascade_router
 from app.api import cache_management as cache_router
 from app.api import ml_models as ml_models_router
 from app.api import ml_intelligence as ml_intelligence_router
+from app.api import production_alerts as production_alerts_router
 from app.api import health_monitoring as health_monitoring_router
 from app.api import error_monitoring as error_monitoring_router
 from app.api import supply_chain as supply_chain_router
+from app.api import maritime_intelligence as maritime_intelligence_router
 from app.db import SessionLocal, Base, engine, get_db
 from app.models import ObservationModel
 from app.core.config import get_settings
@@ -134,11 +136,14 @@ async def background_worker_tasks():
         # Start training task  
         training_task = asyncio.create_task(background_training_task())
         
+        # Start production alerting task
+        alerting_task = asyncio.create_task(background_alerting_task())
+        
         # Let them run concurrently but catch all exceptions to prevent server shutdown
         while True:
             try:
                 done, pending = await asyncio.wait(
-                    [ingestion_task, training_task], 
+                    [ingestion_task, training_task, alerting_task], 
                     timeout=300,  # Check every 5 minutes
                     return_when=asyncio.FIRST_EXCEPTION
                 )
@@ -153,6 +158,8 @@ async def background_worker_tasks():
                             ingestion_task = asyncio.create_task(background_ingestion_loop())
                         elif task == training_task:
                             training_task = asyncio.create_task(background_training_task())
+                        elif task == alerting_task:
+                            alerting_task = asyncio.create_task(background_alerting_task())
                 
                 # Brief pause before next check
                 await asyncio.sleep(10)
@@ -243,6 +250,48 @@ async def background_training_task():
     except Exception as e:
         logger.error(f"Background training task failed: {e}")
         # Don't re-raise - let the task be restarted by supervisor
+
+async def background_alerting_task():
+    """Periodic production health monitoring and alerting task."""
+    try:
+        logger.info("Starting production health monitoring and alerting")
+        
+        # Import here to avoid circular imports
+        from app.core.production_alerting import production_alerting
+        
+        # Initial health check after startup
+        await asyncio.sleep(120)  # Wait 2 minutes for services to stabilize
+        await production_alerting.check_system_health_and_alert()
+        logger.info("Initial production health check completed")
+        
+        # Continue with periodic checks
+        while True:
+            try:
+                # Run health check every 5 minutes
+                await asyncio.sleep(300)
+                
+                logger.debug("Running periodic production health check")
+                result = await production_alerting.check_system_health_and_alert()
+                
+                # Log summary of check results
+                total_alerts = result.get("total_active_alerts", 0)
+                critical_alerts = result.get("critical_alerts", 0)
+                
+                if critical_alerts > 0:
+                    logger.warning(f"Production health check: {critical_alerts} critical alerts, {total_alerts} total alerts")
+                elif total_alerts > 0:
+                    logger.info(f"Production health check: {total_alerts} active alerts")
+                else:
+                    logger.debug("Production health check: All systems healthy")
+                
+            except Exception as e:
+                logger.error(f"Production alerting check failed: {e}")
+                # Continue running even if individual checks fail
+                await asyncio.sleep(60)  # Wait 1 minute before retry
+                
+    except Exception as e:
+        logger.error(f"Production alerting background task failed: {e}")
+        # Don't re-raise - let the supervisor handle restart
 
 def with_timeout(seconds: int):
     """Decorator to add timeout to operations."""
@@ -1858,8 +1907,7 @@ async def cascade_timeline_visualization(
 ) -> dict:
     """Get cascade timeline visualization data from cache and real data sources."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.acled_integration import ACLEDIntegration
-    from app.services.marinetraffic_integration import MarineTrafficIntegration
+    from app.services.maritime_intelligence import maritime_intelligence
     
     cache = UnifiedCache("cascade_timeline")
     
@@ -1871,59 +1919,32 @@ async def cascade_timeline_visualization(
     # Generate timeline from real data sources
     timeline_events = []
     
-    # Get ACLED conflict/disruption data with fallback to mock data
+    # Get geopolitical disruption data
     try:
-        acled = ACLEDIntegration()
-        acled_data = await acled.get_conflicts_data()
+        from app.services.geopolitical_intelligence import geopolitical_intelligence
+        disruptions = await geopolitical_intelligence.get_supply_chain_disruptions(days=7)
         
-        conflicts = acled_data.get("conflicts", [])
-        if conflicts:  # Only use real data if it exists
-            for event in conflicts[:10]:  # Latest 10 events
+        if disruptions:  # Only use real data if it exists
+            for disruption in disruptions[:10]:  # Latest 10 events
                 timeline_events.append({
-                    "timestamp": event.get("event_date", "2024-11-20T00:00:00Z"),
-                    "event": f"Conflict event: {event.get('event_type', 'Unknown')}",
-                    "severity": "high" if event.get("fatalities", 0) > 10 else "medium",
-                    "affected_nodes": [f"REGION_{event.get('country', 'UNKNOWN').upper()}"],
-                    "source": "ACLED",
-                    "location": event.get("location", "Unknown")
+                    "timestamp": disruption.start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "event": f"Supply chain disruption: {disruption.description}",
+                    "severity": disruption.severity,
+                    "affected_nodes": [f"REGION_{disruption.location[0]:.1f}_{disruption.location[1]:.1f}"],
+                    "source": disruption.source,
+                    "location": f"{disruption.location[0]:.3f}, {disruption.location[1]:.3f}"
                 })
         else:
-            raise Exception("No ACLED data available")
+            raise RuntimeError("No geopolitical data available")
     except Exception as e:
-        print(f"ACLED data unavailable, using mock data: {e}")
-        # Fallback mock ACLED data
-        mock_acled_events = [
-            {
-                "timestamp": "2024-11-24T14:30:00Z",
-                "event": "Political riots in Lagos affecting port operations",
-                "severity": "high",
-                "affected_nodes": ["REGION_NIGERIA", "PORT_LAGOS"],
-                "source": "ACLED (Mock)",
-                "location": "Lagos, Nigeria"
-            },
-            {
-                "timestamp": "2024-11-23T08:15:00Z", 
-                "event": "Strike action disrupts Shanghai manufacturing",
-                "severity": "medium",
-                "affected_nodes": ["REGION_CHINA", "CHINA_MANUFACTURING"],
-                "source": "ACLED (Mock)",
-                "location": "Shanghai, China"
-            },
-            {
-                "timestamp": "2024-11-22T16:45:00Z",
-                "event": "Border tensions affect Ukraine grain exports",
-                "severity": "high", 
-                "affected_nodes": ["REGION_UKRAINE", "UKRAINE_AGRICULTURE"],
-                "source": "ACLED (Mock)",
-                "location": "Odessa, Ukraine"
-            }
-        ]
-        timeline_events.extend(mock_acled_events)
+        logger.error("Geopolitical data unavailable", exc_info=e)
+        if cached_data:
+            return cached_data
+        raise HTTPException(status_code=503, detail="Geopolitical disruption data unavailable")
     
-    # Get MarineTraffic port/shipping disruption data with fallback to mock data
+    # Get Free Maritime Intelligence port/shipping disruption data
     try:
-        marine = MarineTrafficIntegration()
-        port_data = await marine.get_port_congestion()
+        port_data = await maritime_intelligence.get_port_congestion()
         
         ports = port_data.get("ports", [])
         if ports:  # Only use real data if it exists
@@ -1934,41 +1955,16 @@ async def cascade_timeline_visualization(
                         "event": f"Port congestion: {port.get('name', 'Unknown Port')}",
                         "severity": "high" if port.get("congestion_level", 0) > 0.9 else "medium",
                         "affected_nodes": [f"PORT_{port.get('name', 'UNKNOWN').upper().replace(' ', '_')}"],
-                        "source": "MarineTraffic",
+                        "source": "Free Maritime Intelligence",
                         "congestion_level": port.get("congestion_level", 0)
                     })
         else:
-            raise Exception("No MarineTraffic port data available")
+            raise RuntimeError("No Free Maritime Intelligence port data available")
     except Exception as e:
-        print(f"MarineTraffic data unavailable, using mock data: {e}")
-        # Fallback mock MarineTraffic data
-        mock_port_events = [
-            {
-                "timestamp": "2024-11-24T12:00:00Z",
-                "event": "Port congestion: Los Angeles - Container backlog",
-                "severity": "high",
-                "affected_nodes": ["PORT_LOS_ANGELES"],
-                "source": "MarineTraffic (Mock)",
-                "congestion_level": 0.85
-            },
-            {
-                "timestamp": "2024-11-23T18:30:00Z",
-                "event": "Port congestion: Rotterdam - Weather delays",
-                "severity": "medium", 
-                "affected_nodes": ["PORT_ROTTERDAM"],
-                "source": "MarineTraffic (Mock)",
-                "congestion_level": 0.72
-            },
-            {
-                "timestamp": "2024-11-22T09:15:00Z",
-                "event": "Port congestion: Singapore - Equipment shortage",
-                "severity": "medium",
-                "affected_nodes": ["PORT_SINGAPORE"], 
-                "source": "MarineTraffic (Mock)",
-                "congestion_level": 0.68
-            }
-        ]
-        timeline_events.extend(mock_port_events)
+        logger.error("Free Maritime Intelligence data unavailable", exc_info=e)
+        if cached_data:
+            return cached_data
+        raise HTTPException(status_code=503, detail="Maritime disruption data unavailable")
     
     # Sort timeline by timestamp
     timeline_events.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
@@ -1980,7 +1976,7 @@ async def cascade_timeline_visualization(
             "time_range": "168h",  # 1 week
             "node_count": len(set([node for event in timeline_events for node in event.get("affected_nodes", [])])),
             "edge_count": len(timeline_events) * 2,  # Rough estimate
-            "data_sources": ["ACLED", "MarineTraffic"],
+            "data_sources": ["Free Geopolitical Intelligence", "Free Maritime Intelligence"],
             "last_updated": metadata.get("cached_at") if metadata else None
         }
     }
@@ -2200,7 +2196,7 @@ async def network_providers_health(
 ) -> dict:
     """Get network providers health status from real data sources."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.marinetraffic_integration import MarineTrafficIntegration
+    from app.services.maritime_intelligence import maritime_intelligence
     
     cache = UnifiedCache("providers_health")
     
@@ -2211,10 +2207,10 @@ async def network_providers_health(
     
     providers = []
     
-    # Get MarineTraffic port health data with fallback to mock data
+    # Get Free Maritime Intelligence port health data with cache fallback only
     try:
-        marine = MarineTrafficIntegration()
-        port_data = await marine.get_port_congestion()
+        # marine = maritime_intelligence  # Using free maritime intelligence
+        port_data = await maritime_intelligence.get_port_congestion()
         
         ports = port_data.get("ports", [])
         if ports:  # Only use real data if it exists
@@ -2242,79 +2238,13 @@ async def network_providers_health(
                     "last_checked": port.get("last_updated", "2024-11-20T00:00:00Z")
                 })
         else:
-            raise Exception("No MarineTraffic port data available")
+            raise RuntimeError("No Free Maritime Intelligence port data available")
             
     except Exception as e:
-        print(f"MarineTraffic health data unavailable, using mock data: {e}")
-        # Fallback mock port health data
-        mock_providers = [
-            {
-                "provider_id": "PORT_LOS_ANGELES",
-                "name": "Los Angeles",
-                "type": "maritime_port",
-                "health_score": 0.75,
-                "status": "healthy",
-                "metrics": {
-                    "congestion_level": 0.25,
-                    "capacity_utilization": 0.82,
-                    "throughput": 156000
-                },
-                "last_checked": "2024-11-24T12:00:00Z"
-            },
-            {
-                "provider_id": "PORT_SHANGHAI", 
-                "name": "Shanghai",
-                "type": "maritime_port",
-                "health_score": 0.45,
-                "status": "degraded",
-                "metrics": {
-                    "congestion_level": 0.55,
-                    "capacity_utilization": 0.95,
-                    "throughput": 280000
-                },
-                "last_checked": "2024-11-24T11:45:00Z"
-            },
-            {
-                "provider_id": "PORT_ROTTERDAM",
-                "name": "Rotterdam", 
-                "type": "maritime_port",
-                "health_score": 0.85,
-                "status": "healthy",
-                "metrics": {
-                    "congestion_level": 0.15,
-                    "capacity_utilization": 0.68,
-                    "throughput": 89000
-                },
-                "last_checked": "2024-11-24T11:30:00Z"
-            },
-            {
-                "provider_id": "PORT_SINGAPORE",
-                "name": "Singapore",
-                "type": "maritime_port", 
-                "health_score": 0.25,
-                "status": "critical",
-                "metrics": {
-                    "congestion_level": 0.75,
-                    "capacity_utilization": 0.98,
-                    "throughput": 195000
-                },
-                "last_checked": "2024-11-24T11:15:00Z"
-            },
-            {
-                "provider_id": "PORT_HAMBURG",
-                "name": "Hamburg",
-                "type": "maritime_port",
-                "health_score": 0.65,
-                "status": "healthy", 
-                "metrics": {
-                    "congestion_level": 0.35,
-                    "capacity_utilization": 0.78,
-                    "throughput": 67000
-                },
-                "last_checked": "2024-11-24T11:00:00Z"
-            }
-        ]
-        providers.extend(mock_providers)
+        logger.error("Free Maritime Intelligence health data unavailable", exc_info=e)
+        if cached_data:
+            return cached_data
+        raise HTTPException(status_code=503, detail="Maritime provider health unavailable")
     
     # Calculate overall health metrics
     if providers:
@@ -2340,7 +2270,7 @@ async def network_providers_health(
             {"status": "degraded", "count": degraded_count}, 
             {"status": "critical", "count": critical_count}
         ],
-        "data_sources": ["MarineTraffic"],
+        "data_sources": ["Free Maritime Intelligence"],
         "last_updated": metadata.get("cached_at") if metadata else None
     }
     
@@ -2590,6 +2520,8 @@ app.include_router(ml_intelligence_router.router)
 app.include_router(health_monitoring_router.router)
 app.include_router(error_monitoring_router.router)
 app.include_router(supply_chain_router.router)
+app.include_router(maritime_intelligence_router.router)
+app.include_router(production_alerts_router.router)
 # Duplicate mock endpoints removed - using supply chain router with real data instead
 
 # Analytics endpoints added to existing analytics router in app.api.analytics

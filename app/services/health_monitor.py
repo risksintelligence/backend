@@ -48,30 +48,38 @@ class HealthMonitor:
         
         # Service endpoints to monitor
         self.external_apis = {
-            "acled": {
-                "url": "https://api.acleddata.com/acled/read",
-                "params": {"limit": 1, "format": "json"},
-                "timeout": 10
+            "gdelt": {
+                "url": "http://127.0.0.1:8000/api/v1/geopolitical/disruptions?days=1",
+                "timeout": 8,
+                "display_name": "GDELT Free Geopolitical Intelligence",
+                "service_type": "free_intelligence"
             },
-            "marinetraffic": {
-                "url": "https://services.marinetraffic.com/api/exportvessels/v:8",
-                "params": {"protocol": "json"},
-                "timeout": 10
+            "maritime_intelligence": {
+                "url": "http://127.0.0.1:8000/api/v1/maritime/health", 
+                "timeout": 8,
+                "display_name": "Free Maritime Intelligence",
+                "service_type": "free_intelligence"
             },
             "comtrade": {
                 "url": "https://comtradeapi.un.org/data/v1/get",
                 "params": {"format": "json", "max": 1},
-                "timeout": 15
+                "timeout": 15,
+                "display_name": "UN Comtrade Trade Data",
+                "service_type": "external_api"
             },
             "world_bank": {
                 "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD",
                 "params": {"format": "json", "per_page": 1},
-                "timeout": 10
+                "timeout": 10,
+                "display_name": "World Bank WITS Data",
+                "service_type": "external_api"
             },
             "sec_edgar": {
                 "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
                 "headers": {"User-Agent": "RiskX Observatory Health Monitor"},
-                "timeout": 10
+                "timeout": 10,
+                "display_name": "SEC EDGAR Financial Data",
+                "service_type": "external_api"
             }
         }
     
@@ -85,6 +93,10 @@ class HealthMonitor:
         
         # Check internal services
         internal_checks = await self._check_internal_services()
+        # Ensure Redis required for health caching in production
+        if self.settings.is_production and not self.settings.redis_url:
+            results = {"redis_cache": ServiceHealth(name="Redis Cache", status=HealthStatus.UNHEALTHY, response_time_ms=None, last_check=datetime.utcnow(), error_message="Redis URL missing", metadata={})}
+            internal_checks.update(results)
         results.update(internal_checks)
         
         # Cache results for quick access
@@ -117,14 +129,11 @@ class HealthMonitor:
                 timeout = config.get("timeout", 10)
                 
                 # Add API keys where available
-                if api_name == "acled" and hasattr(self.settings, 'acled_email'):
-                    # ACLED now uses OAuth - skip authentication in health check
-                    # The health check will test basic connectivity without auth
+                if api_name == "gdelt":
+                    # GDELT is free - no authentication required
                     pass
-                elif api_name == "marinetraffic" and hasattr(self.settings, 'marinetraffic_api_key'):
-                    api_key = self.settings.marinetraffic_api_key
-                    if api_key and not api_key.startswith("your-"):
-                        params["key"] = api_key
+                elif api_name == "maritime_intelligence":  # Free service - no API key needed
+                    pass  # No authentication required for free maritime intelligence sources
                 
                 # Make request
                 response = await self.client.get(
@@ -147,8 +156,11 @@ class HealthMonitor:
                     status = HealthStatus.UNHEALTHY
                     error_message = f"HTTP {response.status_code}: {response.text[:100]}"
                 
+                display_name = config.get("display_name", f"{api_name.upper()} API")
+                service_type = config.get("service_type", "external_api")
+                
                 results[f"api_{api_name}"] = ServiceHealth(
-                    name=f"External API - {api_name.upper()}",
+                    name=display_name,
                     status=status,
                     response_time_ms=response_time,
                     last_check=datetime.utcnow(),
@@ -156,28 +168,46 @@ class HealthMonitor:
                     metadata={
                         "endpoint": url,
                         "status_code": response.status_code,
-                        "has_api_key": api_name in ["acled", "marinetraffic"] and 
-                                     self._has_valid_api_key(api_name)
+                        "service_type": service_type,
+                        "api_identifier": api_name,
+                        "has_api_key": self._has_valid_api_key(api_name),
+                        "is_free_service": service_type == "free_intelligence"
                     }
                 )
                 
             except asyncio.TimeoutError:
+                display_name = config.get("display_name", f"{api_name.upper()} API")
+                service_type = config.get("service_type", "external_api")
+                
                 results[f"api_{api_name}"] = ServiceHealth(
-                    name=f"External API - {api_name.upper()}",
+                    name=display_name,
                     status=HealthStatus.UNHEALTHY,
                     response_time_ms=None,
                     last_check=datetime.utcnow(),
                     error_message=f"Request timeout after {timeout}s",
-                    metadata={"endpoint": config["url"]}
+                    metadata={
+                        "endpoint": config["url"],
+                        "service_type": service_type,
+                        "api_identifier": api_name,
+                        "is_free_service": service_type == "free_intelligence"
+                    }
                 )
             except Exception as e:
+                display_name = config.get("display_name", f"{api_name.upper()} API")
+                service_type = config.get("service_type", "external_api")
+                
                 results[f"api_{api_name}"] = ServiceHealth(
-                    name=f"External API - {api_name.upper()}",
+                    name=display_name,
                     status=HealthStatus.UNHEALTHY,
                     response_time_ms=None,
                     last_check=datetime.utcnow(),
                     error_message=str(e),
-                    metadata={"endpoint": config["url"]}
+                    metadata={
+                        "endpoint": config["url"],
+                        "service_type": service_type,
+                        "api_identifier": api_name,
+                        "is_free_service": service_type == "free_intelligence"
+                    }
                 )
         
         return results
@@ -195,16 +225,23 @@ class HealthMonitor:
             db.close()
             response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             
+            # Determine database type from connection URL
+            db_type = "PostgreSQL" if self.settings.database_url.startswith("postgresql") else "Database"
+            connection_type = "postgresql" if self.settings.database_url.startswith("postgresql") else "sqlite"
+            
             results["database"] = ServiceHealth(
-                name="Database (SQLite)",
+                name=f"Database ({db_type})",
                 status=HealthStatus.HEALTHY,
                 response_time_ms=response_time,
                 last_check=datetime.utcnow(),
-                metadata={"connection_type": "sqlite"}
+                metadata={"connection_type": connection_type, "is_production_ready": db_type == "PostgreSQL"}
             )
         except Exception as e:
+            # Determine database type for error reporting
+            db_type = "PostgreSQL" if self.settings.database_url.startswith("postgresql") else "Database"
+            
             results["database"] = ServiceHealth(
-                name="Database (SQLite)",
+                name=f"Database ({db_type})",
                 status=HealthStatus.UNHEALTHY,
                 response_time_ms=None,
                 last_check=datetime.utcnow(),
@@ -319,15 +356,10 @@ class HealthMonitor:
     
     def _has_valid_api_key(self, api_name: str) -> bool:
         """Check if a valid API key is configured for the service."""
-        if api_name == "acled":
-            return (hasattr(self.settings, 'acled_email') and 
-                   hasattr(self.settings, 'acled_password') and
-                   self.settings.acled_email and 
-                   self.settings.acled_password)
-        elif api_name == "marinetraffic":
-            return (hasattr(self.settings, 'marinetraffic_api_key') and
-                   self.settings.marinetraffic_api_key and
-                   not self.settings.marinetraffic_api_key.startswith("your-"))
+        if api_name == "gdelt":
+            return True  # GDELT is free - always available
+        elif api_name == "maritime_intelligence":
+            return True  # Free maritime intelligence sources - always available
         return False
     
     async def get_system_health_summary(self) -> Dict[str, Any]:

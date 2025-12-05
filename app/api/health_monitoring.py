@@ -75,7 +75,8 @@ async def get_external_api_health(
                         "last_check": health.last_check.isoformat(),
                         "error_message": health.error_message,
                         "has_api_key": health.metadata.get("has_api_key", False) if health.metadata else False,
-                        "endpoint": health.metadata.get("endpoint") if health.metadata else None
+                        "endpoint": health.metadata.get("endpoint") if health.metadata else None,
+                        "service_type": health.metadata.get("service_type") if health.metadata else None
                     }
                     for name, health in external_apis.items()
                 },

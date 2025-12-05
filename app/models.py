@@ -625,7 +625,7 @@ class RealTimeDataFeed(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     feed_name = Column(String(200), nullable=False, unique=True, index=True)
     feed_type = Column(String(100), nullable=False, index=True)  # api, websocket, file_upload
-    data_source = Column(String(200), nullable=False, index=True)  # acled, comtrade, sp_global, etc.
+    data_source = Column(String(200), nullable=False, index=True)  # free_geopolitical_intelligence, comtrade, sp_global, etc.
     
     # Configuration
     endpoint_url = Column(String(1000))
@@ -712,12 +712,12 @@ class DataRefreshLog(Base):
 # External Data Integration Models
 # ================================
 
-class ACLEDEvent(Base):
-    """ACLED geopolitical event data"""
-    __tablename__ = "acled_events"
+class GeopoliticalEvent(Base):
+    """Free geopolitical intelligence event data"""
+    __tablename__ = "geopolitical_events"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    acled_event_id = Column(String, unique=True, nullable=False, index=True)
+    event_id = Column(String, unique=True, nullable=False, index=True)
     
     # Event details
     event_type = Column(String(200), nullable=False, index=True)

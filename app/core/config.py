@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="production", alias="ris_env")
     
     # Database
-    postgres_dsn: str = Field(default="sqlite:///./riskx.db", alias="ris_postgres_dsn")
+    postgres_dsn: Optional[str] = Field(default=None, alias="ris_postgres_dsn")
     
     # Redis
     redis_url: Optional[str] = Field(None, alias="ris_redis_url")
@@ -33,12 +33,8 @@ class Settings(BaseSettings):
     alpha_vantage_api_key: Optional[str] = Field(None, alias="ris_alpha_vantage_api_key")
     wto_api_key: Optional[str] = Field(None, alias="ris_wto_api_key")
     
-    # ACLED (Armed Conflict Location & Event Data) OAuth Authentication
-    acled_email: Optional[str] = Field(None, alias="ris_acled_email")
-    acled_password: Optional[str] = Field(None, alias="ris_acled_password")
     
-    # MarineTraffic API Key
-    marinetraffic_api_key: Optional[str] = Field(None, alias="ris_marinetraffic_api_key")
+    # MarineTraffic removed - now using free maritime intelligence sources
     
     # Free API replacements for S&P Global
     openroute_api_key: Optional[str] = Field(None, alias="ris_openroute_api_key")
@@ -46,7 +42,10 @@ class Settings(BaseSettings):
     
     # Security
     reviewer_api_key: Optional[str] = Field(None, alias="ris_reviewer_api_key")
-    allowed_origins: str = Field("https://riskx-frontend-production.up.railway.app,https://riskx-backend-production.up.railway.app", alias="ris_allowed_origins")
+    allowed_origins: str = Field(
+        "https://frontend-production.up.railway.app,https://backend-production.up.railway.app,https://frontend-1-tzlw.onrender.com,https://backend-1-s84g.onrender.com,http://localhost:3000,http://127.0.0.1:3000",
+        alias="ris_allowed_origins",
+    )
     jwt_secret: Optional[str] = Field(None, alias="ris_jwt_secret")
     
     # Auth (for future use)
@@ -81,17 +80,11 @@ class Settings(BaseSettings):
     def validate_production_config(self) -> None:
         """Validate that all required production settings are configured."""
         if self.is_production:
-            # Only validate critical fields, allow API keys to be optional for basic functionality
-            required_fields = {
-                "postgres_dsn": self.postgres_dsn,
-            }
-            
-            missing_fields = [field for field, value in required_fields.items() if not value]
-            
-            if missing_fields:
-                raise RuntimeError(
-                    f"Production environment missing required configuration: {', '.join(missing_fields)}"
-                )
+            # Require core infra in production; API keys may remain optional
+            if not self.postgres_dsn or self.postgres_dsn.startswith("sqlite"):
+                raise RuntimeError("Production requires PostgreSQL DSN (no SQLite fallback allowed)")
+            if not self.redis_url:
+                raise RuntimeError("Production requires Redis URL for caching")
 
     model_config = {
         "env_file": ".env",

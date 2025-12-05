@@ -43,11 +43,16 @@ def create_production_engine():
             } if settings.database_url.startswith("postgresql") else {}
         )
 
-# Create database engine with robust error handling
-def create_engine_with_fallback():
-    """Create database engine with automatic fallback to SQLite if PostgreSQL fails."""
+# Create database engine with production-first approach
+def create_engine_strict():
+    """Create database engine with strict production requirements - no fallbacks."""
     try:
-        # First try the configured database (likely PostgreSQL in production)
+        # Production validation
+        if settings.is_production:
+            if not settings.postgres_dsn or settings.postgres_dsn.startswith("sqlite"):
+                raise RuntimeError("Production requires PostgreSQL - SQLite fallback disabled")
+        
+        # Create the configured engine
         engine = create_production_engine()
         
         # Test the connection
@@ -59,31 +64,33 @@ def create_engine_with_fallback():
         return engine
         
     except Exception as e:
-        logger.error(f"❌ Primary database connection failed: {e}")
-        logger.warning("🔄 Falling back to SQLite for emergency operation")
+        logger.error(f"❌ Database connection failed: {e}")
         
+        # In production, fail explicitly - no fallbacks
+        if settings.is_production:
+            logger.error("🚨 Production database connection failed - no fallback available")
+            raise RuntimeError(f"Production database connection failed: {e}")
+        
+        # Development only: allow SQLite fallback with clear warning
+        logger.warning("🔄 Development fallback to SQLite (NOT allowed in production)")
         try:
-            # Create fallback SQLite engine
             fallback_engine = create_engine(
-                "sqlite:///./data/emergency_fallback.db", 
+                "sqlite:///./data/development_fallback.db", 
                 connect_args={"check_same_thread": False}
             )
             
-            # Test fallback connection
             with fallback_engine.connect() as conn:
                 from sqlalchemy import text
                 conn.execute(text("SELECT 1"))
                 
-            logger.info("✅ SQLite fallback database connected")
+            logger.warning("✅ Development SQLite fallback connected")
             return fallback_engine
             
         except Exception as fallback_error:
-            logger.error(f"❌ Even SQLite fallback failed: {fallback_error}")
-            # Last resort: in-memory SQLite
-            logger.warning("🚨 Using in-memory SQLite - data will not persist")
-            return create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+            logger.error(f"❌ Development fallback also failed: {fallback_error}")
+            raise RuntimeError(f"All database connections failed: {e}, {fallback_error}")
 
-engine = create_engine_with_fallback()
+engine = create_engine_strict()
 
 # Create sessionmaker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

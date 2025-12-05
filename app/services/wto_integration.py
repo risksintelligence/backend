@@ -177,12 +177,13 @@ class WTOIntegration:
                                     logger.warning(f"WTO API returned {response.status_code} for {reporter}-{partner}")
                             except Exception as e:
                                 logger.error(f"WTO API request failed: {e}")
-                                # fall through to mock
                                 continue
             
-            # Fallback to mock data if no real data available
+            if not trade_stats and cached_data:
+                logger.warning("Using cached WTO trade data due to upstream unavailability")
+                return [TradeStatistic(**item) for item in cached_data]
             if not trade_stats:
-                trade_stats = self._generate_mock_trade_data(reporter, partner, years, products)
+                raise RuntimeError("No WTO bilateral trade data available")
             
             # Cache the results
             serializable_data = [safe_asdict(stat) for stat in trade_stats]
@@ -193,7 +194,10 @@ class WTOIntegration:
             
         except Exception as e:
             logger.error(f"Failed to fetch bilateral trade data: {e}")
-            return self._generate_mock_trade_data(reporter, partner, years, products)
+            if cached_data:
+                logger.warning("Serving cached WTO bilateral data after failure")
+                return [TradeStatistic(**item) for item in cached_data]
+            raise
 
 
     async def get_global_trade_volume(self) -> WTOTradeVolume:
@@ -207,7 +211,7 @@ class WTOIntegration:
                 return WTOTradeVolume(**cached_data)
         
         try:
-            trade_volume = self._generate_mock_global_trade_volume()
+            trade_volume = None
             if self.api_token:
                 try:
                     async with httpx.AsyncClient(timeout=self.client_timeout) as client:
@@ -227,9 +231,15 @@ class WTOIntegration:
                             if parsed:
                                 trade_volume = parsed
                         else:
-                            logger.warning(f"WTO global trade API returned {response.status_code}; using mock")
+                            logger.warning(f"WTO global trade API returned {response.status_code}")
                 except Exception as e:
                     logger.error(f"WTO global trade API failed: {e}")
+            
+            if trade_volume is None and cached_data:
+                logger.warning("Using cached WTO global trade volume due to upstream unavailability")
+                return WTOTradeVolume(**cached_data)
+            if trade_volume is None:
+                raise RuntimeError("No WTO global trade volume available")
             
             # Cache the result
             self.cache.set(cache_key, safe_asdict(trade_volume), source="WTO_API",
@@ -239,7 +249,10 @@ class WTOIntegration:
             
         except Exception as e:
             logger.error(f"Failed to fetch global trade volume: {e}")
-            return self._generate_mock_global_trade_volume()
+            if cached_data:
+                logger.warning("Serving cached WTO global trade volume after failure")
+                return WTOTradeVolume(**cached_data)
+            raise
 
 
     async def get_tariff_data(
@@ -286,7 +299,7 @@ class WTOIntegration:
                             resp = await client.get(f"{self.api_base}/data", params=params, headers=headers)
                             if resp.status_code == 200:
                                 data = resp.json()
-                                # If response is empty or schema unknown, fall back to mock
+                                # If response is empty or schema unknown, skip and continue
                                 parsed = self._parse_tariff_data(data, reporter, partner, product)
                                 if parsed:
                                     tariff_data.extend(parsed)
@@ -295,9 +308,11 @@ class WTOIntegration:
                 except Exception as e:
                     logger.error(f"WTO tariff fetch failed: {e}")
             
-            # For now, generate representative tariff data if none fetched
+            if not tariff_data and cached_data:
+                logger.warning("Using cached WTO tariff data due to upstream unavailability")
+                return [TariffData(**item) for item in cached_data]
             if not tariff_data:
-                tariff_data = self._generate_mock_tariff_data(reporter, partner, product_codes)
+                raise RuntimeError("No WTO tariff data available")
             
             # Cache the results
             serializable_data = [safe_asdict(tariff) for tariff in tariff_data]
@@ -313,7 +328,10 @@ class WTOIntegration:
             
         except Exception as e:
             logger.error(f"Failed to fetch tariff data: {e}")
-            return self._generate_mock_tariff_data(reporter, partner, product_codes)
+            if cached_data:
+                logger.warning("Serving cached WTO tariff data after failure")
+                return [TariffData(**item) for item in cached_data]
+            raise
 
 
     async def get_trade_agreements(
@@ -339,24 +357,14 @@ class WTOIntegration:
                 return [TradeAgreement(**item) for item in cached_data]
         
         try:
-            # Generate comprehensive trade agreement data
-            agreements = self._generate_mock_trade_agreements(country, agreement_type, status)
-            
-            # Cache the results
-            serializable_data = [safe_asdict(agreement) for agreement in agreements]
-            self.cache.set(
-                cache_key,
-                serializable_data,
-                source="WTO_API",
-                source_url="https://www.wto.org/agreements",
-                soft_ttl=2592000,
-            )
-            
-            return agreements
+            raise RuntimeError("WTO trade agreements API not implemented for real data")
             
         except Exception as e:
             logger.error(f"Failed to fetch trade agreements: {e}")
-            return self._generate_mock_trade_agreements(country, agreement_type, status)
+            if cached_data:
+                logger.warning("Serving cached WTO trade agreements after failure")
+                return [TradeAgreement(**item) for item in cached_data]
+            raise
 
 
     async def get_trade_disruption_impact(
@@ -472,74 +480,11 @@ class WTOIntegration:
         except Exception as e:
             logger.error(f"Failed to parse global trade volume: {e}")
         
-        return self._generate_mock_global_trade_volume()
+        return None
 
 
-    def _generate_mock_trade_data(
-        self, 
-        reporter: str, 
-        partner: str, 
-        years: List[int],
-        products: List[str]
-    ) -> List[TradeStatistic]:
-        """Generate realistic mock trade data."""
-        stats = []
-        base_values = {
-            "USA": 2500000000000, "CHN": 2300000000000, "DEU": 1600000000000,
-            "JPN": 700000000000, "GBR": 650000000000, "FRA": 600000000000
-        }
-        
-        base_value = base_values.get(reporter, 100000000000)
-        
-        for year in years:
-            for product in products:
-                # Generate exports
-                export_stat = TradeStatistic(
-                    reporter_iso3=reporter,
-                    partner_iso3=partner if partner != "all" else "WLD",
-                    product_code=product,
-                    product_description=f"Product {product}",
-                    trade_flow="exports",
-                    value_usd=base_value * (0.9 + 0.2 * hash(f"{reporter}{year}") % 100 / 100),
-                    quantity=None,
-                    unit=None,
-                    year=year,
-                    quarter=None,
-                    last_updated=datetime.utcnow()
-                )
-                
-                # Generate imports
-                import_stat = TradeStatistic(
-                    reporter_iso3=reporter,
-                    partner_iso3=partner if partner != "all" else "WLD", 
-                    product_code=product,
-                    product_description=f"Product {product}",
-                    trade_flow="imports",
-                    value_usd=base_value * 0.85 * (0.9 + 0.2 * hash(f"{reporter}{year}i") % 100 / 100),
-                    quantity=None,
-                    unit=None,
-                    year=year,
-                    quarter=None,
-                    last_updated=datetime.utcnow()
-                )
-                
-                stats.extend([export_stat, import_stat])
-        
-        return stats
-
-
-    def _generate_mock_global_trade_volume(self) -> WTOTradeVolume:
-        """Generate realistic mock global trade volume data."""
-        return WTOTradeVolume(
-            total_global_trade=24800000000000.0,  # ~$24.8T
-            year_on_year_growth=2.3,
-            regional_breakdown=self._generate_regional_breakdown(),
-            top_traders=self._generate_top_traders(),
-            forecast_next_year=25400000000000.0,
-            data_timestamp=datetime.utcnow()
-        )
-
-
+    
+    
     def _generate_regional_breakdown(self) -> Dict[str, float]:
         """Generate regional trade breakdown."""
         return {
@@ -568,56 +513,7 @@ class WTOIntegration:
         ]
 
 
-    def _generate_mock_tariff_data(
-        self, 
-        reporter: str, 
-        partner: str,
-        product_codes: List[str]
-    ) -> List[TariffData]:
-        """Generate realistic mock tariff data."""
-        tariffs = []
-        
-        # Base tariff rates by product category
-        base_rates = {
-            "01": 15.2,  # Animal products
-            "02": 18.5,  # Vegetable products  
-            "84": 3.4,   # Machinery
-            "85": 4.1,   # Electrical machinery
-            "87": 8.7    # Vehicles
-        }
-        
-        partners = [partner] if partner != "all" else self.major_economies[:10]
-        
-        for partner_code in partners:
-            for product in product_codes:
-                base_rate = base_rates.get(product, 10.0)
-                
-                # MFN rate
-                mfn_tariff = TariffData(
-                    reporter_iso3=reporter,
-                    partner_iso3=partner_code,
-                    product_code=product,
-                    tariff_rate=base_rate,
-                    tariff_type="MFN",
-                    effective_date=datetime(2023, 1, 1),
-                    agreement_name=None
-                )
-                
-                # Preferential rate (lower)
-                pref_tariff = TariffData(
-                    reporter_iso3=reporter,
-                    partner_iso3=partner_code, 
-                    product_code=product,
-                    tariff_rate=base_rate * 0.3,  # 70% reduction
-                    tariff_type="Preferential",
-                    effective_date=datetime(2023, 1, 1),
-                    agreement_name="Regional Trade Agreement"
-                )
-                
-                tariffs.extend([mfn_tariff, pref_tariff])
-        
-        return tariffs
-
+    
     def _parse_tariff_data(self, data: Dict[str, Any], reporter: str, partner: str, product: str) -> List[TariffData]:
         """
         Minimal parser placeholder for WTO tariff responses; returns empty if shape unknown.
@@ -645,106 +541,15 @@ class WTOIntegration:
         return parsed
 
 
-    def _generate_mock_trade_agreements(
-        self, 
-        country: str = None,
-        agreement_type: AgreementType = None,
-        status: str = "In Force"
-    ) -> List[TradeAgreement]:
-        """Generate comprehensive mock trade agreement data."""
-        agreements = [
-            TradeAgreement(
-                agreement_id="USMCA",
-                agreement_name="United States-Mexico-Canada Agreement",
-                agreement_type=AgreementType.FTA,
-                status="In Force",
-                entry_into_force=datetime(2020, 7, 1),
-                participants=["USA", "MEX", "CAN"],
-                coverage=["goods", "services", "investment", "digital_trade"],
-                trade_volume_impact=1200000000000.0
-            ),
-            TradeAgreement(
-                agreement_id="CPTPP",
-                agreement_name="Comprehensive and Progressive Trans-Pacific Partnership",
-                agreement_type=AgreementType.FTA,
-                status="In Force",
-                entry_into_force=datetime(2018, 12, 30),
-                participants=["AUS", "BRN", "CAN", "CHL", "JPN", "MYS", "MEX", "NZL", "PER", "SGP", "VNM"],
-                coverage=["goods", "services", "investment"],
-                trade_volume_impact=500000000000.0
-            ),
-            TradeAgreement(
-                agreement_id="EU_SINGLE_MARKET",
-                agreement_name="European Union Single Market",
-                agreement_type=AgreementType.CU,
-                status="In Force", 
-                entry_into_force=datetime(1993, 1, 1),
-                participants=["AUT", "BEL", "BGR", "HRV", "CYP", "CZE", "DNK", "EST", "FIN", "FRA", "DEU", "GRC", "HUN", "IRL", "ITA", "LVA", "LTU", "LUX", "MLT", "NLD", "POL", "PRT", "ROU", "SVK", "SVN", "ESP", "SWE"],
-                coverage=["goods", "services", "investment", "people"],
-                trade_volume_impact=3800000000000.0
-            ),
-            TradeAgreement(
-                agreement_id="ASEAN_FTA",
-                agreement_name="ASEAN Free Trade Area",
-                agreement_type=AgreementType.FTA,
-                status="In Force",
-                entry_into_force=datetime(1992, 1, 28),
-                participants=["BRN", "KHM", "IDN", "LAO", "MYS", "MMR", "PHL", "SGP", "THA", "VNM"],
-                coverage=["goods", "services"],
-                trade_volume_impact=600000000000.0
-            ),
-            TradeAgreement(
-                agreement_id="RCEP",
-                agreement_name="Regional Comprehensive Economic Partnership", 
-                agreement_type=AgreementType.FTA,
-                status="In Force",
-                entry_into_force=datetime(2022, 1, 1),
-                participants=["AUS", "BRN", "KHM", "CHN", "IDN", "JPN", "LAO", "MYS", "MMR", "NZL", "PHL", "SGP", "KOR", "THA", "VNM"],
-                coverage=["goods", "services", "investment"],
-                trade_volume_impact=2100000000000.0
-            )
-        ]
-        
-        # Filter agreements based on criteria
-        if country:
-            agreements = [a for a in agreements if country in a.participants]
-        
-        if agreement_type:
-            agreements = [a for a in agreements if a.agreement_type == agreement_type]
-        
-        if status:
-            agreements = [a for a in agreements if a.status == status]
-        
-        return agreements
-
-
-    async def _find_alternative_routes(self, origin: str, destination: str) -> List[Dict[str, Any]]:
-        """Find alternative trade routes when direct route is disrupted."""
-        # This would integrate with shipping/logistics APIs in production
-        alternatives = []
-        
-        # Common hub countries for rerouting
-        hubs = ["SGP", "NLD", "DEU", "ARE", "HKG"]
-        
-        for hub in hubs:
-            if hub != origin and hub != destination:
-                alternative = {
-                    "route": f"{origin} -> {hub} -> {destination}",
-                    "additional_cost_percent": 15 + hash(f"{origin}{hub}{destination}") % 20,
-                    "additional_time_days": 3 + hash(f"{hub}{destination}") % 7,
-                    "capacity_utilization": 0.6 + 0.3 * (hash(hub) % 100) / 100
-                }
-                alternatives.append(alternative)
-        
-        return alternatives[:3]  # Return top 3 alternatives
-
-
-# Singleton instance
-_wto_integration = None
+# Global WTO integration instance
+_wto_integration_instance = None
 
 def get_wto_integration() -> WTOIntegration:
-    """Get singleton WTO integration instance."""
-    global _wto_integration
-    if _wto_integration is None:
-        _wto_integration = WTOIntegration()
-    return _wto_integration
+    """Get the global WTO integration instance."""
+    global _wto_integration_instance
+    if _wto_integration_instance is None:
+        _wto_integration_instance = WTOIntegration()
+    return _wto_integration_instance
+
+
+    

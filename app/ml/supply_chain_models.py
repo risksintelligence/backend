@@ -28,7 +28,7 @@ from ..core.supply_chain_cache import get_supply_chain_cache
 from ..db import SessionLocal
 from ..models import (
     CascadeEvent, SupplyChainNode, SupplyChainRelationship, 
-    SectorVulnerabilityAssessment, ACLEDEvent, ResilienceMetric
+    SectorVulnerabilityAssessment, GeopoliticalEvent, ResilienceMetric
 )
 
 logger = logging.getLogger(__name__)
@@ -150,10 +150,10 @@ class SupplyChainMLPipeline:
             nodes = db.query(SupplyChainNode).all()
             relationships = db.query(SupplyChainRelationship).all()
             
-            # Get ACLED geopolitical events
-            acled_events = db.query(ACLEDEvent).filter(
-                ACLEDEvent.event_date >= start_date,
-                ACLEDEvent.event_date <= end_date
+            # Get geopolitical events
+            geopolitical_events = db.query(GeopoliticalEvent).filter(
+                GeopoliticalEvent.event_date >= start_date,
+                GeopoliticalEvent.event_date <= end_date
             ).all()
             
             features = []
@@ -175,9 +175,9 @@ class SupplyChainMLPipeline:
                     'day_of_week': event.event_start.weekday(),
                     
                     # Geopolitical context features
-                    'concurrent_acled_events': len([
-                        ae for ae in acled_events 
-                        if abs((ae.event_date - event.event_start).days) <= 7
+                    'concurrent_geopolitical_events': len([
+                        ge for ge in geopolitical_events 
+                        if abs((ge.event_date - event.event_start).days) <= 7
                     ]),
                     
                     # Network topology features

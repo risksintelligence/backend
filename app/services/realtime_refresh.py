@@ -65,6 +65,13 @@ class RealTimeRefreshService:
     """Real-time data refresh service for supply chain intelligence."""
     
     def __init__(self):
+        from app.core.config import get_settings
+        self.settings = get_settings()
+        
+        # Enforce Redis requirement in production for real-time refresh
+        if self.settings.is_production and not self.settings.redis_url:
+            raise RuntimeError("Real-time refresh service requires Redis in production environment")
+        
         self.refresh_jobs: Dict[str, RefreshJob] = {}
         self.data_cache: Dict[str, Any] = {}
         self.update_history: List[DataUpdate] = []
@@ -72,12 +79,12 @@ class RealTimeRefreshService:
         self.is_running = False
         self.refresh_task: Optional[asyncio.Task] = None
         
-        # Refresh intervals in seconds
+        # Refresh intervals in seconds (optimized for free sources)
         self.refresh_intervals = {
-            RefreshPriority.CRITICAL: 30,
-            RefreshPriority.HIGH: 120,
-            RefreshPriority.MEDIUM: 300,
-            RefreshPriority.LOW: 900
+            RefreshPriority.CRITICAL: 30,     # Core cascade data
+            RefreshPriority.HIGH: 120,        # Supply chain network updates
+            RefreshPriority.MEDIUM: 900,      # GDELT geopolitical (15 min - matches their update frequency)
+            RefreshPriority.LOW: 1800         # Maritime intelligence (30 min)
         }
         
         # Data source health monitoring
@@ -107,17 +114,17 @@ class RealTimeRefreshService:
                 "endpoints": ["/api/v1/network/cascade/impacts"]
             },
             {
-                "job_id": "acled_disruptions",
-                "data_source": "acled",
-                "function": "refresh_acled_data",
-                "priority": RefreshPriority.MEDIUM,
+                "job_id": "geopolitical_disruptions",
+                "data_source": "geopolitical_intelligence",
+                "function": "refresh_geopolitical_data",
+                "priority": RefreshPriority.MEDIUM,  # 15-min refresh to match GDELT
                 "endpoints": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"]
             },
             {
-                "job_id": "marinetraffic_ports",
-                "data_source": "marinetraffic",
-                "function": "refresh_marinetraffic_data", 
-                "priority": RefreshPriority.MEDIUM,
+                "job_id": "maritime_intelligence_ports",
+                "data_source": "maritime_intelligence",
+                "function": "refresh_maritime_intelligence_data", 
+                "priority": RefreshPriority.LOW,  # 30-min refresh for free maritime intelligence
                 "endpoints": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"]
             },
             {
@@ -323,39 +330,39 @@ class RealTimeRefreshService:
         
         if function_name == "refresh_cascade_snapshot":
             from app.services.worldbank_wits_integration import wb_wits
-            from app.services.acled_integration import get_acled_integration
-            from app.services.marinetraffic_integration import get_marinetraffic_integration
+            from app.services.geopolitical_intelligence import geopolitical_intelligence
+            from app.services.maritime_intelligence import maritime_intelligence
             
             # Get fresh data from all sources
             wits = wb_wits
-            acled = get_acled_integration()
-            marinetraffic = get_marinetraffic_integration()
+             # maritime_intelligence already imported as singleton
             
             nodes, edges = await wits.build_supply_chain_network()
-            disruptions = await acled.get_supply_chain_disruptions(days=30)
-            maritime_disruptions = await marinetraffic.get_maritime_disruptions()
+            disruptions = await geopolitical_intelligence.get_supply_chain_disruptions(days=30)
+            shipping_delays = await maritime_intelligence.get_shipping_delays()
+            maritime_disruptions = [delay.__dict__ for delay in shipping_delays if delay.severity in ["major", "critical"]]
             
             return {
                 "nodes": nodes,
                 "edges": edges,
-                "disruptions": disruptions + maritime_disruptions,
+                "disruptions": [d.__dict__ for d in disruptions] + maritime_disruptions,
                 "as_of": datetime.utcnow().isoformat() + "Z"
             }
             
         elif function_name == "refresh_cascade_impacts":
-            from app.services.acled_integration import get_acled_integration
-            from app.services.marinetraffic_integration import get_marinetraffic_integration
+            from app.services.geopolitical_intelligence import geopolitical_intelligence
+            from app.services.maritime_intelligence import maritime_intelligence
             
-            acled = get_acled_integration()
-            marinetraffic = get_marinetraffic_integration()
+             # maritime_intelligence already imported as singleton
             
-            disruptions = await acled.get_supply_chain_disruptions(days=30)
-            port_statuses = await marinetraffic.get_global_port_status()
-            maritime_disruptions = await marinetraffic.get_maritime_disruptions()
+            disruptions = await geopolitical_intelligence.get_supply_chain_disruptions(days=30)
+            port_statuses = await maritime_intelligence.get_port_congestion()
+            shipping_delays = await maritime_intelligence.get_shipping_delays()
+            maritime_disruptions = [delay.__dict__ for delay in shipping_delays if delay.severity in ["major", "critical"]]
             
             # Calculate impacts (simplified version of cascade impacts logic)
             total_impact = sum(d.economic_impact_usd for d in disruptions if d.economic_impact_usd)
-            total_impact += sum(d.economic_impact_usd for d in maritime_disruptions if d.economic_impact_usd)
+            total_impact += sum(d.get('economic_impact_usd', 0) for d in maritime_disruptions)
             
             return {
                 "financial": {
@@ -370,17 +377,16 @@ class RealTimeRefreshService:
                 }
             }
             
-        elif function_name == "refresh_acled_data":
-            from app.services.acled_integration import get_acled_integration
-            acled = get_acled_integration()
-            disruptions = await acled.get_supply_chain_disruptions(days=7)  # Fresh weekly data
+        elif function_name == "refresh_geopolitical_data":
+            from app.services.geopolitical_intelligence import geopolitical_intelligence
+            disruptions = await geopolitical_intelligence.get_supply_chain_disruptions(days=7)  # Fresh weekly data
             return {"disruptions": disruptions, "count": len(disruptions)}
             
-        elif function_name == "refresh_marinetraffic_data":
-            from app.services.marinetraffic_integration import get_marinetraffic_integration
-            marinetraffic = get_marinetraffic_integration()
-            port_statuses = await marinetraffic.get_global_port_status()
-            disruptions = await marinetraffic.get_maritime_disruptions()
+        elif function_name == "refresh_maritime_intelligence_data":
+            from app.services.maritime_intelligence import maritime_intelligence
+             # maritime_intelligence already imported as singleton
+            port_statuses = await maritime_intelligence.get_port_congestion()
+            disruptions = await maritime_intelligence.get_maritime_disruptions()
             return {"port_statuses": port_statuses, "disruptions": disruptions}
             
         elif function_name == "refresh_wits_data":
@@ -506,16 +512,16 @@ class RealTimeRefreshService:
                 "active_disruptions": financial.get("active_disruptions", 0),
                 "supply_chain_capacity": data.get("industry", {}).get("global_supply_chain", 1.0)
             }
-        elif data_source == "acled":
+        elif data_source == "geopolitical_intelligence":
             return {
                 "disruptions_count": data.get("count", 0),
-                "data_source": "ACLED"
+                "data_source": "Free Geopolitical Intelligence"
             }
-        elif data_source == "marinetraffic":
+        elif data_source == "maritime_intelligence":
             return {
                 "ports_monitored": len(data.get("port_statuses", [])),
                 "maritime_disruptions": len(data.get("disruptions", [])),
-                "data_source": "MarineTraffic"
+                "data_source": "Free Maritime Intelligence"
             }
         elif data_source == "wits":
             return {
@@ -538,8 +544,8 @@ class RealTimeRefreshService:
         endpoint_mapping = {
             "supply_cascade": ["/api/v1/network/supply-cascade"],
             "cascade_impacts": ["/api/v1/network/cascade/impacts"],
-            "acled": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"],
-            "marinetraffic": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"],
+            "geopolitical_intelligence": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"],
+            "maritime_intelligence": ["/api/v1/network/supply-cascade", "/api/v1/network/cascade/impacts"],
             "wits": ["/api/v1/network/supply-cascade"],
             "predictive": ["/api/v1/predictive/disruption-forecast", "/api/v1/predictive/early-warning"]
         }

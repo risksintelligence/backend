@@ -1,0 +1,150 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RiskX Observatory API",
+    "description": "Supply Chain Risk Intelligence Platform with Free Intelligence Sources",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/test": {
+      "get": {
+        "summary": "Test",
+        "operationId": "test_test_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeopoliticalDisruptionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GeopoliticalDisruptionsResponse": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "title": "As Of"
+          },
+          "disruptions": {
+            "items": {
+              "$ref": "#/components/schemas/SupplyChainDisruption"
+            },
+            "type": "array",
+            "title": "Disruptions"
+          },
+          "summary": {
+            "type": "object",
+            "title": "Summary"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "as_of",
+          "disruptions",
+          "summary"
+        ],
+        "title": "GeopoliticalDisruptionsResponse"
+      },
+      "SupplyChainDisruption": {
+        "properties": {
+          "disruption_id": {
+            "type": "string",
+            "title": "Disruption Id"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Severity"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "location": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "start_date": {
+            "type": "string",
+            "title": "Start Date"
+          },
+          "estimated_duration_days": {
+            "type": "integer",
+            "title": "Estimated Duration Days"
+          },
+          "affected_commodities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Affected Commodities"
+          },
+          "affected_trade_routes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Affected Trade Routes"
+          },
+          "economic_impact_usd": {
+            "type": "number",
+            "title": "Economic Impact Usd"
+          },
+          "confidence_score": {
+            "type": "number",
+            "title": "Confidence Score"
+          },
+          "mitigation_strategies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Mitigation Strategies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "disruption_id",
+          "severity",
+          "event_type",
+          "location",
+          "description",
+          "source",
+          "start_date",
+          "estimated_duration_days",
+          "affected_commodities",
+          "affected_trade_routes",
+          "economic_impact_usd",
+          "confidence_score",
+          "mitigation_strategies"
+        ],
+        "title": "SupplyChainDisruption"
+      }
+    }
+  }
+}

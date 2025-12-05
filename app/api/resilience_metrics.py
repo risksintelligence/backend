@@ -10,39 +10,38 @@ from ..services.resilience_metrics import (
     ResilienceMetric
 )
 from ..services.worldbank_wits_integration import wb_wits
-from ..services.acled_integration import ACLEDIntegration
-from ..services.marinetraffic_integration import MarineTrafficIntegration
+from ..services.geopolitical_intelligence import geopolitical_intelligence
+from ..services.maritime_intelligence import maritime_intelligence
 
 router = APIRouter(prefix="/api/v1/resilience", tags=["resilience"])
 
 # Initialize services
 resilience_service = SupplyChainResilienceService()
 wits_service = wb_wits
-acled_service = ACLEDIntegration()
-marinetraffic_service = MarineTrafficIntegration()
+# Geopolitical intelligence and maritime intelligence now use free sources - no initialization needed
 
 
 async def get_supply_chain_data() -> Dict[str, Any]:
     """Aggregates supply chain data from all integrated services."""
     try:
         # Fetch data from all sources in parallel
-        wits_data, acled_data, port_data = await asyncio.gather(
+        wits_data, geopolitical_data, port_data = await asyncio.gather(
             wits_service.build_supply_chain_network(),
-            acled_service.get_supply_chain_disruptions(),
-            marinetraffic_service.get_all_port_data(),
+            geopolitical_intelligence.get_supply_chain_disruptions(days=30),
+            maritime_intelligence.get_port_congestion(),
             return_exceptions=True
         )
         
         # Handle potential exceptions
         if isinstance(wits_data, Exception):
             wits_data = ([], [])
-        if isinstance(acled_data, Exception):
-            acled_data = []
+        if isinstance(geopolitical_data, Exception):
+            geopolitical_data = []
         if isinstance(port_data, Exception):
             port_data = []
         
         nodes, edges = wits_data
-        disruptions = acled_data if isinstance(acled_data, list) else []
+        disruptions = geopolitical_data if isinstance(geopolitical_data, list) else []
         ports = port_data if isinstance(port_data, list) else []
         
         return {

@@ -52,7 +52,7 @@ class SupplyChainCache:
         'critical_paths': CachePolicy(soft_ttl=43200, hard_ttl=259200),  # 12hours/3days
         
         # External API data - depends on source refresh rates
-        'acled_data': CachePolicy(soft_ttl=7200, hard_ttl=43200),  # 2hours/12hours
+        'geopolitical_data': CachePolicy(soft_ttl=7200, hard_ttl=43200),  # 2hours/12hours
         'wits_data': CachePolicy(soft_ttl=86400, hard_ttl=604800),  # 1day/1week (monthly updates)
         'wto_statistics': CachePolicy(soft_ttl=86400, hard_ttl=604800),  # 1day/1week (quarterly updates)
         

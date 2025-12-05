@@ -486,8 +486,8 @@ def _get_data_source_description(data_source: str) -> str:
     descriptions = {
         "supply_cascade": "Complete supply chain network with nodes, edges, and disruptions",
         "cascade_impacts": "Economic and policy impact analysis from supply chain disruptions",
-        "acled": "Real-time geopolitical events and conflicts affecting supply chains",
-        "marinetraffic": "Maritime port congestion and shipping disruption data",
+        "free_geopolitical_intelligence": "Real-time geopolitical events and conflicts affecting supply chains",
+        "maritime_intelligence": "Free maritime intelligence from AISHub, NOAA, and OpenSeaMap",
         "comtrade": "UN Comtrade bilateral trade statistics and flow data",
         "predictive": "Predictive analytics and disruption forecasting models"
     }

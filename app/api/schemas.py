@@ -72,6 +72,8 @@ class ProviderHealthResponse(BaseModel):
     partnerDependencies: List[PartnerDependency]
     providerHealth: Dict[str, ProviderHealthEntry]
     summaryStats: ProviderHealthSummary
+    free_intelligence_status: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    external_api_count: int = Field(default=0)
 
     class Config:
         extra = "allow"
@@ -131,6 +133,8 @@ class CascadeSnapshotResponse(BaseModel):
     edges: List[CascadeEdge]
     critical_paths: List[List[str]]
     disruptions: List[CascadeDisruption]
+    geopolitical_events: List["GeopoliticalEvent"] = Field(default_factory=list)
+    data_sources: List[str] = Field(default=["GDELT", "Free Maritime Intelligence"])
 
 
 class CascadeTimePoint(BaseModel):
@@ -151,6 +155,8 @@ class CascadeImpactsResponse(BaseModel):
     financial: Dict[str, Any]
     policy: Dict[str, Any]
     industry: Dict[str, Any]
+    geopolitical_risks: Dict[str, Any] = Field(default_factory=dict)
+    supply_chain_disruptions: List["SupplyChainDisruption"] = Field(default_factory=list)
 
     class Config:
         extra = "allow"
@@ -194,6 +200,9 @@ class DisruptionPredictionsResponse(BaseModel):
     predictions: List[DisruptionPrediction]
     cascade_impacts: List[CascadeImpactModel]
     summary: PredictionSummary
+    geopolitical_factors: List["GeopoliticalEvent"] = Field(default_factory=list)
+    maritime_factors: List["ShippingDelay"] = Field(default_factory=list)
+    data_sources: List[str] = Field(default=["GDELT", "Free Maritime Intelligence"])
 
     class Config:
         extra = "allow"
@@ -246,3 +255,171 @@ class EarlyWarningResponse(BaseModel):
 
     class Config:
         extra = "allow"
+
+
+# Geopolitical Intelligence Schemas
+class GeopoliticalEvent(BaseModel):
+    event_id: str
+    event_type: str
+    sub_event_type: str
+    event_date: str  # ISO string
+    country: str
+    region: str
+    location: List[float]  # [lat, lng]
+    impact_score: float
+    confidence: float
+    source: str
+    description: str
+    affected_trade_routes: List[str]
+    estimated_disruption_days: int
+    source_url: Optional[str] = None
+
+
+class SupplyChainDisruption(BaseModel):
+    disruption_id: str
+    severity: Literal["low", "medium", "high", "critical"]
+    event_type: str
+    location: List[float]  # [lat, lng]
+    description: str
+    source: str
+    start_date: str  # ISO string
+    estimated_duration_days: int
+    affected_commodities: List[str]
+    affected_trade_routes: List[str]
+    economic_impact_usd: float
+    confidence_score: float
+    mitigation_strategies: List[str]
+
+
+class GeopoliticalDisruptionsResponse(BaseModel):
+    as_of: str
+    disruptions: List[SupplyChainDisruption]
+    summary: Dict[str, Any]
+
+    class Config:
+        extra = "allow"
+
+
+# Maritime Intelligence Schemas
+class VesselInfo(BaseModel):
+    mmsi: int
+    vessel_name: str
+    vessel_type: str
+    lat: float
+    lng: float
+    speed: Optional[float] = None
+    course: Optional[float] = None
+    timestamp: str
+    source: str
+    port_destination: Optional[str] = None
+    eta: Optional[str] = None
+    cargo_type: Optional[str] = None
+
+
+class PortCongestion(BaseModel):
+    port_code: str
+    port_name: str
+    vessels_at_anchor: int
+    vessels_at_berth: int
+    average_wait_time_hours: Optional[float] = None
+    congestion_level: Literal["low", "medium", "high", "severe"]
+    last_updated: str
+    source_breakdown: Dict[str, int]
+
+
+class ShippingDelay(BaseModel):
+    route_name: str
+    origin_port: str
+    destination_port: str
+    typical_transit_days: int
+    current_delay_days: int
+    delay_reasons: List[str]
+    severity: Literal["minor", "moderate", "major", "critical"]
+    affected_vessels: int
+
+
+class MaritimeProvider(BaseModel):
+    id: str
+    name: str
+    coverage: str
+    data_types: List[str]
+    rate_limit: int
+    requires_auth: bool
+
+
+class ProviderHealth(BaseModel):
+    overall_health: Literal["healthy", "degraded", "critical"]
+    health_score: float
+    providers: Dict[str, bool]
+    healthy_providers: int
+    total_providers: int
+
+
+class PortCongestionResponse(BaseModel):
+    ports: List[PortCongestion]
+    summary: Dict[str, Any]
+
+    class Config:
+        extra = "allow"
+
+
+class ShippingDelaysResponse(BaseModel):
+    delays: List[ShippingDelay]
+    summary: Dict[str, Any]
+
+    class Config:
+        extra = "allow"
+
+
+class MaritimeRiskAssessment(BaseModel):
+    overall_risk_score: float
+    risk_level: Literal["low", "medium", "high"]
+    high_risk_ports: List[str]
+    critical_delays: int
+    port_congestion_summary: Dict[str, Dict[str, Any]]
+    shipping_delays_summary: List[Dict[str, Any]]
+    data_sources: List[str]
+    provider_health: Dict[str, bool]
+    last_updated: str
+
+    class Config:
+        extra = "allow"
+
+
+class VesselsNearPortResponse(BaseModel):
+    search_params: Dict[str, float]
+    vessels: List[VesselInfo]
+    summary: Dict[str, Any]
+
+    class Config:
+        extra = "allow"
+
+
+class MaritimeProvidersResponse(BaseModel):
+    providers: List[MaritimeProvider]
+    total_providers: int
+    coverage_areas: List[str]
+    advantages: List[str]
+
+    class Config:
+        extra = "allow"
+
+
+class MaritimeIntelligenceHealthResponse(BaseModel):
+    status: Literal["healthy", "degraded", "unhealthy"]
+    last_update: str
+    data_sources: List[str]
+    port_coverage: int
+    vessel_tracking_active: bool
+    api_response_time_ms: Optional[float] = None
+    error_message: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+# Resolve forward references after all models are defined
+CascadeSnapshotResponse.model_rebuild()
+CascadeImpactsResponse.model_rebuild()
+DisruptionPredictionsResponse.model_rebuild()
+GeopoliticalDisruptionsResponse.model_rebuild()
