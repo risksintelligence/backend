@@ -522,10 +522,26 @@ def get_economic_indicators(_auth: dict = Depends(optional_auth)) -> Dict[str, A
                 cached_result["cache_age_seconds"] = cache_meta.age_seconds
                 return cached_result
             else:
-                raise HTTPException(status_code=503, detail="Economic indicators service unavailable and no cached data")
+                # Return minimal structure if no cached data
+                return {
+                    "message": "Economic indicators service unavailable and no cached data",
+                    "fallback_data": True,
+                    "metadata": {
+                        "fallback_reason": "Economic indicators service unavailable and no cached data",
+                        "data_source": "minimal_structure"
+                    }
+                }
         except Exception as cache_e:
             logger.error(f"Cache fallback failed: {cache_e}")
-            raise HTTPException(status_code=503, detail="Economic indicators service unavailable")
+            # Return minimal structure if cache fails
+            return {
+                "message": "Economic indicators service unavailable",
+                "fallback_data": True,
+                "metadata": {
+                    "fallback_reason": "Economic indicators service unavailable",
+                    "data_source": "minimal_structure"
+                }
+            }
 
 def _get_risk_color(score: float) -> str:
     """Get semantic color for GERI score."""

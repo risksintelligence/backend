@@ -41,7 +41,22 @@ async def run_monte_carlo_simulation(
         
         observations = _get_observations()
         if not observations:
-            raise HTTPException(status_code=503, detail="No observation data available for simulation")
+            # Try to get cached simulation result
+            from app.core.unified_cache import UnifiedCache
+            cache = UnifiedCache("simulation")
+            cached_result, _ = cache.get("monte_carlo")
+            if cached_result:
+                return cached_result
+            
+            # Return minimal fallback structure
+            return {
+                "message": "No observation data available for simulation", 
+                "fallback_data": True,
+                "metadata": {
+                    "fallback_reason": "No observation data available",
+                    "data_source": "minimal_structure"
+                }
+            }
         
         # Compute current baseline
         geri_result = compute_geri_score(observations)
@@ -194,9 +209,31 @@ async def run_monte_carlo_simulation(
             "generated_at": datetime.utcnow().isoformat() + "Z"
         }
         
+        # Cache successful result
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("simulation")
+        cache.set("monte_carlo", result, source="monte_carlo_api", hard_ttl=7200)
+        
+        return result
+        
     except Exception as e:
         logger.error(f"Monte Carlo simulation failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Simulation service unavailable: {str(e)}")
+        # Try to return cached result instead of 503
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("simulation")
+        cached_result, _ = cache.get("monte_carlo")
+        if cached_result:
+            return cached_result
+            
+        # Return minimal structure if no cache
+        return {
+            "message": f"Simulation service unavailable: {str(e)}",
+            "fallback_data": True,
+            "metadata": {
+                "fallback_reason": f"Simulation service unavailable: {str(e)}",
+                "data_source": "minimal_structure"
+            }
+        }
 
 @router.post("/stress-test")
 async def run_stress_test(
@@ -212,7 +249,22 @@ async def run_stress_test(
         
         observations = _get_observations()
         if not observations:
-            raise HTTPException(status_code=503, detail="No observation data available for stress testing")
+            # Try to get cached stress test result
+            from app.core.unified_cache import UnifiedCache
+            cache = UnifiedCache("simulation")
+            cached_result, _ = cache.get("stress_test")
+            if cached_result:
+                return cached_result
+            
+            # Return minimal fallback structure
+            return {
+                "message": "No observation data available for stress testing",
+                "fallback_data": True,
+                "metadata": {
+                    "fallback_reason": "No observation data available",
+                    "data_source": "minimal_structure"
+                }
+            }
         
         # Compute baseline GERI
         baseline_result = compute_geri_score(observations)
@@ -337,9 +389,31 @@ async def run_stress_test(
             "generated_at": datetime.utcnow().isoformat() + "Z"
         }
         
+        # Cache successful stress test result
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("simulation")
+        cache.set("stress_test", result, source="stress_test_api", hard_ttl=7200)
+        
+        return result
+        
     except Exception as e:
         logger.error(f"Stress test failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Stress test service unavailable: {str(e)}")
+        # Try to return cached result instead of 503
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("simulation")
+        cached_result, _ = cache.get("stress_test")
+        if cached_result:
+            return cached_result
+            
+        # Return minimal structure if no cache
+        return {
+            "message": f"Stress test service unavailable: {str(e)}",
+            "fallback_data": True,
+            "metadata": {
+                "fallback_reason": f"Stress test service unavailable: {str(e)}",
+                "data_source": "minimal_structure"
+            }
+        }
 
 @router.get("/scenarios")
 async def get_simulation_scenarios(
@@ -425,6 +499,28 @@ async def get_volatility_calibration(
             "updated_at": datetime.utcnow().isoformat() + "Z"
         }
         
+        # Cache successful volatility result (this is fairly static)
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("simulation")
+        cache.set("volatility", result, source="volatility_api", hard_ttl=86400)  # 24 hours
+        
+        return result
+        
     except Exception as e:
         logger.error(f"Volatility calibration failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Volatility service unavailable: {str(e)}")
+        # Try to return cached result instead of 503
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("simulation")
+        cached_result, _ = cache.get("volatility")
+        if cached_result:
+            return cached_result
+            
+        # Return minimal structure if no cache
+        return {
+            "message": f"Volatility service unavailable: {str(e)}",
+            "fallback_data": True,
+            "metadata": {
+                "fallback_reason": f"Volatility service unavailable: {str(e)}",
+                "data_source": "minimal_structure"
+            }
+        }

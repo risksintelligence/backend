@@ -268,14 +268,46 @@ async def get_network_ml_insights_summary():
                 if response.status_code == 200:
                     network_data = response.json()
                 else:
-                    raise HTTPException(status_code=503, detail="Network data unavailable")
+                    # If network data unavailable, return cached analysis if available
+                    from ..core.unified_cache import UnifiedCache
+                    cache = UnifiedCache("ml_network_insights")
+                    cached_analysis, _ = cache.get("network_summary")
+                    if cached_analysis:
+                        return cached_analysis
+                    
+                    # Return minimal structure if no cache
+                    return {
+                        "status": "fallback",
+                        "message": "Network data unavailable, no cached analysis",
+                        "fallback_data": True,
+                        "metadata": {
+                            "fallback_reason": "Network data unavailable",
+                            "data_source": "minimal_structure"
+                        }
+                    }
             except Exception:
-                raise HTTPException(status_code=503, detail="Network data service unavailable")
+                # If service unavailable, return cached analysis if available
+                from ..core.unified_cache import UnifiedCache
+                cache = UnifiedCache("ml_network_insights")
+                cached_analysis, _ = cache.get("network_summary")
+                if cached_analysis:
+                    return cached_analysis
+                
+                # Return minimal structure if no cache
+                return {
+                    "status": "fallback",
+                    "message": "Network data service unavailable, no cached analysis",
+                    "fallback_data": True,
+                    "metadata": {
+                        "fallback_reason": "Network data service unavailable",
+                        "data_source": "minimal_structure"
+                    }
+                }
         
         # Get comprehensive network analysis
         analysis = await network_ml_service.get_network_ml_summary(network_data)
         
-        return {
+        result = {
             "status": "success",
             "data": analysis,
             "metadata": {
@@ -288,9 +320,33 @@ async def get_network_ml_insights_summary():
                 }
             }
         }
+        
+        # Cache the successful analysis
+        from ..core.unified_cache import UnifiedCache
+        cache = UnifiedCache("ml_network_insights")
+        cache.set("network_summary", result, source="ml_network_insights_api", hard_ttl=3600)
+        
+        return result
+        
     except Exception as e:
         logger.error(f"Network ML insights summary error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Insights generation failed: {str(e)}")
+        # Try to return cached data instead of 500 error
+        from ..core.unified_cache import UnifiedCache
+        cache = UnifiedCache("ml_network_insights") 
+        cached_analysis, _ = cache.get("network_summary")
+        if cached_analysis:
+            return cached_analysis
+            
+        # Return minimal structure if no cache
+        return {
+            "status": "error_fallback",
+            "message": f"Insights generation failed: {str(e)}",
+            "fallback_data": True,
+            "metadata": {
+                "fallback_reason": f"Insights generation failed: {str(e)}",
+                "data_source": "minimal_structure"
+            }
+        }
 
 @router.get("/insights/summary")
 @cache_with_fallback(cache_config)

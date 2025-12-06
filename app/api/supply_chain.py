@@ -10,12 +10,23 @@ router = APIRouter(prefix="/api/v1/supply-chain", tags=["supply-chain"])
 
 
 def _cached_or_unavailable(data_type: str, identifier: str, detail: str):
-    """Return cached value when available or raise if nothing real can be served."""
+    """Return cached value when available or minimal structure if nothing cached."""
     cache = get_supply_chain_cache()
     cached, _ = cache.get(data_type, identifier)
     if cached:
         return cached
-    raise HTTPException(status_code=503, detail=detail)
+    
+    # Return minimal structure instead of 503
+    return {
+        "message": "No cached data available",
+        "data_type": data_type,
+        "identifier": identifier,
+        "fallback_data": True,
+        "metadata": {
+            "fallback_reason": detail,
+            "data_source": "minimal_structure"
+        }
+    }
 
 
 # Mock functions removed - real-data-first approach implemented
@@ -79,7 +90,16 @@ async def get_supply_cascade():
         logger.error("Error getting real cascade data", exc_info=e)
         if cached_snapshot:
             return cached_snapshot
-        raise HTTPException(status_code=503, detail="Supply cascade data unavailable")
+        
+        # Return minimal structure if no cached data available
+        return {
+            "message": "No supply cascade data available",
+            "fallback_data": True,
+            "metadata": {
+                "fallback_reason": "Supply cascade data unavailable",
+                "data_source": "minimal_structure"
+            }
+        }
 
 
 @router.get("/cascade/impacts")

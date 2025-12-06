@@ -1940,10 +1940,8 @@ async def cascade_timeline_visualization(
         else:
             raise RuntimeError("No geopolitical data available")
     except Exception as e:
-        logger.error("Geopolitical data unavailable", exc_info=e)
-        if cached_data:
-            return cached_data
-        raise HTTPException(status_code=503, detail="Geopolitical disruption data unavailable")
+        logger.error("Geopolitical data unavailable, using cached data if available", exc_info=e)
+        # Continue to maritime data - don't fail completely on geopolitical data unavailability
     
     # Get Free Maritime Intelligence port/shipping disruption data
     try:
@@ -1964,10 +1962,12 @@ async def cascade_timeline_visualization(
         else:
             raise RuntimeError("No Free Maritime Intelligence port data available")
     except Exception as e:
-        logger.error("Free Maritime Intelligence data unavailable", exc_info=e)
-        if cached_data:
-            return cached_data
-        raise HTTPException(status_code=503, detail="Maritime disruption data unavailable")
+        logger.error("Maritime Intelligence data unavailable, using cached data if available", exc_info=e)
+        # Continue with whatever timeline events we have
+    
+    # If no timeline events and we have cached data, return that
+    if not timeline_events and cached_data:
+        return cached_data
     
     # Sort timeline by timestamp
     timeline_events.sort(key=lambda x: x.get("timestamp", ""), reverse=True)

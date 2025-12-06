@@ -48,59 +48,83 @@ async def get_supply_cascade_snapshot(
         shipping_delays = await maritime_intelligence.get_shipping_delays()
         maritime_disruptions = []
         for delay in shipping_delays:
-            if delay.severity in ["major", "critical"]:
-                maritime_disruptions.append({
-                    'id': f"maritime_{delay.route_name.lower().replace(' ', '_')}",
-                    'severity': delay.severity,
-                    'description': f"Shipping delays on {delay.route_name}: {delay.delay_reasons}",
-                    'economic_impact_usd': delay.affected_vessels * 100000,  # Rough estimate
-                    'affected_ports': [delay.origin_port, delay.destination_port],
-                    'affected_routes': [delay.route_name]
-                })
+            try:
+                severity = getattr(delay, 'severity', 'medium')
+                if severity in ["major", "critical"]:
+                    route_name = getattr(delay, 'route_name', 'Unknown Route')
+                    route_id = route_name.lower().replace(' ', '_') if route_name else 'unknown'
+                    
+                    maritime_disruptions.append({
+                        'id': f"maritime_{route_id}",
+                        'severity': severity,
+                        'description': f"Shipping delays on {route_name}: {getattr(delay, 'delay_reasons', 'Operational issues')}",
+                        'economic_impact_usd': getattr(delay, 'affected_vessels', 50) * 100000,  # Rough estimate
+                        'affected_ports': [getattr(delay, 'origin_port', 'UNKNOWN'), getattr(delay, 'destination_port', 'UNKNOWN')],
+                        'affected_routes': [route_name]
+                    })
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Skipping invalid shipping delay data: {e}")
+                continue
         
         # Combine all disruptions into cascade format
         disruptions = []
         
         # Add geopolitical disruptions from free sources
         for disruption in geopolitical_disruptions[:8]:  # Top 8 geopolitical disruptions
-            disruptions.append({
-                "id": disruption.disruption_id,
-                "type": disruption.event_type,
-                "severity": disruption.severity,
-                "location": list(disruption.location),  # Convert tuple to list
-                "description": disruption.description,
-                "source": disruption.source,
-                "economic_impact_usd": disruption.economic_impact_usd,
-                "affected_commodities": disruption.affected_commodities,
-                "affected_trade_routes": disruption.affected_trade_routes,
-                "estimated_duration_days": disruption.estimated_duration_days,
-                "mitigation_strategies": disruption.mitigation_strategies
-            })
+            try:
+                location = getattr(disruption, 'location', (0.0, 0.0))
+                if location and hasattr(location, '__iter__'):
+                    location = list(location)
+                else:
+                    location = [0.0, 0.0]
+                
+                disruptions.append({
+                    "id": getattr(disruption, 'disruption_id', f"geo_{len(disruptions)}"),
+                    "type": getattr(disruption, 'event_type', 'geopolitical_event'),
+                    "severity": getattr(disruption, 'severity', 'medium'),
+                    "location": location,
+                    "description": getattr(disruption, 'description', 'Geopolitical disruption'),
+                    "source": getattr(disruption, 'source', 'Free Geopolitical Intelligence'),
+                    "economic_impact_usd": getattr(disruption, 'economic_impact_usd', 0),
+                    "affected_commodities": getattr(disruption, 'affected_commodities', []),
+                    "affected_trade_routes": getattr(disruption, 'affected_trade_routes', []),
+                    "estimated_duration_days": getattr(disruption, 'estimated_duration_days', 7),
+                    "mitigation_strategies": getattr(disruption, 'mitigation_strategies', [])
+                })
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Skipping invalid geopolitical disruption data: {e}")
+                continue
         
         # Add Free Maritime Intelligence disruptions
         from app.services.maritime_intelligence import CRITICAL_PORTS
         for disruption in maritime_disruptions[:7]:  # Top 7 maritime disruptions
-            # Get port location for disruption
-            location = [0.0, 0.0]  # Default
-            if disruption.get('affected_ports'):
-                port_code = disruption['affected_ports'][0]
-                if port_code in CRITICAL_PORTS:
-                    port_info = CRITICAL_PORTS[port_code]
-                    location = [port_info["lat"], port_info["lng"]]
-            
-            disruptions.append({
-                "id": disruption['id'],
-                "type": "shipping_delay", 
-                "severity": disruption['severity'],
-                "location": location,
-                "description": disruption['description'],
-                "source": "Free Maritime Intelligence",
-                "economic_impact_usd": disruption['economic_impact_usd'],
-                "affected_ports": disruption['affected_ports'],
-                "affected_trade_routes": disruption['affected_routes'],
-                "vessels_impacted": 0,  # Not available from free sources
-                "mitigation_strategies": ["Diversify shipping routes", "Use alternative ports"]
-            })
+            try:
+                # Get port location for disruption
+                location = [0.0, 0.0]  # Default
+                affected_ports = disruption.get('affected_ports', [])
+                if affected_ports and len(affected_ports) > 0:
+                    port_code = affected_ports[0]
+                    if port_code and port_code in CRITICAL_PORTS:
+                        port_info = CRITICAL_PORTS.get(port_code, {})
+                        if "lat" in port_info and "lng" in port_info:
+                            location = [port_info["lat"], port_info["lng"]]
+                
+                disruptions.append({
+                    "id": disruption.get('id', f"maritime_{len(disruptions)}"),
+                    "type": "shipping_delay", 
+                    "severity": disruption.get('severity', 'medium'),
+                    "location": location,
+                    "description": disruption.get('description', 'Maritime disruption'),
+                    "source": "Free Maritime Intelligence",
+                    "economic_impact_usd": disruption.get('economic_impact_usd', 0),
+                    "affected_ports": affected_ports,
+                    "affected_trade_routes": disruption.get('affected_routes', []),
+                    "vessels_impacted": 0,  # Not available from free sources
+                    "mitigation_strategies": ["Diversify shipping routes", "Use alternative ports"]
+                })
+            except (KeyError, TypeError, AttributeError) as e:
+                logger.warning(f"Skipping invalid maritime disruption data: {e}")
+                continue
         
         # Build critical paths from trade flow data
         critical_paths = []
