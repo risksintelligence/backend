@@ -2535,3 +2535,4 @@ app.include_router(transparency_router.router)
 # Add blog router (temporarily disabled due to import issues)
 # from app.routers import blog as blog_router
 # app.include_router(blog_router.router, prefix="/api/v1")
+# Deployment trigger Sat Dec  6 08:46:18 EST 2025
