@@ -34,7 +34,7 @@ tracer = trace.get_tracer(__name__)
 MARITIME_PROVIDERS = {
     "aishub": {
         "name": "AISHub",
-        "base_url": "http://www.aishub.net/api",
+        "base_url": "https://www.aishub.net/api",
         "endpoints": {
             "vessels": "/vesselsdata/v1/index.php",
             "tracks": "/tracks/v1/index.php"

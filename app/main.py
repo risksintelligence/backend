@@ -2011,7 +2011,7 @@ async def supply_chain_vulnerability_assessment(
     # Get ComTrade supply chain network data
     try:
         comtrade = ComtradeIntegration()
-        network_data = await comtrade.get_supply_network()
+        network_data = await comtrade.build_supply_chain_network()
         
         nodes = network_data.get("nodes", [])
         edges = network_data.get("edges", [])
@@ -2110,7 +2110,7 @@ async def network_topology(
     # Get supply network from ComTrade
     try:
         comtrade = ComtradeIntegration()
-        network_data = await comtrade.get_supply_network()
+        network_data = await comtrade.build_supply_chain_network()
         
         nodes = network_data.get("nodes", [])
         edges = network_data.get("edges", [])
@@ -2304,7 +2304,7 @@ async def network_dependencies(
     # Get ComTrade network data for dependency analysis
     try:
         comtrade = ComtradeIntegration()
-        network_data = await comtrade.get_supply_network()
+        network_data = await comtrade.build_supply_chain_network()
         
         nodes = network_data.get("nodes", [])
         edges = network_data.get("edges", [])
