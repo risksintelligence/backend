@@ -123,3 +123,28 @@ def require_api_key(request: Request) -> str:
         )
     
     return api_key
+
+def optional_auth(request: Request) -> Dict[str, any]:
+    """Optional authentication - returns auth info if present, empty dict if not."""
+    # Check for API key
+    api_key = request.headers.get('X-RRIO-API-KEY')
+    if not api_key:
+        api_key = request.query_params.get('api_key')
+    
+    # Check for reviewer key
+    reviewer_key = request.headers.get('X-RRIO-REVIEWER')
+    
+    auth_info = {}
+    
+    if api_key and len(api_key) >= 10:
+        auth_info['api_key'] = api_key
+        auth_info['user_type'] = 'api_user'
+    
+    if reviewer_key == settings.reviewer_api_key:
+        auth_info['reviewer_key'] = reviewer_key
+        auth_info['user_type'] = 'reviewer'
+    
+    if not auth_info:
+        auth_info['user_type'] = 'anonymous'
+    
+    return auth_info
