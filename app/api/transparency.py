@@ -569,4 +569,4 @@ def _get_dataset_metadata(series_id: str) -> tuple:
     
     # Default metadata for unknown series
     formatted_name = series_id.replace("_", " ").title()
-    return (formatted_name, f"Economic indicator: {formatted_name}")>
+    return (formatted_name, f"Economic indicator: {formatted_name}")
