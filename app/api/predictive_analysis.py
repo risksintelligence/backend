@@ -111,48 +111,23 @@ async def get_disruption_forecast(
     except Exception as e:
         logger.error(f"Failed to generate disruption forecast: {e}")
         
-        # Fallback predictions
-        fallback_predictions = [
-            {
-                "disruption_type": "geopolitical",
-                "probability": 0.45,
-                "risk_level": "medium",
-                "estimated_impact_usd": 500_000_000,
-                "confidence_score": 0.60,
-                "time_horizon_days": time_horizon,
-                "affected_regions": ["Middle East", "Eastern Europe"],
-                "affected_commodities": ["crude_oil", "natural_gas"],
-                "risk_triggers": ["Diplomatic tensions", "Trade disputes"],
-                "mitigation_strategies": ["Diversify supply sources", "Build strategic reserves"]
-            },
-            {
-                "disruption_type": "natural_disaster",
-                "probability": 0.35,
-                "risk_level": "medium",
-                "estimated_impact_usd": 750_000_000,
-                "confidence_score": 0.72,
-                "time_horizon_days": time_horizon,
-                "affected_regions": ["Pacific Ring of Fire", "Caribbean"],
-                "affected_commodities": ["agricultural_products", "energy"],
-                "risk_triggers": ["Hurricane season", "Seismic activity"],
-                "mitigation_strategies": ["Climate-resilient infrastructure", "Emergency protocols"]
-            }
-        ]
+        # Try to get cached predictions from successful previous runs
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("predictive_analysis")
+        cached_result, cache_meta = cache.get("disruption_forecast")
         
-        return {
-            "as_of": as_of,
-            "forecast_horizon_days": time_horizon,
-            "predictions": fallback_predictions,
-            "cascade_impacts": [],
-            "summary": {
-                "total_predictions": len(fallback_predictions),
-                "high_risk_predictions": 0,
-                "total_economic_risk_usd": 1_250_000_000,
-                "average_confidence": 0.66,
-                "cascade_nodes_analyzed": 0
-            },
-            "note": "Fallback predictions - full analytics service unavailable"
-        }
+        if cached_result and cache_meta and not cache_meta.is_stale_hard:
+            logger.info("Using cached disruption forecast as fallback")
+            cached_result["cache_fallback"] = True
+            cached_result["cache_age_seconds"] = cache_meta.age_seconds
+            return cached_result
+        else:
+            # Only if no valid cache exists, return error response
+            logger.error("No valid cached disruption forecast data available")
+            raise HTTPException(
+                status_code=503,
+                detail=f"Predictive analysis service unavailable and no cached data: {str(e)}"
+            )
 
 
 @router.get("/correlation-analysis", response_model=CascadeImpactResponse)

@@ -268,18 +268,38 @@ def current_geri_score(_auth: dict = Depends(optional_auth)) -> Dict[str, Any]:
         # Compute full GERI score
         result = compute_geri_score(observations, regime_confidence=regime_confidence)
     except Exception as e:
-        logger.error(f"GERI computation failed, returning fallback: {e}")
-        result = {
-            "score": 50.0,
-            "band": "moderate",
-            "color": "#FFD600",
-            "band_color": "#FFD600",
-            "contributions": {},
-            "component_scores": {},
-            "confidence": 75,
-            "fallback": True,
-            "error": str(e)
-        }
+        logger.error(f"GERI computation failed, attempting fallback from cache: {e}")
+        
+        # Try to get last successfully computed GERI from cache
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("geri_analytics")
+        cached_result, cache_meta = cache.get("latest_geri_overview")
+        
+        if cached_result and cache_meta and not cache_meta.is_stale_hard:
+            logger.info("Using cached GERI data as fallback")
+            cached_result["cache_fallback"] = True
+            cached_result["cache_age_seconds"] = cache_meta.age_seconds
+            result = cached_result
+        else:
+            # Only if no valid cache exists, return error response
+            logger.error("No valid cached GERI data available")
+            raise HTTPException(
+                status_code=503, 
+                detail=f"GERI computation service unavailable and no cached data: {str(e)}"
+            )
+    
+    # Cache successful computation for future fallback
+    if not result.get("cache_fallback"):
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("geri_analytics")
+        cache.set(
+            "latest_geri_overview", 
+            result, 
+            source="geri_computation",
+            source_url="/api/v1/analytics/geri",
+            soft_ttl=900,  # 15 minutes
+            hard_ttl=86400  # 24 hours
+        )
     
     # Add API-specific formatting
     result["drivers"] = [
@@ -416,6 +436,96 @@ def get_analytics_components(_auth: dict = Depends(optional_auth)) -> Dict[str, 
             })
     
     return {"components": components}
+
+@router.get("/economic") 
+def get_economic_indicators(_auth: dict = Depends(optional_auth)) -> Dict[str, Any]:
+    """Get economic indicators in proper format for frontend analytics pages."""
+    from app.main import _get_observations
+    from app.data.registry import SERIES_REGISTRY
+    
+    try:
+        observations = _get_observations()
+        indicators = []
+        
+        # Map series to economic indicator format with proper labeling
+        series_labels = {
+            "VIX": {"label": "VIX Volatility Index", "unit": "", "category": "market"},
+            "YIELD_CURVE": {"label": "Yield Curve (10Y-2Y)", "unit": "bps", "category": "rates"},
+            "CREDIT_SPREAD": {"label": "Credit Spread", "unit": "bps", "category": "credit"},
+            "PMI": {"label": "PMI Manufacturing", "unit": "", "category": "growth"},
+            "WTI_OIL": {"label": "WTI Oil Price", "unit": "$/barrel", "category": "commodities"},
+            "UNEMPLOYMENT": {"label": "Unemployment Rate", "unit": "%", "category": "employment"},
+            "FREIGHT_DIESEL": {"label": "Freight Diesel Price", "unit": "$/gallon", "category": "logistics"},
+            "CPI": {"label": "Consumer Price Index", "unit": "", "category": "inflation"}
+        }
+        
+        for series_id, obs_list in observations.items():
+            if obs_list and series_id in series_labels:
+                latest_obs = obs_list[-1]
+                
+                # Calculate change percentage from recent values
+                values = [o.value for o in obs_list[-30:]]  # Last 30 values
+                if len(values) >= 2:
+                    recent_avg = sum(values[-7:]) / len(values[-7:]) if len(values) >= 7 else values[-1]
+                    older_avg = sum(values[-30:-7]) / len(values[-30:-7]) if len(values) >= 30 else values[0]
+                    change_pct = ((recent_avg - older_avg) / abs(older_avg)) * 100 if older_avg != 0 else 0
+                else:
+                    change_pct = 0.0
+                
+                # Calculate z-score for risk assessment
+                if len(values) > 1:
+                    mean_val = sum(values) / len(values)
+                    std_val = (sum((v - mean_val) ** 2 for v in values) / len(values)) ** 0.5
+                    z_score = (latest_obs.value - mean_val) / (std_val or 1.0)
+                else:
+                    z_score = 0.0
+                
+                label_info = series_labels[series_id]
+                indicators.append({
+                    "id": series_id,
+                    "label": label_info["label"],
+                    "value": round(latest_obs.value, 2),
+                    "unit": label_info["unit"],
+                    "changePercent": round(change_pct, 2),
+                    "updatedAt": latest_obs.observed_at.isoformat() + "Z",
+                    "category": label_info["category"],
+                    "z_score": round(z_score, 3),
+                    "risk_level": "high" if abs(z_score) > 2 else "medium" if abs(z_score) > 1 else "low"
+                })
+        
+        # Sort indicators by category and importance
+        category_order = {"market": 1, "rates": 2, "credit": 3, "growth": 4, "employment": 5, "inflation": 6, "commodities": 7, "logistics": 8}
+        indicators.sort(key=lambda x: (category_order.get(x["category"], 9), x["label"]))
+        
+        return {
+            "indicators": indicators,
+            "summary": f"Real-time economic indicators from {len(observations)} data sources",
+            "updatedAt": datetime.utcnow().isoformat() + "Z",
+            "metadata": {
+                "total_indicators": len(indicators),
+                "data_sources": list(observations.keys()),
+                "last_updated": max((obs[-1].observed_at for obs in observations.values() if obs), default=datetime.utcnow()).isoformat() + "Z"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get economic indicators: {e}")
+        # Fallback to cached data
+        try:
+            from app.core.unified_cache import UnifiedCache
+            cache = UnifiedCache("analytics")
+            cached_result, cache_meta = cache.get("economic_indicators")
+            
+            if cached_result and cache_meta and not cache_meta.is_stale_hard:
+                logger.info("Using cached economic indicators as fallback")
+                cached_result["cache_fallback"] = True
+                cached_result["cache_age_seconds"] = cache_meta.age_seconds
+                return cached_result
+            else:
+                raise HTTPException(status_code=503, detail="Economic indicators service unavailable and no cached data")
+        except Exception as cache_e:
+            logger.error(f"Cache fallback failed: {cache_e}")
+            raise HTTPException(status_code=503, detail="Economic indicators service unavailable")
 
 def _get_risk_color(score: float) -> str:
     """Get semantic color for GERI score."""

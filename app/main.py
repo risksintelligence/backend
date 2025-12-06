@@ -93,6 +93,8 @@ from app.api import error_monitoring as error_monitoring_router
 from app.api import geopolitical as geopolitical_router
 from app.api import supply_chain as supply_chain_router
 from app.api import maritime_intelligence as maritime_intelligence_router
+from app.api import simulation as simulation_router
+from app.api import transparency as transparency_router
 from app.db import SessionLocal, Base, engine, get_db
 from app.models import ObservationModel
 from app.core.config import get_settings
@@ -2524,6 +2526,8 @@ app.include_router(supply_chain_router.router)
 app.include_router(maritime_intelligence_router.router)
 app.include_router(geopolitical_router.router, prefix="/api/v1/geopolitical", tags=["geopolitical"])
 app.include_router(production_alerts_router.router)
+app.include_router(simulation_router.router)
+app.include_router(transparency_router.router)
 # Duplicate mock endpoints removed - using supply chain router with real data instead
 
 # Analytics endpoints added to existing analytics router in app.api.analytics

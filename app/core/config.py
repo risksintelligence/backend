@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     alpha_vantage_api_key: Optional[str] = Field(None, alias="ris_alpha_vantage_api_key")
     wto_api_key: Optional[str] = Field(None, alias="ris_wto_api_key")
     
+    # UN Comtrade API Keys
+    comtrade_primary_key: Optional[str] = Field(None, alias="ris_comtrade_primary_key")
+    comtrade_secondary_key: Optional[str] = Field(None, alias="ris_comtrade_secondary_key")
     
     # MarineTraffic removed - now using free maritime intelligence sources
     

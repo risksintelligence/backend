@@ -259,23 +259,18 @@ async def get_network_ml_insights_summary():
         # Fetch real network data from the network cascade endpoint
         import httpx
         
-        # Use fallback network data structure for demo
-        network_data = {
-            "nodes": [
-                {"id": "singapore", "name": "Singapore Hub", "type": "hub", "risk_operational": 0.35, "risk_financial": 0.28, "risk_policy": 0.22},
-                {"id": "usa", "name": "USA Hub", "type": "hub", "risk_operational": 0.42, "risk_financial": 0.38, "risk_policy": 0.45},
-                {"id": "china", "name": "China Hub", "type": "hub", "risk_operational": 0.48, "risk_financial": 0.35, "risk_policy": 0.52},
-                {"id": "germany", "name": "Germany Hub", "type": "hub", "risk_operational": 0.25, "risk_financial": 0.22, "risk_policy": 0.30}
-            ],
-            "edges": [
-                {"from": "china", "to": "usa", "flow": 0.85, "congestion": 0.68, "criticality": 0.92},
-                {"from": "singapore", "to": "china", "flow": 0.72, "congestion": 0.55, "criticality": 0.78},
-                {"from": "germany", "to": "usa", "flow": 0.65, "congestion": 0.45, "criticality": 0.70},
-                {"from": "china", "to": "germany", "flow": 0.60, "congestion": 0.40, "criticality": 0.65}
-            ],
-            "critical_paths": [["china", "usa"], ["singapore", "china", "usa"]],
-            "disruptions": []
-        }
+        # Get real network data from the network cascade API
+        import httpx
+        async with httpx.AsyncClient() as client:
+            try:
+                # Try to fetch real network data from the cascade endpoint  
+                response = await client.get("http://localhost:8000/api/v1/network/cascade/snapshot")
+                if response.status_code == 200:
+                    network_data = response.json()
+                else:
+                    raise HTTPException(status_code=503, detail="Network data unavailable")
+            except Exception:
+                raise HTTPException(status_code=503, detail="Network data service unavailable")
         
         # Get comprehensive network analysis
         analysis = await network_ml_service.get_network_ml_summary(network_data)

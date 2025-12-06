@@ -138,11 +138,69 @@ async def get_supply_cascade_snapshot(
 
 
 @router.get("/cascade/history", response_model=CascadeHistoryResponse)
-def get_cascade_history(
+async def get_cascade_history(
     _rate_limit: bool = Depends(require_system_rate_limit),
 ) -> Dict[str, Any]:
-    """Return cascade history when available; otherwise signal service degradation."""
-    raise HTTPException(status_code=503, detail="Cascade history not available without real data")
+    """Return cascade history when available; otherwise use cached real data."""
+    try:
+        # Try to get real cascade history from timeline service
+        from app.services.timeline_cascade_service import get_timeline_cascade_service
+        timeline_service = get_timeline_cascade_service()
+        cascades = await timeline_service.get_cascade_history(time_range_days=365, limit=20)
+        
+        # Convert to expected format
+        series = []
+        if cascades:
+            # Build time series data from historical cascades
+            for cascade in cascades[:10]:  # Top 10 most recent
+                for event in cascade.events:
+                    series.append({
+                        "t": event.timestamp.isoformat(),
+                        "v": 1.0,  # Event occurrence
+                        "metric": f"{cascade.title.lower().replace(' ', '_')}"
+                    })
+        
+        # Group by metric
+        metric_series = {}
+        for point in series:
+            metric = point["metric"]
+            if metric not in metric_series:
+                metric_series[metric] = []
+            metric_series[metric].append({"t": point["t"], "v": point["v"]})
+        
+        history_series = [
+            {"metric": metric, "points": points}
+            for metric, points in metric_series.items()
+        ]
+        
+        logger.info(f"Generated cascade history with {len(history_series)} series from {len(cascades)} historical events")
+        
+        return {
+            "as_of": _now_iso(),
+            "series": history_series,
+            "metadata": {
+                "total_cascades": len(cascades),
+                "time_range_days": 365,
+                "data_source": "timeline_cascade_service"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get cascade history, attempting cache fallback: {e}")
+        
+        # Try cached data
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("network_cascade")
+        cached_result, cache_meta = cache.get("cascade_history")
+        
+        if cached_result and cache_meta and not cache_meta.is_stale_hard:
+            logger.info("Using cached cascade history as fallback")
+            cached_result["cache_fallback"] = True
+            cached_result["cache_age_seconds"] = cache_meta.age_seconds
+            return cached_result
+        else:
+            logger.error("No valid cached cascade history available")
+            raise HTTPException(status_code=503, detail="Cascade history service unavailable and no cached data")
 
 
 @router.get("/cascade/impacts", response_model=CascadeImpactsResponse)
@@ -318,4 +376,17 @@ async def get_cascade_impacts(
         
     except Exception as e:
         logger.error(f"Failed to get real impact data from geopolitical sources: {e}")
-        raise HTTPException(status_code=503, detail="Cascade impacts unavailable without real data")
+        
+        # Try cached data
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("network_cascade")
+        cached_result, cache_meta = cache.get("cascade_impacts")
+        
+        if cached_result and cache_meta and not cache_meta.is_stale_hard:
+            logger.info("Using cached cascade impacts as fallback")
+            cached_result["cache_fallback"] = True
+            cached_result["cache_age_seconds"] = cache_meta.age_seconds
+            return cached_result
+        else:
+            logger.error("No valid cached cascade impacts available")
+            raise HTTPException(status_code=503, detail="Cascade impacts service unavailable and no cached data")
