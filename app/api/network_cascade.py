@@ -339,41 +339,60 @@ async def get_cascade_impacts(
         port_congestion_impact = 0
         port_impacts = {}
         for port in port_statuses:
-            if port.congestion_level in ["high", "critical"]:
-                # Rough economic impact calculation
-                congestion_multiplier = {"high": 0.15, "critical": 0.25}[port.congestion_level]
-                daily_port_value = 50_000_000  # Rough estimate per major port
-                daily_impact = daily_port_value * congestion_multiplier
-                port_congestion_impact += daily_impact
-                
-                port_impacts[port.port_code] = {
-                    "congestion_level": port.congestion_level,
-                    "congestion_score": port.congestion_score,
-                    "wait_time_hours": port.avg_wait_time_hours,
-                    "vessels_affected": port.total_vessels,
-                    "daily_impact_usd": daily_impact
-                }
+            try:
+                # Check if port is an object with the expected attributes
+                if hasattr(port, 'congestion_level') and hasattr(port, 'port_code'):
+                    if port.congestion_level in ["high", "critical"]:
+                        # Rough economic impact calculation
+                        congestion_multiplier = {"high": 0.15, "critical": 0.25}[port.congestion_level]
+                        daily_port_value = 50_000_000  # Rough estimate per major port
+                        daily_impact = daily_port_value * congestion_multiplier
+                        port_congestion_impact += daily_impact
+                        
+                        port_impacts[port.port_code] = {
+                            "congestion_level": port.congestion_level,
+                            "congestion_score": getattr(port, 'congestion_score', 0.5),
+                            "wait_time_hours": getattr(port, 'avg_wait_time_hours', 24),
+                            "vessels_affected": getattr(port, 'total_vessels', 50),
+                            "daily_impact_usd": daily_impact
+                        }
+            except (AttributeError, TypeError) as e:
+                # Skip invalid port data
+                logger.warning(f"Skipping invalid port data: {e}")
+                continue
         
         total_economic_impact += port_congestion_impact
         
         # Aggregate affected commodities
         commodity_impacts = {}
         for disruption in disruptions:
-            for commodity in disruption.affected_commodities:
-                if commodity not in commodity_impacts:
-                    commodity_impacts[commodity] = {
-                        "disruption_count": 0,
-                        "total_impact_usd": 0,
-                        "severity_score": 0
-                    }
-                
-                commodity_impacts[commodity]["disruption_count"] += 1
-                if disruption.economic_impact_usd:
-                    commodity_impacts[commodity]["total_impact_usd"] += disruption.economic_impact_usd
-                
-                # Add severity score
-                severity_weights = {"critical": 4, "high": 3, "medium": 2, "low": 1}
-                commodity_impacts[commodity]["severity_score"] += severity_weights.get(disruption.severity, 1)
+            try:
+                # Check if disruption has the expected attributes
+                affected_commodities = getattr(disruption, 'affected_commodities', [])
+                if not affected_commodities:
+                    continue
+                    
+                for commodity in affected_commodities:
+                    if commodity not in commodity_impacts:
+                        commodity_impacts[commodity] = {
+                            "disruption_count": 0,
+                            "total_impact_usd": 0,
+                            "severity_score": 0
+                        }
+                    
+                    commodity_impacts[commodity]["disruption_count"] += 1
+                    economic_impact = getattr(disruption, 'economic_impact_usd', None)
+                    if economic_impact:
+                        commodity_impacts[commodity]["total_impact_usd"] += economic_impact
+                    
+                    # Add severity score
+                    severity_weights = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+                    severity = getattr(disruption, 'severity', 'medium')
+                    commodity_impacts[commodity]["severity_score"] += severity_weights.get(severity, 1)
+            except (AttributeError, TypeError) as e:
+                # Skip invalid disruption data
+                logger.warning(f"Skipping invalid disruption data: {e}")
+                continue
         
         # Calculate commodity price deltas based on disruptions
         financial_commodities = {}
@@ -391,19 +410,26 @@ async def get_cascade_impacts(
                 }
         
         # Aggregate policy impacts
-        policy_events = [d for d in disruptions if d.event_type in ["policy_change", "civil_unrest"]]
+        policy_events = [d for d in disruptions if hasattr(d, 'event_type') and getattr(d, 'event_type', '') in ["policy_change", "civil_unrest"]]
         policy_risk_score = min(1.0, len(policy_events) * 0.1)
         
         # Calculate trade route risks
         route_risks = {}
         for disruption in disruptions:
-            for route in disruption.affected_trade_routes:
-                if route not in route_risks:
-                    route_risks[route] = {"risk_score": 0, "disruption_count": 0}
-                
-                severity_impact = {"critical": 0.8, "high": 0.6, "medium": 0.4, "low": 0.2}
-                route_risks[route]["risk_score"] += severity_impact.get(disruption.severity, 0.2)
-                route_risks[route]["disruption_count"] += 1
+            try:
+                affected_routes = getattr(disruption, 'affected_trade_routes', [])
+                for route in affected_routes:
+                    if route not in route_risks:
+                        route_risks[route] = {"risk_score": 0, "disruption_count": 0}
+                    
+                    severity_impact = {"critical": 0.8, "high": 0.6, "medium": 0.4, "low": 0.2}
+                    severity = getattr(disruption, 'severity', 'medium')
+                    route_risks[route]["risk_score"] += severity_impact.get(severity, 0.2)
+                    route_risks[route]["disruption_count"] += 1
+            except (AttributeError, TypeError) as e:
+                # Skip invalid disruption data
+                logger.warning(f"Skipping invalid disruption for route risks: {e}")
+                continue
         
         # Normalize route risks
         for route in route_risks:
