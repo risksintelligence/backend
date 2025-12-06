@@ -465,6 +465,10 @@ async def get_country_risk_assessment(country_code: str = "USA") -> Dict[str, An
     else:
         raise Exception(f"Could not get country indicators for {country_code}")
 
+def get_wits_integration():
+    """Get the global WITS integration instance"""
+    return wb_wits
+
 async def cleanup_worldbank():
     """Cleanup World Bank session"""
     if hasattr(wb_wits, 'session'):

@@ -18,7 +18,7 @@ from app.api.schemas import (
     CascadeImpactsResponse,
 )
 from app.core.security import require_system_rate_limit
-from app.services.worldbank_wits_integration import wb_wits as get_wits_integration
+from app.services.worldbank_wits_integration import get_wits_integration
 from app.services.geopolitical_intelligence import geopolitical_intelligence
 from app.services.maritime_intelligence import maritime_intelligence
 
