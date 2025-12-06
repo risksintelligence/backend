@@ -71,7 +71,16 @@ class UNComtradeIntegration:
                         reporterCode=reporter_code,
                         cmdCode=commodity_code,
                         flowCode=trade_flow,
-                        partnerCode=partner_code
+                        partnerCode=partner_code,
+                        partner2Code='0',       # No secondary partner
+                        customsCode='C00',      # General customs procedure
+                        motCode='0',            # All modes of transport
+                        maxRecords=500,         # Limit records
+                        format_output='JSON',   # JSON output format
+                        aggregateBy=None,       # No aggregation
+                        breakdownMode='classic', # Classic breakdown
+                        countOnly=False,        # Return data, not count
+                        includeDesc=True        # Include descriptions
                     )
                     if df is not None and not df.empty:
                         logger.info(f"Retrieved {len(df)} trade records from UN Comtrade (authenticated)")
@@ -85,7 +94,19 @@ class UNComtradeIntegration:
                 freqCode='A',           # Annual
                 clCode='HS',            # Harmonized System
                 period=time_period,
-                reporterCode=reporter_code
+                reporterCode=reporter_code,
+                cmdCode=commodity_code,
+                flowCode=trade_flow,
+                partnerCode=partner_code,
+                partner2Code='0',       # No secondary partner
+                customsCode='C00',      # General customs procedure
+                motCode='0',            # All modes of transport
+                maxRecords=100,         # Lower limit for preview
+                format_output='JSON',   # JSON output format
+                aggregateBy=None,       # No aggregation
+                breakdownMode='classic', # Classic breakdown
+                countOnly=False,        # Return data, not count
+                includeDesc=True        # Include descriptions
             )
             
             if df is not None and not df.empty:

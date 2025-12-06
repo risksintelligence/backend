@@ -78,11 +78,11 @@ async def get_supply_cascade_snapshot(
             })
         
         # Add Free Maritime Intelligence disruptions
+        from app.services.maritime_intelligence import CRITICAL_PORTS
         for disruption in maritime_disruptions[:7]:  # Top 7 maritime disruptions
             # Get port location for disruption
             location = [0.0, 0.0]  # Default
             if disruption.get('affected_ports'):
-                from app.services.maritime_intelligence import CRITICAL_PORTS
                 port_code = disruption['affected_ports'][0]
                 if port_code in CRITICAL_PORTS:
                     port_info = CRITICAL_PORTS[port_code]

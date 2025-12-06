@@ -46,7 +46,7 @@ MARITIME_PROVIDERS = {
     },
     "noaa_marine": {
         "name": "NOAA Marine Cadastre", 
-        "base_url": "https://marinecadastre.gov/api",
+        "base_url": "https://hub.marinecadastre.gov/api",
         "endpoints": {
             "ais": "/ais/v1/data",
             "ports": "/ports/v1/data",
