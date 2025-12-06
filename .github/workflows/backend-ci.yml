@@ -182,8 +182,8 @@ jobs:
           curl -f http://localhost:10000/api/v1/ai/regime/current
           echo "API endpoints test passed"
           
-      - name: Deploy to Render
+      - name: Backend CI Tests Complete
         if: github.ref == 'refs/heads/main'
         run: |
-          curl -X POST "https://api.render.com/deploy/srv-d4cf5c2dbo4c73d7mpf0?key=uN268HGLaIA"
-          curl -X POST "https://api.render.com/deploy/srv-d4cf6bvdiees7392vpr0?key=46YDqgHKP6A"
+          echo "✅ Backend CI tests completed successfully"
+          echo "🚀 Railway deployment will be handled by railway-deploy.yml workflow"
