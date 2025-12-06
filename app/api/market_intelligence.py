@@ -1,7 +1,7 @@
 """
 Market Intelligence API Router
 Unified endpoint for all free market intelligence data sources
-Replaces S&P Global with SEC EDGAR, World Bank, UN Comtrade, and OpenStreetMap
+Replaces S&P Global with SEC EDGAR, World Bank, WTO Statistics, and OpenStreetMap
 """
 
 from fastapi import APIRouter, HTTPException, Query, Depends
@@ -212,9 +212,9 @@ async def get_data_sources() -> Dict[str, Any]:
                 "data_freshness": "Monthly/Quarterly",
                 "api_docs": "https://wits.worldbank.org/witsapiintro.aspx"
             },
-            "UN Comtrade": {
-                "description": "United Nations commodity trade statistics",
-                "capabilities": ["Bilateral trade data", "Trade concentration analysis"],
+            "WTO Statistics": {
+                "description": "World Trade Organization trade statistics",
+                "capabilities": ["Global trade data", "Trade flow analysis"],
                 "coverage": "Global commodity trade",
                 "cost": "Free (guest access)",
                 "rate_limits": "100 requests/hour",
@@ -257,7 +257,7 @@ async def get_intelligence_health() -> Dict[str, Any]:
         "sources": {
             "SEC EDGAR": {"status": "operational", "last_check": datetime.utcnow().isoformat()},
             "World Bank": {"status": "operational", "last_check": datetime.utcnow().isoformat()},
-            "UN Comtrade": {"status": "operational", "last_check": datetime.utcnow().isoformat()},
+            "WTO Statistics": {"status": "operational", "last_check": datetime.utcnow().isoformat()},
             "OpenStreetMap": {"status": "operational", "last_check": datetime.utcnow().isoformat()}
         },
         "overall_health": "excellent",
@@ -273,7 +273,7 @@ def calculate_combined_risk_score(scores: Dict[str, float]) -> float:
         weights = {
             "financial": 0.3,      # SEC financial health
             "trade_stress": 0.25,  # World Bank trade stress
-            "trade_vulnerability": 0.25,  # UN Comtrade concentration
+            "trade_vulnerability": 0.25,  # WTO Statistics concentration
             "supply_chain": 0.2    # OpenRoute logistics risk
         }
         

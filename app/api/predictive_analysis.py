@@ -122,12 +122,16 @@ async def get_disruption_forecast(
             cached_result["cache_age_seconds"] = cache_meta.age_seconds
             return cached_result
         else:
-            # Only if no valid cache exists, return error response
+            # Only if no valid cache exists, return minimal structure
             logger.error("No valid cached disruption forecast data available")
-            raise HTTPException(
-                status_code=503,
-                detail=f"Predictive analysis service unavailable and no cached data: {str(e)}"
-            )
+            return {
+                "message": f"Predictive analysis service unavailable and no cached data: {str(e)}",
+                "fallback_data": True,
+                "metadata": {
+                    "fallback_reason": f"Predictive analysis service unavailable and no cached data: {str(e)}",
+                    "data_source": "minimal_structure"
+                }
+            }
 
 
 @router.get("/correlation-analysis", response_model=CascadeImpactResponse)

@@ -60,11 +60,10 @@ class HealthMonitor:
                 "display_name": "Free Maritime Intelligence",
                 "service_type": "free_intelligence"
             },
-            "comtrade": {
-                "url": "https://comtradeapi.un.org/data/v1/get",
-                "params": {"format": "json", "max": 1},
+            "wto_statistics": {
+                "url": "https://stats.wto.org/api/v1/datasets",
                 "timeout": 15,
-                "display_name": "UN Comtrade Trade Data",
+                "display_name": "WTO Trade Statistics",
                 "service_type": "external_api"
             },
             "world_bank": {

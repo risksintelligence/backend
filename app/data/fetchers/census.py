@@ -17,7 +17,7 @@ def fetch_census_series(series_id: str, limit: int = 30) -> List[Dict[str, str]]
     if not api_key:
         raise RuntimeError("Census API key missing; set RIS_CENSUS_API_KEY")
     
-    # Census API typically focuses on trade data (UN Comtrade alternative)
+    # Census API typically focuses on trade data (WTO Statistics alternative)
     # For demonstration, we'll fetch international trade data
     year = "2024"
     url = f"https://api.census.gov/data/{year}/timeseries/intltrade/exports/hs"

@@ -488,7 +488,7 @@ def _get_data_source_description(data_source: str) -> str:
         "cascade_impacts": "Economic and policy impact analysis from supply chain disruptions",
         "free_geopolitical_intelligence": "Real-time geopolitical events and conflicts affecting supply chains",
         "maritime_intelligence": "Free maritime intelligence from AISHub, NOAA, and OpenSeaMap",
-        "comtrade": "UN Comtrade bilateral trade statistics and flow data",
+        "wto_statistics": "WTO trade statistics and global trade data",
         "predictive": "Predictive analytics and disruption forecasting models"
     }
     return descriptions.get(data_source, f"Real-time data updates for {data_source}")

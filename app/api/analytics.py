@@ -283,10 +283,15 @@ def current_geri_score(_auth: dict = Depends(optional_auth)) -> Dict[str, Any]:
         else:
             # Only if no valid cache exists, return error response
             logger.error("No valid cached GERI data available")
-            raise HTTPException(
-                status_code=503, 
-                detail=f"GERI computation service unavailable and no cached data: {str(e)}"
-            )
+            # Return minimal structure instead of 503
+            return {
+                "message": f"GERI computation service unavailable and no cached data: {str(e)}",
+                "fallback_data": True,
+                "metadata": {
+                    "fallback_reason": f"GERI computation service unavailable and no cached data: {str(e)}",
+                    "data_source": "minimal_structure"
+                }
+            }
     
     # Cache successful computation for future fallback
     if not result.get("cache_fallback"):

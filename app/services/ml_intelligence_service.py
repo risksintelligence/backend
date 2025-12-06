@@ -702,6 +702,39 @@ class MLIntelligenceService:
             }],
             "prediction_timestamp": datetime.utcnow().isoformat()
         }
+    
+    async def get_model_status(self) -> Dict[str, Any]:
+        """Get status of all ML models for health monitoring"""
+        try:
+            model_status = {}
+            
+            # Check each model type
+            model_types = ["supply_chain_risk", "market_trends", "anomaly_detection"]
+            
+            for model_type in model_types:
+                status = {
+                    "loaded": model_type in self.models,
+                    "last_trained": self.last_trained.get(model_type, "never"),
+                    "feature_count": len(self.feature_importance.get(model_type, {})),
+                    "model_type": "Random Forest" if model_type != "anomaly_detection" else "Isolation Forest"
+                }
+                
+                # Convert datetime to ISO string for JSON serialization
+                if isinstance(status["last_trained"], datetime):
+                    status["last_trained"] = status["last_trained"].isoformat()
+                
+                model_status[model_type] = status
+            
+            return model_status
+            
+        except Exception as e:
+            logger.error(f"Failed to get model status: {e}")
+            # Return minimal status in case of error
+            return {
+                "supply_chain_risk": {"loaded": False, "error": str(e)},
+                "market_trends": {"loaded": False, "error": str(e)},
+                "anomaly_detection": {"loaded": False, "error": str(e)}
+            }
 
 
 # Global ML service instance

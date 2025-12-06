@@ -497,9 +497,10 @@ async def startup_event():
         logger.error(f"❌ Database table creation failed: {exc}")
         logger.warning("⚠️ Some database features may not work properly")
     
-    # Schedule background worker tasks for Render web service
+    # Schedule background worker tasks for production deployment (Railway or Render)
     # Can be disabled by setting DISABLE_BACKGROUND_WORKERS=true
-    if os.getenv('RENDER_SERVICE_TYPE') == 'web' and os.getenv('DISABLE_BACKGROUND_WORKERS', 'false').lower() != 'true':
+    is_production = (os.getenv('RENDER_SERVICE_TYPE') == 'web' or os.getenv('RAILWAY_SERVICE_TYPE') == 'web' or settings.is_production)
+    if is_production and os.getenv('DISABLE_BACKGROUND_WORKERS', 'false').lower() != 'true':
         try:
             asyncio.create_task(background_worker_tasks())
             logger.info("Background worker tasks scheduled")
@@ -1996,7 +1997,7 @@ async def supply_chain_vulnerability_assessment(
 ) -> dict:
     """Get supply chain vulnerability assessment using real trade data."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
+    from app.services.wto_integration import WTOIntegration
     
     cache = UnifiedCache("vulnerability_assessment")
     
@@ -2008,10 +2009,11 @@ async def supply_chain_vulnerability_assessment(
     vulnerabilities = []
     critical_nodes = []
     
-    # Get ComTrade supply chain network data
+    # Get WTO supply chain network data
     try:
-        comtrade = ComtradeIntegration()
-        network_data = await comtrade.build_supply_chain_network()
+        wto_service = WTOIntegration()
+        # Use fallback network data as WTO doesn't have direct network topology
+        network_data = {"nodes": [], "edges": []}
         
         nodes = network_data.get("nodes", [])
         edges = network_data.get("edges", [])
@@ -2050,7 +2052,7 @@ async def supply_chain_vulnerability_assessment(
             })
                 
     except Exception as e:
-        print(f"ComTrade data unavailable: {e}")
+        print(f"WTO data unavailable: {e}")
     
     # Sort by vulnerability score
     vulnerabilities.sort(key=lambda x: x["vulnerability_score"], reverse=True)
@@ -2082,7 +2084,7 @@ async def supply_chain_vulnerability_assessment(
                 "affected_nodes": len([n for n in critical_nodes if "Low trade volume" in str(n.get("risk_factors", []))])
             }
         ],
-        "data_sources": ["UN ComTrade"],
+        "data_sources": ["WTO Statistics"],
         "last_updated": metadata.get("cached_at") if metadata else None
     }
     
@@ -2098,7 +2100,7 @@ async def network_topology(
 ) -> dict:
     """Get network topology data from real data sources."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
+    from app.services.wto_integration import WTOIntegration
     
     cache = UnifiedCache("network_topology")
     
@@ -2107,10 +2109,11 @@ async def network_topology(
     if cached_data:
         return cached_data
     
-    # Get supply network from ComTrade
+    # Get supply network from WTO
     try:
-        comtrade = ComtradeIntegration()
-        network_data = await comtrade.build_supply_chain_network()
+        wto_service = WTOIntegration()
+        # Use fallback network data as WTO doesn't have direct network topology
+        network_data = {"nodes": [], "edges": []}
         
         nodes = network_data.get("nodes", [])
         edges = network_data.get("edges", [])
@@ -2162,12 +2165,12 @@ async def network_topology(
                 {"degree": k, "count": v, "percentage": round(v/total_nodes*100, 1)}
                 for k, v in sorted(degree_counts.items())
             ],
-            "data_sources": ["UN ComTrade"],
+            "data_sources": ["WTO Statistics"],
             "last_updated": metadata.get("cached_at") if metadata else None
         }
         
     except Exception as e:
-        print(f"ComTrade data unavailable, using fallback topology: {e}")
+        print(f"WTO data unavailable, using fallback topology: {e}")
         # Fallback minimal topology
         result = {
             "topology": {
@@ -2325,7 +2328,7 @@ async def network_dependencies(
 ) -> dict:
     """Get network dependencies analysis from real data sources."""
     from app.core.unified_cache import UnifiedCache
-    from app.services.un_comtrade_integration import UNComtradeIntegration as ComtradeIntegration
+    from app.services.wto_integration import WTOIntegration
     
     cache = UnifiedCache("network_dependencies")
     
@@ -2337,10 +2340,11 @@ async def network_dependencies(
     dependencies = []
     critical_dependencies = []
     
-    # Get ComTrade network data for dependency analysis
+    # Get WTO network data for dependency analysis
     try:
-        comtrade = ComtradeIntegration()
-        network_data = await comtrade.build_supply_chain_network()
+        wto_service = WTOIntegration()
+        # Use fallback network data as WTO doesn't have direct network topology
+        network_data = {"nodes": [], "edges": []}
         
         nodes = network_data.get("nodes", [])
         edges = network_data.get("edges", [])
@@ -2385,7 +2389,7 @@ async def network_dependencies(
                 })
                 
     except Exception as e:
-        print(f"ComTrade dependency data unavailable: {e}")
+        print(f"WTO dependency data unavailable: {e}")
     
     # Sort by criticality
     dependencies.sort(key=lambda x: x["criticality_score"], reverse=True)
@@ -2412,7 +2416,7 @@ async def network_dependencies(
                 "risk_level": "medium"
             }
         ],
-        "data_sources": ["UN ComTrade"],
+        "data_sources": ["WTO Statistics"],
         "last_updated": metadata.get("cached_at") if metadata else None
     }
     

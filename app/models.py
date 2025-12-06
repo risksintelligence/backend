@@ -625,7 +625,7 @@ class RealTimeDataFeed(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     feed_name = Column(String(200), nullable=False, unique=True, index=True)
     feed_type = Column(String(100), nullable=False, index=True)  # api, websocket, file_upload
-    data_source = Column(String(200), nullable=False, index=True)  # free_geopolitical_intelligence, comtrade, sp_global, etc.
+    data_source = Column(String(200), nullable=False, index=True)  # free_geopolitical_intelligence, wto_statistics, etc.
     
     # Configuration
     endpoint_url = Column(String(1000))
@@ -752,42 +752,6 @@ class GeopoliticalEvent(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True, index=True)
 
-
-class ComtradeTradeFlow(Base):
-    """UN Comtrade international trade flow data"""
-    __tablename__ = "comtrade_trade_flows"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    trade_flow_id = Column(String, unique=True, nullable=False, index=True)
-    
-    # Trade relationship
-    reporter_country = Column(String(100), nullable=False, index=True)
-    partner_country = Column(String(100), nullable=False, index=True)
-    trade_flow_direction = Column(String(50), nullable=False, index=True)  # import, export
-    
-    # Product classification
-    commodity_code = Column(String(50), nullable=False, index=True)
-    commodity_description = Column(String(1000))
-    
-    # Trade values
-    trade_value_usd = Column(Float, nullable=False)
-    quantity = Column(Float)
-    quantity_unit = Column(String(50))
-    
-    # Temporal data
-    reference_year = Column(Integer, nullable=False, index=True)
-    reference_month = Column(Integer, index=True)
-    reference_period = Column(String(50))
-    
-    # Supply chain context
-    supply_chain_criticality = Column(String(50))  # low, medium, high, critical
-    sector_relevance = Column(JSON)  # Industries dependent on this trade flow
-    
-    # Data provenance
-    data_source = Column(String(100), default="UN_Comtrade")
-    data_quality_flag = Column(String(50))
-    last_updated = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class WTOTradeStatistic(Base):
