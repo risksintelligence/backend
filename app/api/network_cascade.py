@@ -474,33 +474,46 @@ async def get_cascade_impacts(
         
         logger.info(f"Calculated impacts from {len(disruptions)} geopolitical + {len(maritime_disruptions)} maritime disruptions: ${total_economic_impact:,.0f} total impact")
         
-        return {
-            "financial": {
-                "commodities": financial_commodities,
-                "credit_spreads": {
-                    "em": {"bp": min(50, int(policy_risk_score * 40))}, 
-                    "high_yield": {"bp": min(30, int(policy_risk_score * 25))}
-                },
-                "total_disruption_impact_usd": total_economic_impact,
-                "active_disruptions": len(disruptions),
-                "port_congestion_impact_usd": port_congestion_impact,
-                "affected_ports": port_impacts
+        # Cache successful data
+        from app.core.unified_cache import UnifiedCache
+        cache = UnifiedCache("network_cascade")
+        
+        # Return new consistent structure that matches frontend expectations
+        result = {
+            "as_of": _now_iso(),
+            "total_economic_impact": total_economic_impact,
+            "commodity_impacts": commodity_impacts,
+            "financial_commodities": financial_commodities,
+            "port_impacts": port_impacts,
+            "summary": {
+                "total_disruptions": len(disruptions) + len(maritime_disruptions),
+                "critical_disruptions": len([d for d in disruptions if getattr(d, 'severity', 'medium') in ['critical', 'high']]),
+                "affected_trade_routes": len(route_risks),
+                "avg_severity": "medium" if len(disruptions) > 0 else "low"
             },
-            "policy": {
+            "policy_analysis": {
                 "trade_routes": route_risks,
                 "overall_policy_risk": round(policy_risk_score, 3),
-                "policy_events": len(policy_events),
-                "note": f"Analysis based on {len(disruptions)} recent geopolitical events"
+                "policy_events": len(policy_events)
             },
-            "industry": {
+            "industry_analysis": {
                 "lead_time_days": {k: round(v["lead_time_days"], 1) for k, v in industry_impacts.items()},
-                "capacity": {
-                    "global_supply_chain": max(0.5, 1.0 - (len(disruptions) * 0.05)),  # Reduced capacity with more disruptions
-                    "logistics": max(0.6, 1.0 - (policy_risk_score * 0.3))
-                },
+                "capacity_utilization": max(0.5, 1.0 - (len(disruptions) * 0.05)),
                 "disruption_summary": {k: v["disruptions"] for k, v in industry_impacts.items()}
             },
+            "metadata": {
+                "data_sources": ["geopolitical_intelligence", "maritime_intelligence"],
+                "coverage": "global",
+                "analysis_type": "real_time"
+            },
+            "last_updated": _now_iso()
         }
+        
+        # Cache the result for future fallback
+        cache.set("cascade_impacts", result, "geopolitical_maritime_intelligence", 
+                 derivation_flag="analyzed", soft_ttl=1800, hard_ttl=7200)
+        
+        return result
         
     except Exception as e:
         logger.error(f"Failed to get real impact data from geopolitical sources: {e}")
@@ -522,14 +535,14 @@ async def get_cascade_impacts(
                 "as_of": _now_iso(),
                 "total_economic_impact": 2_500_000_000,  # $2.5B fallback
                 "commodity_impacts": {
-                    "crude_oil": {"delta_pct": 1.2, "disruption_count": 3, "total_impact_usd": 800_000_000},
-                    "wheat": {"delta_pct": 0.8, "disruption_count": 2, "total_impact_usd": 300_000_000},
-                    "semiconductors": {"delta_pct": 2.1, "disruption_count": 1, "total_impact_usd": 1_200_000_000}
+                    "crude_oil": {"delta_pct": 1.2, "disruption_count": 3, "total_impact_usd": 800_000_000, "severity_score": 8},
+                    "wheat": {"delta_pct": 0.8, "disruption_count": 2, "total_impact_usd": 300_000_000, "severity_score": 4},
+                    "semiconductors": {"delta_pct": 2.1, "disruption_count": 1, "total_impact_usd": 1_200_000_000, "severity_score": 4}
                 },
                 "financial_commodities": {
-                    "WTI_crude": {"price_usd": 78.50, "delta_pct": 1.2},
-                    "wheat_futures": {"price_usd": 6.80, "delta_pct": 0.8},
-                    "copper": {"price_usd": 8750.0, "delta_pct": 0.5}
+                    "WTI_crude": {"price_usd": 78.50, "delta_pct": 1.2, "disruption_count": 3, "impact_usd": 800_000_000},
+                    "wheat_futures": {"price_usd": 6.80, "delta_pct": 0.8, "disruption_count": 2, "impact_usd": 300_000_000},
+                    "copper": {"price_usd": 8750.0, "delta_pct": 0.5, "disruption_count": 1, "impact_usd": 200_000_000}
                 },
                 "port_impacts": {
                     "USLAX": {
@@ -538,6 +551,13 @@ async def get_cascade_impacts(
                         "wait_time_hours": 24,
                         "vessels_affected": 85,
                         "daily_impact_usd": 15_000_000
+                    },
+                    "USNYC": {
+                        "congestion_level": "high", 
+                        "congestion_score": 0.8,
+                        "wait_time_hours": 36,
+                        "vessels_affected": 120,
+                        "daily_impact_usd": 25_000_000
                     }
                 },
                 "summary": {
@@ -546,11 +566,37 @@ async def get_cascade_impacts(
                     "affected_trade_routes": 12,
                     "avg_severity": "medium"
                 },
+                "policy_analysis": {
+                    "trade_routes": {
+                        "asia_pacific_us": {"risk_score": 0.6, "disruption_count": 2},
+                        "europe_asia": {"risk_score": 0.4, "disruption_count": 1},
+                        "middle_east_global": {"risk_score": 0.8, "disruption_count": 3}
+                    },
+                    "overall_policy_risk": 0.65,
+                    "policy_events": 3
+                },
+                "industry_analysis": {
+                    "lead_time_days": {
+                        "tech": 45.5,
+                        "autos": 62.3, 
+                        "energy": 38.7,
+                        "retail": 28.9
+                    },
+                    "capacity_utilization": 0.75,
+                    "disruption_summary": {
+                        "tech": 2,
+                        "autos": 1,
+                        "energy": 2,
+                        "retail": 1
+                    }
+                },
                 "metadata": {
                     "data_sources": ["fallback_synthetic"],
                     "coverage": "global",
-                    "fallback_reason": "Service and cache unavailable"
+                    "fallback_reason": "Service and cache unavailable",
+                    "analysis_type": "synthetic"
                 },
+                "last_updated": _now_iso(),
                 "fallback_data": True
             }
 
